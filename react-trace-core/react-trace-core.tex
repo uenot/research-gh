@@ -434,11 +434,14 @@ Event loop semantics: $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}'}{m
 }
 \and
 \inferrule*[right=Loop-Event] {
-  e \in \mf{handler}(m, id, \cdots)
+  \exists\; id
   \and
-  m \semi e\ v \mapsto^* \eret{()} \semi m'
+  m \vdash \mf{handlers}(t, id) = \num{v_i}
+  \\
+  (0 \leq i < n)\
+  m_i \semi v_i\ () \mapsto^* \eret{()} \semi m_{i+1}
 } {
-  \four{\mc{D}}{m}{t}{\mf{idle}} \hookrightarrow \four{\mc{D}}{m}{t}{\mf{rerender}(m')}
+  \four{\mc{D}}{m_0}{t}{\mf{idle}} \hookrightarrow \four{\mc{D}}{m}{t}{\mf{rerender}(m_n)}
 }
 \and
 \inferrule*[right=Loop-Rerender] {
@@ -447,6 +450,35 @@ Event loop semantics: $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}'}{m
   \four{\mc{D}}{m_\mf{old}}{t}{\mf{rerender}(m_\mf{new})}
   \hookrightarrow
   \four{\mc{D}}{m}{t}{\mf{idle}}
+}
+\end{mathpar}
+
+Handler search: $m \vdash \mf{handlers}(t, id) = \num{v}$
+
+\begin{mathpar}
+\inferrule*[right=Handlers-Lit] { } {
+  m \vdash \mf{handlers}(\mf{lit}\ v, id) = \{\}
+}
+\and
+\inferrule*[right=Handlers-Comp] {
+  m \vdash \mf{handlers}(m[p].\mf{child}, id) = \num{v}
+} {
+  m \vdash \mf{handlers}(p, id) = \num{v}
+}
+\and
+\inferrule*[right=Handlers-Tgt] { } {
+  m \vdash \mf{handlers}(\mf{node}(id, v, \arr{v_i}, \arr{v_j}), id)
+  = \{v_h \mid \mf{onClick}\ v_h \in \arr{v_i}\}
+}
+\and
+\inferrule*[right=Handlers-Node] {
+  id \neq id'
+  \and
+  (\forall j)\ 
+  m \vdash \mf{handlers}(v_j, id) = h_j
+} {
+  m \vdash \mf{handlers}(\mf{node}(id', v, \arr{v_i}, \arr{v_j}), id)
+  = \bigcup_{\forall j} h_j
 }
 \end{mathpar}
 
