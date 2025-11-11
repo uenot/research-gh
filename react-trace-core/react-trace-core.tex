@@ -1,0 +1,453 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+
+\usepackage{mathpartir}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{stmaryrd}
+
+\newcommand{\num}[1]{\overline{#1}}
+\newcommand{\mf}[1]{\mathsf{#1}}
+\newcommand{\mc}[1]{\mathcal{#1}}
+\newcommand{\mb}[1]{\mathbf{#1}}
+\newcommand{\tf}[1]{\textsf{#1}}
+\newcommand{\ts}[1]{\textsc{#1}}
+\newcommand{\pp}{+\!\!\!+\: }
+\newcommand{\semi}{\,;\,}
+
+\newcommand{\pair}[2]{\langle #1, #2 \rangle}
+\newcommand{\four}[4]{\langle #1, #2, #3, #4 \rangle}
+\newcommand{\arr}[1]{[\num{#1}]}
+\newcommand{\map}[2]{[\num{#1 \mapsto #2}]}
+\newcommand{\smallstep}[2]{\mapsto^{#1}_{#2}}
+\newcommand{\vdashd}{\vdash_\Delta}
+\newcommand{\Vdashd}{\Vdash_\Delta}
+\newcommand{\prog}{\mf{Prog}}
+
+\newcommand{\one}{\mb{1}}
+\newcommand{\elet}[3]{\mf{let}\ #1 = #2\ \mf{in}\ #3}
+\newcommand{\erun}[1]{\mf{run}\ #1}
+\newcommand{\eif}[3]{\mf{if}\ #1\ \mf{then}\ #2\ \mf{else}\ #3}
+\newcommand{\eret}[1]{\mf{return}\ #1}
+\newcommand{\estate}[4]{\mf{let}\ (#1, #1_{\mf{set}}) = \mf{useState}^{#2}(#3)\ \mf{in}\ #4}
+\newcommand{\vset}[2]{\mf{set}@^{#1}_{#2}}
+
+
+\title{React-tRace Core}
+\author{Toby Ueno}
+
+\begin{document}
+
+\maketitle
+
+Syntax:
+\begin{align*}
+v &::= x \mid \mf{true} \mid \mf{false} \mid n \mid s \mid \lambda x: \tau.e \mid \mc{C}
+\mid \mf{text}\ v \mid \mf{tag}(v, \arr{v}, \arr{v})\\
+&\mid \mf{attr}(v, v) \mid \mf{onClick}\ v\\
+e &::= \eret{v} \mid \elet{x}{e}{e} \mid v\ v \mid v \oplus v \mid \eif{v}{e}{e}\\
+\hat{e} &::= e \mid \estate{x}{\ell}{v}{\hat{e}} \mid \elet{x}{e}{\hat{e}}\\
+P &::= e \mid \elet{x}{e}{P} \mid \elet{\mc{C}(x : \tau)}{\hat{e}}{P}\\
+\tau &::= \one \mid \mf{bool} \mid \mf{int} \mid \tau \xrightarrow{\epsilon} \tau
+\mid \mf{view} \mid \mf{component}\ \tau \mid \mf{setter}\ \tau \mid \mf{attr}\\
+\epsilon &::= \cdot \mid \mf{Set}
+\end{align*}
+
+Internal representations:
+\begin{align*}
+t &::= \mf{lit}\ v \mid \mf{node}(id, v, \arr{v}, \arr{t}) \mid p\\
+\pi &::= \{\mf{spec}: \pair{\mc{C}}{v}, \mf{st}: \map{\ell}{v}, \mf{child}: t\}\\
+m &::= \map{p}{\pi}\\
+\mc{D} &::= \map{\mc{C}}{x.\hat{e}}\\
+\mu &::= \mf{start}(P) \mid \mf{idle} \mid \mf{rerender}(m)
+\end{align*}
+
+\pagebreak
+
+Value typing: $\Gamma \vdashd v: \tau$
+
+\begin{mathpar}
+\inferrule*[right=TVal-Var] {
+  x : \tau \in \Gamma
+} {
+  \Gamma \vdashd x: \tau
+}
+\and
+\inferrule*[right=TVal-Unit] { } {
+  \Gamma \vdashd () : \one
+}
+\and
+\inferrule*[right=TVal-True] { } {
+  \Gamma \vdashd \mf{true} : \mf{bool}
+}
+\and
+\inferrule*[right=TVal-False] { } {
+  \Gamma \vdashd \mf{false} : \mf{bool}
+}
+\and
+\inferrule*[right=TVal-Int] { } {
+  \Gamma \vdashd n : \mf{int}
+}
+\and
+\inferrule*[right=TVal-Str] { } {
+  \Gamma \vdashd s : \mf{string}
+}
+\and
+\inferrule*[right=TVal-Lam] {
+  \Gamma, x: \tau_1 \vdashd e : \tau_2 \mid \epsilon
+} {
+  \Gamma \vdashd \lambda x: \tau_1.e: \tau_2
+}
+\and
+\inferrule*[right=TVal-Comp] {
+  \mc{C}: \mf{component}\ \tau \in \Delta
+} {
+  \Gamma \vdashd \mc{C} : \mf{component}\ \tau
+}
+\and
+\inferrule*[right=TVal-Text] {
+  \Gamma \vdashd v: \tau
+  \and
+  \tau \in \{\mf{bool}, \mf{int}, \mf{string}\}
+} {
+  \Gamma \vdashd \mf{text}\ v: \mf{view}
+}
+\and
+\inferrule*[right=TVal-Tag] {
+  \Gamma \vdashd v: \mf{string}
+  \and
+  (\forall v_a)\ \Gamma \vdashd v_a: \mf{attr}
+  \and
+  (\forall v_c)\ \Gamma \vdashd v_c: \mf{view}
+} {
+  \Gamma \vdashd \mf{tag}(v, \arr{v_a}, \arr{v_c}): \mf{view}
+}
+\and
+\inferrule*[right=TVal-Attr] {
+  \Gamma \vdashd v_k: \mf{string}
+  \and
+  \Gamma \vdashd v_v: \mf{string}
+} {
+  \Gamma \vdashd \mf{attr}(v_k, v_v): \mf{attr}
+}
+\and
+\inferrule*[right=TVal-OnClick] {
+  \Gamma \vdashd v: \one \rightarrow^\epsilon \one
+} {
+  \Gamma \vdashd \mf{onClick}\ v: \mf{attr}
+}
+\end{mathpar}
+
+\pagebreak
+
+Base expression typing: $\Gamma \vdashd e : x \mid \epsilon$
+
+\begin{mathpar}
+\inferrule*[right=TExp-Ret] {
+  \Gamma \vdashd v: \tau
+} {
+  \Gamma \vdashd \eret{v}: \tau \mid \cdot
+}
+\and
+\inferrule*[right=TExp-Let] {
+  \Gamma \vdashd e_1 : \tau_1 \mid \epsilon_1
+  \and
+  \Gamma, x: \tau_1 \vdashd e_2 : \tau_2 \mid \epsilon_2
+} {
+  \Gamma \vdashd \elet{x}{e_1}{e_2}: \tau_2 \mid \epsilon_1 \circ \epsilon_2
+}
+\and
+\inferrule*[right=TExp-AppFun] {
+  \Gamma \vdashd v_1 : \tau_1 \xrightarrow{\epsilon} \tau_2
+  \and
+  \Gamma \vdashd v_2 : \tau_1
+} {
+  \Gamma \vdashd v_1\ v_2: \tau_2 \mid \epsilon
+}
+\and
+\inferrule*[right=TExp-AppComp] {
+  \Gamma \vdashd v_1 : \mf{component}\ \tau
+  \and
+  \Gamma \vdashd v_2 : \tau
+} {
+  \Gamma \vdashd v_1\ v_2: \mf{view} \mid \cdot
+}
+\and
+\inferrule*[right=TExp-AppSet] {
+  \Gamma \vdashd v_1 : \mf{setter}\ \tau
+  \and
+  \Gamma \vdashd v_2 : \tau
+} {
+  \Gamma \vdashd v_1\ v_2: \one \mid \mf{Set}
+}
+\and
+\inferrule*[right=TExp-Bop] {
+  \Gamma \vdashd v_1 : \mf{int}
+  \and
+  \Gamma \vdashd v_2 : \mf{int}
+  \and
+  \oplus : \mathbb{Z} \times \mathbb{Z} \rightarrow \mathbb{Z}
+} {
+  \Gamma \vdashd v_1 \oplus v_2 : \mf{int}
+}
+\and
+\inferrule*[right=TExp-If] {
+  \Gamma \vdashd v : \mf{bool}
+  \and
+  \Gamma \vdashd e_1 : \tau \mid \epsilon_1
+  \and
+  \Gamma \vdashd e_2 : \tau \mid \epsilon_2
+} {
+  \Gamma \vdashd \eif{v}{e_1}{e_2} : \tau \mid \epsilon_1 \circ \epsilon_2
+}
+\end{mathpar}
+
+\pagebreak
+
+Top-level expression typing: $\Gamma \Vdashd \hat{e}: \tau$
+
+\begin{mathpar}
+\inferrule*[right=THat-Lift] {
+  \Gamma \vdashd e: \tau \mid \cdot
+} {
+  \Gamma \Vdashd \hat{e} : \tau
+}
+\and
+\inferrule*[right=THat-Let] {
+  \Gamma \vdashd e: \tau_1 \mid \cdot
+  \and
+  \Gamma, x: \tau_1 \Vdashd \hat{e}: \tau_2
+} {
+  \Gamma \Vdashd \elet{x}{e}{\hat{e}}: \tau_2
+}
+\and
+\inferrule*[right=THat-State] {
+  \Gamma \vdashd v: \tau_1
+  \and
+  \Gamma, x: \tau_1, x_\mf{set}: \tau_1 \xrightarrow{\mf{Set}} \one \Vdashd \hat{e} : \tau_2
+} {
+  \Gamma \Vdashd \estate{x}{\ell}{v}{\hat{e}} : \tau_2
+}
+\end{mathpar}
+
+Program judgment: $\Gamma \vdashd P: \prog$
+
+\begin{mathpar}
+\inferrule*[right=TProg-Let] {
+  \Gamma \vdashd e: \tau \mid \cdot
+  \and 
+  \Gamma, x: \tau \vdash P : \prog
+} {
+  \Gamma \vdashd \elet{x}{e}{P} : \prog
+}
+\and
+\inferrule*[right=TProg-Comp] {
+  \Gamma, x: \tau \Vdashd \hat{e}: \mf{view} \mid \cdot
+  \and 
+  \Gamma \vdash P : \prog
+} {
+  \Gamma \vdashd \elet{\mc{C}(x: \tau)}{\hat{e}}{P}: \prog
+}
+\and
+\inferrule*[right=TProg-Run] {
+  \Gamma \vdashd {e}: \mf{view} \mid \cdot
+} {
+  \Gamma \vdashd \erun{e}: \prog
+}
+\end{mathpar}
+
+\pagebreak
+
+Pure expression semantics: $m \semi e \mapsto e' \semi m'$
+
+\begin{mathpar}
+\inferrule*[right=E-LetPure] {
+  m \semi e_1 \mapsto e_1' \semi m'
+} {
+  m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \elet{x}{\eret{v}}{e} &\mapsto e[v/x] \semi m
+&&\textsc{E-Ret}\\
+m \semi (\lambda x.e) v &\mapsto e[v/x] \semi m
+&&\textsc{E-AppFun}\\
+m \semi \mc{C}\ v &\mapsto e[v/x] \semi m
+&&\textsc{E-AppComp}\\
+m \semi \vset{\ell}{p}\ v &\mapsto () \semi m'
+&&\textsc{E-AppSet}\\
+(m' &= m \mid m[p].st[\ell] = v)\\
+m \semi \num{n_1} \oplus \num{n_2} &\mapsto \eret{\num{n_1 \oplus n_2}} \semi m
+&&\textsc{E-Bop}\\
+m \semi \eif{\mf{true}}{e_1}{e_2} &\mapsto e_1 \semi m
+&&\textsc{E-IfTrue}\\
+m \semi \eif{\mf{false}}{e_1}{e_2} &\mapsto e_2 \semi m
+&&\textsc{E-IfFalse}
+\end{align*}
+
+Top-level expression semantics: $m \semi \hat{e} \smallstep{\phi}{p} \hat{e}' \semi m'$
+
+\begin{mathpar}
+\inferrule*[right=E-Lift] {
+  m \semi e \mapsto e' \semi m'
+} {
+  m \semi e \smallstep{\phi}{p} e' \semi m'
+}
+\and
+\inferrule*[right=E-LetTop] {
+  m \semi e \mapsto e' \semi m'
+} {
+  m \semi \elet{x}{e}{\hat{e}} \smallstep{\phi}{p} \elet{x}{e'}{\hat{e}} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \elet{x}{\eret{v}}{\hat{e}} &\smallstep{\phi}{p} \hat{e}[v/x] \semi m
+&&\textsc{E-RetTop}\\
+m \semi \estate{x}{\ell}{v}{\hat{e}}
+&\smallstep{\mf{Init}}{p}
+\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}] \semi m'
+&&\textsc{E-StateInit}\\
+(m' &= m \mid m[p].\mf{st}[\ell] = v)\\
+m \semi \estate{x}{\ell}{v}{\hat{e}}
+&\smallstep{\mf{Succ}}{p}
+\hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}] \semi m
+&&\textsc{E-StateSucc}\\
+(v' &= m[p].\mf{st}[\ell])
+\end{align*}
+
+\pagebreak
+
+Program expression semantics: $m \semi \mc{D} \semi P \Mapsto P' \semi \mc{D}' \semi m'$
+
+\begin{mathpar}
+\inferrule*[right=E-Run] {
+  m \semi e \mapsto e' \semi m'
+} {
+  m \semi \mc{D} \semi \erun{e} \mapsto \erun{e'} \semi \mc{D} \semi m
+}
+\and
+\inferrule*[right=E-LetProg] {
+  m \semi e \mapsto e' \semi m'
+} {
+  m \semi \mc{D} \semi \elet{x}{e}{P} 
+  \mapsto
+  \elet{x}{e'}{P} \semi \mc{D} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \mc{D} \semi \elet{x}{\eret{v}}{P}
+&\mapsto
+P[v/x] \semi \mc{D} \semi m
+&&\textsc{E-RetProg}\\
+m \semi \mc{D} \semi \elet{\mc{C}(x)}{\hat{e}}{P}
+&\mapsto
+P \semi \mc{D}[\mc{C} \mapsto x.\hat{e}] \semi m
+&&\textsc{E-CompDef}
+\end{align*}
+
+Node initialization: $\mc{D} \semi m \vdash \mf{init}(v) = \pair{t}{m'}$
+
+\begin{mathpar}
+\inferrule*[right=Init-Lit] { } {
+  \mc{D} \semi m \vdash \mf{init}(\mf{text}\ v) = \pair{\mf{lit}\ v}{m}
+}
+\and
+\inferrule*[right=Init-Node] {
+  m \vdash id\ \mf{fresh}
+  \and
+  (\forall j)\ \mc{D} \semi m_j \vdash \mf{init}(v_j) = \pair{t_j}{m_{j+1}}
+} {
+  \mc{D} \semi m_0 \vdash \mf{init}(\mf{tag}(v, \arr{v_i}, \arr{v_j}_{j=0}^{n-1})) 
+  = \pair{\mf{node}(id, v, \arr{v_i}, \arr{t_j})}{m_n}
+}
+\and
+\inferrule*[right=Init-Comp] {
+  m_0 \vdash p\ \mf{fresh}
+  \and
+  \mc{D}[\mc{C}] = x.\hat{e}\\
+  m_0[p \mapsto \{\mf{spec}: \pair{\mc{C}}{v}, \mf{st}: \emptyset, \mf{child}: \emptyset\}]
+  \semi \hat{e}[v/x] \smallstep{\mf{Init}*}{p} \eret{v'} \semi m_1\\
+  \mc{D} \semi m_1 \vdash \mf{init}(v') = \pair{t}{m_2}
+} {
+  \mc{D} \semi m_0 \vdash \mf{init}(\pair{\mc{C}}{v}) 
+  = \pair{p}{m_2 \mid m_2[p].\mf{child} = t}
+}
+\end{mathpar}
+
+(Naïve) re-render: $\mc{D} \semi m_\mf{old} \vdash \mf{check}(m_\mf{new}, t) = m$
+
+\begin{mathpar}
+\inferrule*[right=Check-Lit] { } {
+  \mc{D} \semi m_\mf{old} \vdash \mf{check}(m_\mf{new}, \mf{lit}\ v) 
+  = m_\mf{new}
+}
+\and
+\inferrule*[right=Check-Node] {
+  (0 \leq j < n) \quad
+  \mc{D} \semi m_\mf{old} \vdash \mf{check}(m_j, t_j) = \pair{t_j'}{m_{j+1}}
+} {
+  \mc{D} \semi m_\mf{old} \vdash \mf{check}(m_0, \mf{node}(id, v, \arr{v_i}, \arr{t_j})) = m_n
+}
+\and
+\inferrule*[right=Check-PathConst] {
+  m_\mf{old}[p].\mf{st} = m_\mf{new}[p].\mf{st}\\
+  \mc{D} \semi m_\mf{old} \vdash \mf{check}(m_\mf{new}, m_\mf{old}[p].child) 
+  = m
+} {
+  \mc{D} \semi m_\mf{old} \vdash \mf{check}(m_\mf{new}, p) 
+  = m
+}
+\and
+\inferrule*[right=Check-PathChange] { 
+  m_\mf{old}[p].\mf{st} = m_\mf{new}[p].\mf{st}
+  \\
+  m'[p].\mf{spec} = \pair{\mc{C}}{v}
+  \and
+  \mc{D}[\mc{C}] = x.\hat{e}
+  \\
+  m_\mf{new} \semi \hat{e}[v/x] \smallstep{\mf{Succ}*}{p} \eret{v'} \semi m
+  \\
+  \mc{D} \semi m \vdash \mf{init}(v') = \pair{t}{m'}
+} {
+  \mc{D} \semi m_\mf{old} \vdash \mf{check}(m_\mf{new}, p)
+   = \pair{p}{m' \mid m[p].\mf{child}=t}
+}
+\end{mathpar}
+
+\pagebreak
+
+Event loop semantics: $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}'}{m'}{t}{\mu'}$
+
+\begin{mathpar}
+\inferrule*[right=Loop-Start] {
+  \cdot \semi \cdot \semi P \Mapsto^* \mf{run}\ e' \semi \mc{D} \semi m_0
+  \and
+  m_0 \semi e \mapsto^* \eret{v} \semi m_1
+  \\
+  \mc{D} \semi m_1 \vdash \mf{init}(v) = \pair{t}{m_2}
+} {
+  \four{\cdot}{\cdot}{\cdot}{\mf{start}(P)} 
+  \hookrightarrow
+  \four{\mc{D}}{m_2}{t}{\mf{idle}}
+}
+\and
+\inferrule*[right=Loop-Event] {
+  e \in \mf{handler}(m, id, \cdots)
+  \and
+  m \semi e\ v \mapsto^* \eret{()} \semi m'
+} {
+  \four{\mc{D}}{m}{t}{\mf{idle}} \hookrightarrow \four{\mc{D}}{m}{t}{\mf{rerender}(m')}
+}
+\and
+\inferrule*[right=Loop-Rerender] {
+  D \semi m_\mf{old} \vdash \mf{check}(m_\mf{new}, t) = m
+} {
+  \four{\mc{D}}{m_\mf{old}}{t}{\mf{rerender}(m_\mf{new})}
+  \hookrightarrow
+  \four{\mc{D}}{m}{t}{\mf{idle}}
+}
+\end{mathpar}
+
+\end{document}
