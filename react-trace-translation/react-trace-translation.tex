@@ -54,6 +54,7 @@
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
 
 \title{React-tRanslation}
 \author{Toby Ueno}
@@ -78,7 +79,7 @@ Other non-standard constructs are \hl{highlighted}.
 \text{Expression } e &::= \eret{v} \mid \elet{x}{e}{e} \mid v\ v \mid \eif{v}{e}{e}\\
 \text{Top-level expr }\hat{e} &::= e \mid \mathhl{\estate{x}{\ell}{v}{\hat{e}}} \mid \elet{x}{e}{\hat{e}}\\
 \text{Program } P &::= e \mid \elet{x}{e}{P} \mid \mathhl{\elet{\mc{C}(x : \tau)}{\hat{e}}{P}}\\
-\text{Type } \tau &::= \one \mid \mf{Bool} \mid \tau \xrightarrow{E} \tau
+\text{Type } \tau &::= \one \mid \mf{Bool} \mid \mf{String} \mid \tau \xrightarrow{E} \tau
 \mid \mathhl{\mf{View}} \mid \mathhl{\mf{Attr}}\\
 &\mid \mathhl{\mf{Component}\ \tau} \mid \mathhl{\mf{Setter}\ \tau}\\
 \text{Effect } E &::= \epsilon \mid \mathhl{\mf{Mut}}
@@ -547,6 +548,460 @@ Judgment: $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}'}{m'}{t}{\mu'}$
 \end{mathpar}
 
 \subsection{Type Soundness}
+
+\subsubsection{Memory Context}
+
+We introduce the additional context $M=\map{(p, \ell)}{\tau}$
+to type the tree memory.
+
+Define $\Gamma \semi M \vDash m$ to say that 
+$(p, \ell) \in M \Leftrightarrow m[p].\mf{st}(\ell)$ is defined
+and $\Gamma \semi M \vdashv m[p].\mf{st}(\ell): M[(p, \ell)]$.
+
+Further define $M \sqsubseteq M'$ to hold when,
+for all $(p, \ell) \in M$, both $\ell \in M'$ and $M(\ell) = M'(\ell)$.
+Overload $\sqsubseteq$ analogously for type contexts $\Gamma$.
+
+\subsubsection{Typing Rules}
+
+We extend all typing rules with $M$, and introduce
+two new rules, \textsc{TVal-Spec} and \textsc{TVal-Loc},
+to type values which only arise during evaluation.
+\textsc{TVal-Loc} makes use of $M$.
+
+Augmented value judgment: $\Gamma \semi M \vdashv v: \tau$
+
+\begin{mathpar}
+\inferrule*[right=TVal-Var] {
+  x : \tau \in \Gamma
+} {
+  \Gamma \semi M \vdashd x: \tau
+}
+\and
+\inferrule*[right=TVal-Unit] { } {
+  \Gamma \semi M \vdashd () : \one
+}
+\and
+\inferrule*[right=TVal-True] { } {
+  \Gamma \semi M \vdashd \mf{true} : \mf{Bool}
+}
+\and
+\inferrule*[right=TVal-False] { } {
+  \Gamma \semi M \vdashd \mf{false} : \mf{Bool}
+}
+\and
+\inferrule*[right=TVal-Str] { } {
+  \Gamma \semi M \vdashd s : \mf{String}
+}
+\and
+\inferrule*[right=TVal-Lam] {
+  \Gamma, x: \tau_1 \semi M \vdashd e : \tau_2 \mid E
+} {
+  \Gamma \semi M \vdashd \lambda x: \tau_1.e: \tau_1 \xrightarrow{E} \tau_2
+}
+\and
+\inferrule*[right=TVal-Comp] {
+  \mc{C}: \mf{Component}\ \tau \in \Delta
+} {
+  \Gamma \semi M \vdashd \mc{C} : \mf{Component}\ \tau
+}
+\and
+\inferrule*[right=TVal-Text] {
+  \Gamma \semi M \vdashd v: \tau
+  \and
+  \tau \in \{\mf{Bool}, \mf{String}\}
+} {
+  \Gamma \semi M \vdashd \mf{text}\ v: \mf{View}
+}
+\and
+\inferrule*[right=TVal-Tag] {
+  \Gamma \semi M \vdashd v: \mf{String}
+  \and
+  (\forall i)\ \Gamma \semi M \vdashd v_i: \mf{Attr}
+  \\
+  (\forall j)\ \Gamma \semi M \vdashd v_j: \mf{View}
+} {
+  \Gamma \semi M \vdashd \mf{tag}(v, \num{v_i}, \num{v_j}): \mf{View}
+}
+\and
+\inferrule*[right=TVal-Attr] {
+  \Gamma \semi M \vdashd v_k: \mf{String}
+  \and
+  \Gamma \semi M \vdashd v_v: \mf{String}
+} {
+  \Gamma \semi M \vdashd \mf{attr}(v_k, v_v): \mf{Attr}
+}
+\and
+\inferrule*[right=TVal-OnClick] {
+  \Gamma \semi M \vdashd v: \one \xrightarrow{E} \one
+} {
+  \Gamma \semi M \vdashd \mf{onClick}\ v: \mf{Attr}
+}
+\and
+\inferrule*[right=\hl{TVal-Spec}] {
+  \Gamma \semi M \vdashd \mc{C}: \mf{Component}\ \tau
+  \and
+  \Gamma \semi M \vdashd v: \tau
+} {
+  \Gamma \semi M \vdashd \pair{\mc{C}}{v}: View
+}
+\and
+\inferrule*[right=\hl{TVal-Setter}] {
+  (p, \ell): \tau \in M 
+} {
+  \Gamma \semi M \vdash \vset{\ell}{p} : \mf{Setter}\ \tau
+}
+\end{mathpar}
+
+We extend the judgments for expressions, top-level expressions,
+and programs with $M$ analogously; these extensions are straightforward
+and thus elided.
+
+\subsubsection{Unproved Lemmas}
+
+We assume that the typical structural rules for intuitionistic calculi,
+i.e. weakening, contraction, and exchange, hold on both $\Gamma$ and $M$.
+For example:
+
+\begin{lemma}[Weakening $\Gamma$ (Values)]
+If $\Gamma \semi M \vdashd v: \tau$
+then $\Gamma' \semi M \vdashd v: \tau$ 
+for any $\Gamma'$ such that $\Gamma \sqsubseteq \Gamma'$.
+\end{lemma}
+
+\begin{proof}
+By induction on the derivation of the typing judgment.
+\end{proof}
+
+We also assume the following canonical forms lemma on values:
+
+\begin{lemma}[Canonical Forms]
+If $\cdot \semi \Sigma \vdashv v: \tau$, then
+\begin{itemize}
+\item If $\tau=\mf{Bool}$, then $v=\mf{true}$ or $v=\mf{false}$.
+\item If $\tau=\one$, then $v=()$.
+\item If $\tau=\mf{String}$, then $v=s$ for some string $s$.
+\item If $\tau=\tau_1 \xrightarrow{E} \tau_2$, then $v=\lambda x: \tau_1.e$.
+\item If $\tau=\mf{Attr}$, then $v=\mf{attr}(v_1, v_2)$ or $v=\mf{onClick} v$.
+\item If $\tau=\mf{View}$, then $v=\mf{text}\ v$ or $v=\mf{tag}(v, \num{v_i}, \num{v_j})$
+or $v=\pair{\mc{C}}{v}$. 
+\item If $\tau=\mf{Component}\ \tau'$, then $v=\mc{C}$.
+\item If $\tau=\mf{Setter}\ \tau'$, then $v=\vset{\ell}{p}$.
+\end{itemize}
+\end{lemma}
+
+\subsubsection{Substitution}
+
+\begin{lemma}[Type preservation under substitution]
+If $\Gamma \semi M \vdashd v: \tau$, then the following two conditionals hold:
+\begin{enumerate}[(i)]
+\item If $\Gamma, x: \tau \semi M \vdashd v': \tau'$, 
+then $\Gamma \semi M \vdashd v'[v/x]: \tau'$.
+\item If $\Gamma, x: \tau \semi M \vdashd e: \tau' \mid E$, 
+then $\Gamma \semi M \vdashd e[v/x]: \tau' \mid E$.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+By mutual induction on \emph{(i)} and \emph{(ii)}. For each,
+we induct over the derivation of the respective typing judgment
+in the antecedent.
+
+\textbf{Case} \textsc{TVal-Var}:
+We have $\Gamma, x: \tau \semi M \vdashd x: \tau'$.
+Applying substitution, we want to show 
+$\Gamma \semi \Sigma \vdashd v: \tau'$, which is exactly our first premise
+(with $\tau'=\tau$).
+
+\textbf{Case} \textsc{TVal-Unit}:
+We have $\Gamma, x: \tau \semi M \vdashd (): \one$.
+Trivial, since $()[v/x]=()$ and $\Gamma \semi \Sigma \vdashd (): \one$ axiomatically.
+We elide analogous cases for boolean and string constants.
+
+\textbf{Case} \textsc{TVal-Comp}:
+We have $\Gamma, x: \tau \semi M \vdashd \mc{C}: \mf{Component}\ \tau$.
+By inversion, $\mc{C}: \mf{Component}\ \tau \in \Delta$,
+and by definition of substitution, $\mc{C}[v/x]=\mc{C}$.
+Reapplication of \textsc{TVal-Comp} gives
+$\Gamma \semi M \vdashd \mc{C}: \mf{Component}\ \tau$.
+
+\textbf{Case} \textsc{TVal-Lam}:
+We have $\Gamma, x: \tau \semi M \vdashd \lambda y.e : \tau_1 \xrightarrow{E} \tau_2$.
+First suppose $y=x$: by definition of substitution, $(\lambda x.e)[v/x] = \lambda x.e$,
+and the conclusion follows from inversion \& reapplication of \textsc{TVal-Lam},
+noting that $x: \tau$ is overridden by $x: \tau_1$ in the premise.
+
+If $y \neq x$, then $(\lambda y.e)[v/x] = \lambda y.(e[v/x])$,
+and inversion gives us $\Gamma, x: \tau, y: \tau_1 \semi M \vdashd e: \tau_2 \mid E$.
+Applying case \emph{(ii)} of the inductive hypothesis, alongside exchange,
+gives that $\Gamma, y: \tau_1 \semi M \vdashd e[v/x]: \tau_2$.
+We conclude $\Gamma \semi M \vdashd (\lambda y.e) [v/x]: \tau_1 \rightarrow \tau_2$
+by reapplication of \textsc{TVal-Lam}.
+
+\textbf{Case} \textsc{TVal-Tag}:
+We have  $\Gamma, x: \tau \semi M \vdashd
+\mf{tag}(v', \num{v_i}, \num{v_j}): \mf{View}$.
+By inversion, $\Gamma, x: \tau \semi M \vdashd v': \mf{String}$,
+$\Gamma, x: \tau \semi M \vdashd v_i: \mf{Attr}$,
+and $\Gamma, x: \tau \semi M \vdashd v_j: \mf{View}$
+for all $i, j$.
+We apply case \emph{(i)} of the inductive hypothesis to each, to obtain
+$\Gamma \semi M \vdashd v'[v/x]: \mf{String}$,
+$\Gamma \semi M \vdashd v_i[v/x]: \mf{Attr}$,
+and $\Gamma \semi M \vdashd v_j[v/x]: \mf{View}$, respectively. 
+By \textsc{TVal-Tag} and definition of substitution on $\mf{tag}$,
+we conclude $\Gamma \semi M \vdashd 
+\mf{tag}(v', \num{v_i}, \num{v_j})[v/x]: \mf{View}$.
+We elide the simpler but analogous cases for data constructors 
+\textsf{text}, \textsf{attr}, and \textsf{onClick}.
+
+\textbf{Case} \textsc{TVal-Spec}:
+We have $\Gamma, x: \tau \semi M \vdashd \pair{\mc{C}}{v'}: \mf{View}$.
+By inversion, $\Gamma, x: \tau \semi M \vdashd \mc{C}: \mf{Component}\ \tau'$
+and $\Gamma, x: \tau \semi M \vdashd v': \tau'$.
+By inductive hypothesis, $\Gamma \semi M \vdashd \mc{C}: \mf{Component}\ \tau$
+and $\Gamma \semi M \vdashd v'[v/x]: \tau'$.
+Reapplication of \textsc{TVal-Spec} gives $\Gamma \semi M \vdashd \pair{\mc{C}}{v'}[v/x]: \mf{View}$.
+
+\textbf{Case} \textsc{TVal-Setter}:
+We have $\Gamma, x: \tau \semi M \vdashd \vset{\ell}{p}: \mf{Setter}\ \tau'$.
+By inversion, $(p, \ell): \tau \in M$.
+Reapplication gives $\Gamma \semi M \vdashd \vset{\ell}{p}: \mf{Setter}\ \tau'$,
+and since $\vset{\ell}{p}[v/x] = \vset{\ell}{p}$, we are done.
+
+\textbf{Case} \textsc{TExp-Ret}:
+We have $\Gamma, x: \tau \semi M \vdashd \eret{v'}: \tau' \mid \epsilon$.
+By inversion, $\Gamma, x: \tau \semi M \vdashd v': \tau'$.
+Case \emph{(i)} of the inductive hypothesis gives $\Gamma \semi M \vdashv v'[v/x]: \tau'$,
+and reapplication \& definition of substitution let us conclude
+$\Gamma \semi M \vdashd (\eret{v'})[v/x]: \tau' \mid \epsilon$.
+
+\textbf{Case} \textsc{TVal-Let}:
+$\Gamma, x: \tau \semi M \vdashd
+\elet{y}{e_1}{e_2}: \tau_2 \mid E_1 \circ E_2$. Inversion gives 
+$\Gamma, x: \tau \semi M \vdashd e_1: \tau_1 \mid E_1$.
+We have two subcases, when $y=x$ and when not.
+In either case, $\Gamma \semi M \vdashd e_1[v/x] : \tau_1$
+by inductive hypothesis.
+
+If $y=x$, then $(\elet{y}{e_1}{e_2})[v/x]=\elet{y}{e_1[v/x]}{e_2}$.
+We reapply \textsc{TExp-Let} with the second premise obtained via inversion and
+we are done. (Like the $\lambda$ case, we note the overwriting of $x: \tau$ in
+the second premise.)
+
+If $y \neq x$, then we apply the inductive hypothesis to the second premise,
+giving $\Gamma, x: \tau, y: \tau_1 \semi M \vdashe e_2: \tau_2 \mid E_2$, and
+by inductive hypothesis and exchange, $\Gamma, y: \tau_1 \semi M \vdashd e_2[v/x]: \tau_2 \mid E_2$.
+Reapplication of \textsc{TExpr-Let} and definition of substitution give
+$\Gamma \semi M \vdashd (\elet{y}{e_1}{e_2})[v/x]: \tau_2$.
+
+We elide the remaining cases for expressions, which are analogous to the above.
+
+\end{proof}
+
+\subsubsection{Progress}
+
+\begin{theorem}[Progress of expressions]
+If $\cdot \semi M \vdashd e: \tau \mid E$, then either:
+\begin{enumerate}[(i)]
+\item $e = \eret{v}$, or
+\item for all $m$ such that $\cdot \semi M \vDash m$, 
+there exist some $e'$ and $m'$ such that 
+$m \semi e \mapsto e' \semi m'$.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+By induction on the derivation of the typing judgment.
+
+\textbf{Case} \textsc{TExp-Ret}: 
+We have $\cdot \semi M \vdashd \eret{v}: \tau \mid \epsilon$.
+The theorem holds trivially by case \emph{(i)}.
+
+\textbf{Case} \textsc{TExp-Let}:
+We have $\cdot \semi M \vdashd \elet{x}{e_1}{e_2}: \tau_2 \mid E_1 \circ E_2$.
+By inversion, $\cdot \semi M \vdashd e_1: \tau_1 \mid E_1$
+and $x: \tau_1 \semi M \vdashd e_2: \tau_2 \mid E_2$.
+By inductive hypothesis on the first premise,
+we have two subcases on $e_1$: either $e_1=\eret{v}$ 
+or $m \semi e_1 \mapsto e_1' \semi m$
+(for $\cdot \semi M \vDash m$).
+
+If $e_1=\eret{v}$, then by \textsc{E-Ret},
+we have $m, \elet{x}{\eret{v}}{e_2} \mapsto e_2[v/x] \semi m$
+for any $m$.
+
+If instead $m \semi e_1 \mapsto e_1' \semi m'$,
+by \textsc{E-Let}, we can conclude that 
+$m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi m'$.
+
+Thus, in either subcase, $\elet{x}{e_1}{e_2}$ steps given a proper $m$,
+so the case holds.
+
+\textbf{Case} \textsc{TExp-AppFun}:
+We have $\cdot \semi M \vdashd v_1\ v_2: \tau_2 \mid E$.
+By inversion, $\cdot \semi M \vdashd v_1: \tau_1 \xrightarrow{E} \tau_2$
+and $\cdot \semi M \vdashd v_2: \tau_1$.
+By the canonical forms lemma, $v_1=\lambda x.e$,
+and so we apply rule \textsc{E-AppFun}, i.e.
+$m \semi (\lambda x.e) v_2 \mapsto e[v_2/x] \semi m$ for
+any $m$ such that $\cdot \semi M \vDash m$.
+
+\textbf{Case} \textsc{TExp-AppComp}:
+We have $\cdot \semi M \vdashd v_1\ v_2: \mf{View} \mid \epsilon$.
+By inversion, $\cdot \semi M \vdashd v_1: \mf{Component}\ \tau$,
+and by canonical forms, $v_1=\mf{C}$.
+We apply \text{E-AppComp} to get 
+$m \semi \mc{C}\ v_2 \mapsto \eret{\pair{\mc{C}}{v_2}} \semi m$.
+
+\textbf{Case} \textsc{TExp-AppSet}:
+We have $\cdot semi M \vdashd v_1\ v_2: \one \mid \mf{Mut}$.
+By inversion, $\cdot \semi M \vdashd v_1: \mf{Setter}\ \tau$,
+and by canonical forms, $v_1=\vset{\ell}{p}$.
+We apply \text{E-AppSet} to get
+$m \semi \vset{\ell}{p}\ v_2 \mapsto \eret{()} \semi m \mid m[p].\mf{st}[\ell] = v_2$.
+
+\textbf{Case} \textsc{TExp-If}:
+We have $\cdot \semi M \vdashd \eif{v}{e_1}{e_2} : \tau$.
+By inversion, $\cdot \semi M \vdashd v: \mf{Bool}$,
+and by canonical forms, either $v=\mf{true}$ or $v=\mf{false}$.
+If $v=true$, then \textsc{E-IfTrue} says 
+$m \semi \eif{v}{e_1}{e_2} \mapsto e_1 \semi m$,
+and if $v=false$, then $m \semi \eif{v}{e_1}{e_2} \mapsto e_2 \semi m$
+by \textsc{E-IfFalse}. In either case, we satisfy \emph{(ii)}.
+
+\end{proof}
+
+\begin{theorem}[Progress of top-level expressions]
+If $\cdot \semi M \Vdashd \hat{e}: \tau$, then either:
+\begin{enumerate}[(i)]
+\item $\hat{e} = \eret{v}$, or
+\item for all $m$ such that $\cdot \semi M \vDash m$, 
+there exist some $\hat{e}'$ and $m'$ such that 
+$m \semi \hat{e} \mapsto^\phi_p \hat{e}' \semi m'$
+(for any $\phi, p$).
+\end{enumerate}
+\end{theorem}
+
+\subsubsection{Preservation}
+
+\begin{theorem}[Preservation of expressions]
+If
+\begin{enumerate}[(i)]
+\item $\Gamma \semi \Sigma \vdashe e: \tau$,
+\item $\Gamma \semi \Sigma \vDash \sigma$ for some $\sigma$, and
+\item $\sigma \semi e \mapsto e' \semi \sigma'$ for some $e'$ and $\sigma'$,
+\end{enumerate}
+then there is some $\Sigma'$ such that:
+\begin{itemize}
+\item $\Sigma \sqsubseteq \Sigma'$,
+\item $\Gamma \semi \Sigma' \vDash \sigma'$, and
+\item $\Gamma \semi \Sigma' \vdashe e': \tau$.
+\end{itemize}
+\end{theorem}
+
+\begin{proof}
+By induction on derivation of \emph{(iii)}.
+
+\textbf{Case} \textsc{E-Let}:
+We have $\sigma \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi \sigma'$.
+By inversion on \textsc{E-Let}, we also have $\sigma \semi e_1 \mapsto e_1' \semi \sigma'$.
+By inversion on \emph{(i)}, $\Gamma \semi \Sigma \vdashe e_1: \tau_1$.
+By inductive hypothesis, there exists some $\Sigma'$
+with $\Gamma \semi \Sigma' \vDash \sigma'$
+and $\Gamma \semi \Sigma' \vdashe e_1: \tau$.
+Since $\Sigma \sqsubseteq \Sigma'$, and $\Gamma, x: \tau_1 \semi \Sigma \vdashe e_2: \tau$,
+we also get that $\Gamma, x: \tau_1 \semi \Sigma' \vdashe e_2: \tau_2$.
+We apply \textsc{E-Let} to get $\Gamma \semi \Sigma' \vdashe \elet{x}{e_1'}{e_2}: \tau$.
+
+\textbf{Case} \textsc{E-Ret}:
+We have $\sigma \semi \elet{x}{\eret{v}}{e} \mapsto e[v/x] \semi \sigma$.
+Inversion on \emph{(i)} gives that $\Gamma \semi \Sigma \vdashv v: \tau_1$ and
+$\Gamma, x: \tau_1 \semi \Sigma \vdashe e: \tau$. We conclude
+$\Gamma \semi \Sigma \vdashe e[v/x]: \tau$ via the substitution lemma.
+
+\textbf{Case} \textsc{E-Beta}:
+We have $\sigma \semi (\lambda x: \tau_1.e)v \mapsto e[v/x] \semi \sigma$.
+Inversion on \emph{(i)} gives $\Gamma, x: \tau_1 \semi \Sigma \vdashe e: \tau$
+and $\Gamma \semi \Sigma \vdashv v: \tau_1$. We again get
+$\Gamma \semi \Sigma \vdashe e[v/x]: \tau$ via the substitution lemma.
+
+\textbf{Case} \textsc{E-IfTrue}:
+We have $\sigma \semi \eif{\mf{true}}{e_1}{e_2} \mapsto e_1 \semi \sigma$.
+Immediate by inversion on \emph{(i)}. Case for \textsc{E-IfFalse} is analogous.
+
+\textbf{Case} \textsc{E-Ref}:
+We have $\sigma \semi \eref{v} \mapsto \eret{\ell} \semi \sigma[\ell \mapsto v]$
+(for $\ell$ fresh).
+By \emph{(i)} and enumeration of rules, 
+$\Gamma \semi \Sigma \vdashe \eref{v}: \mf{Ref}\ \tau$.
+Inversion gives $\Gamma \semi \Sigma \vdashv v: \tau$.
+
+Choose $\Sigma' = \Sigma[\ell \mapsto \tau]$; 
+since $\ell$ is fresh, clearly $\Sigma \sqsubseteq \Sigma'$.
+Since both $\Sigma'$ and $\sigma'$ are extensions of
+$\Sigma$ and $\sigma$ by fresh label $\ell$, by definition of \emph{(ii)},
+to show $\Gamma \semi \Sigma' \vDash \sigma'$,
+it suffices to show $\cdot \semi \Sigma' \vdashv \sigma'[\ell]: \Sigma'[\ell]$.
+Now since $\sigma'[\ell]=v$ and we said $\Sigma'[\ell] = \tau$,
+we need only apply the proposition from the previous paragraph.
+
+We also need to show that $\Gamma \semi \Sigma' \vdashe \eret{\ell} : \tau$.
+This follows by \textsc{TExp-Ret}, \textsc{TVal-Loc}, and $\Sigma'[\ell] = \tau$.
+
+\textbf{Case} \textsc{E-Get}:
+We have $\sigma \semi \eget{\ell} \mapsto \eret{\sigma[\ell]} \semi \sigma$.
+
+Choose $\Sigma'=\Sigma$; 
+trivially $\Gamma \semi \Sigma' \vDash \sigma$ and $\Sigma \sqsubseteq \Sigma'$.
+
+By inversion on \emph{(i)}, $\Gamma \semi \Sigma \vdashv \ell: \mf{Ref}\ \tau$
+and $\ell: \tau \in \Sigma$.
+We can then apply \textsc{TVal-Loc} and \textsc{TExp-Ret}
+to get $\Gamma \semi \Sigma \vdashe \eret{\ell}: \tau$.
+
+\textbf{Case} \textsc{E-Set}:
+We have $\sigma \semi \eset{\ell}{v} \mapsto \eret{()} \semi \sigma[\ell \mapsto v]$.
+
+Again choose $\Sigma'=\Sigma$. 
+It is easy to show $\Gamma \semi \Sigma \vdashe \eret{()} : \one$,
+and by enumeration of rules and \emph{(i)} 
+we have $\Gamma \semi \Sigma \vdashe \eset{\ell}{v}: \one$.
+
+We also need to show $\Gamma \semi \Sigma \vDash \sigma[\ell \mapsto v]$.
+By \emph{(ii)}, this holds for all $\ell' \neq \ell$.
+For $\ell$, we want to show $\cdot \semi \Sigma \vdashv \sigma'[\ell]: \Sigma[\ell]$,
+i.e. that $\cdot \semi \Sigma \vdashv v: \Sigma[\ell]$.
+Inversion on \emph{(i)} gives us both that $\Sigma[\ell] = \tau$
+and that $\Gamma \semi \Sigma \vdashv v: \tau$.
+\end{proof}
+
+\subsubsection{Soundness}
+
+\begin{theorem}[Type soundness for expressions]
+If
+\begin{itemize}
+\item $\cdot \semi \Sigma \vdashe e: \tau$,
+\item $\Sigma \vDash \sigma$ for arbitrary $\sigma$,
+\item $\sigma \semi e \mapsto^* e' \semi \sigma'$ for some $e'$ and $\sigma'$,
+\item and $e' \not \mapsto$ (i.e. $e'$ cannot step further),
+\end{itemize}
+then $e' = \eret{v}$, and for some $\Sigma'$ with $\Sigma \subseteq \Sigma'$
+and $\Sigma' \vDash \sigma'$, we get $\cdot \semi \Sigma' \vdashv v: \tau$.
+\end{theorem}
+
+\begin{proof}
+Follows directly from progess \& preservation.
+\end{proof}
+
+\begin{corollary}
+If $\cdot \semi \cdot \vdashe e: \tau$ 
+and $\cdot \semi e \mapsto^* e' \semi \sigma$
+(and $e' \not \mapsto$),
+then $e' = \eret{v}$,
+and for any $\Sigma$ with $\Sigma \vDash \sigma$,
+we get $\cdot \semi \Sigma \vdashv v: \tau$.
+\end{corollary}
 
 - Prez: If $\Gamma \semi M \Vdashd \hat{e}: \tau$ and
 $m \semi \hat{e} \mapsto^{\phi}_p \hat{e}' \semi m$
@@ -1048,18 +1503,28 @@ then $\Gamma \semi \Sigma \vdashe e[v/x]: \tau'$.
 \end{lemma}
 
 \begin{proof}
-Via induction on the derivation of the respective typing judgment.
+By mutual induction on \emph{(i)} and \emph{(ii)}. For each,
+we induct over the derivation of the respective typing judgment
+in the antecedent.
 
-\emph{Case} $\Gamma, x: \tau \semi \Sigma \vdashv x: \tau'$.
+\textbf{Case} \textsc{TVal-Var}:
+We have $\Gamma, x: \tau \semi \Sigma \vdashv x: \tau'$.
 Applying substitution, we want to show 
 $\Gamma \semi \Sigma \vdashv v: \tau'$, which is exactly our first premise
 (with $\tau'=\tau$).
 
-\emph{Case} $\Gamma, x: \tau \semi \Sigma \vdashv (): \one$.
+\textbf{Case} \textsc{TVal-Unit}:
+We have $\Gamma, x: \tau \semi \Sigma \vdashv (): \one$.
 Trivial, since $()[v/x]=()$ and $\Gamma \semi \Sigma \vdashv (): \one$ axiomatically.
 We elide analogous cases for boolean and string constants.
 
-\emph{Case} $\Gamma, x: \tau \semi \Sigma \vdashv \lambda y.e : \tau_1 \rightarrow \tau_2$.
+\textbf{Case} \textsc{TVal-Loc}:
+We have $\Gamma, x: \tau \semi \Sigma \vdashv \ell: \tau$.
+By inversion, $\ell: \tau \in \Sigma$,
+and since $\ell[v/x]=\ell$, we get $\Gamma \semi \Sigma \vdashv \ell: \tau$.
+
+\textbf{Case} \textsc{TVal-Lam}:
+We have $\Gamma, x: \tau \semi \Sigma \vdashv \lambda y.e : \tau_1 \rightarrow \tau_2$.
 First suppose $y=x$: by definition of substitution, $(\lambda x.e)[v/x] = \lambda x.e$,
 and the conclusion follows from inversion \& reapplication of \textsc{TVal-Lam},
 noting that $x: \tau$ is overridden by $x: \tau_1$ in the premise.
@@ -1067,11 +1532,12 @@ noting that $x: \tau$ is overridden by $x: \tau_1$ in the premise.
 If $y \neq x$, then $(\lambda y.e)[v/x] = \lambda y.(e[v/x])$,
 and inversion gives us $\Gamma, x: \tau, y: \tau_1 \semi \Sigma \vdashe e: \tau_2$.
 Applying case \emph{(ii)} of the inductive hypothesis, alongside exchange,
-gives that $\Gamma, y: \tau_1 \vdashe e[v/x]: \tau_2$.
-We conclude $\Gamma \vdashv (\lambda y.e) [v/x]: \tau_1 \rightarrow \tau_2$
+gives that $\Gamma, y: \tau_1 \semi \Sigma \vdashe e[v/x]: \tau_2$.
+We conclude $\Gamma \semi \Sigma \vdashv (\lambda y.e) [v/x]: \tau_1 \rightarrow \tau_2$
 by reapplication of \textsc{TVal-Lam}.
 
-\emph{Case} $\Gamma, x: \tau \semi \Sigma \vdashv 
+\textbf{Case} \textsc{TVal-Tag}:
+We have  $\Gamma, x: \tau \semi \Sigma \vdashv 
 \mf{tag}(v', \num{v_i}, \num{v_j}): \mf{View}$.
 By inversion, $\Gamma, x: \tau \semi \Sigma \vdashv v': \mf{String}$,
 $\Gamma, x: \tau \semi \Sigma \vdashv v_i: \mf{Attr}$,
@@ -1087,16 +1553,20 @@ we conclude $\Gamma \semi \Sigma \vdashv
 We elide the simpler but analogous cases for data constructors 
 \textsf{text}, \textsf{attr}, and \textsf{onClick}.
 
-\emph{Case} $\Gamma, x: \tau \semi \Sigma \vdashe \eret{v'}: \tau'$.
+\textbf{Case} \textsc{TExp-Ret}:
+We have $\Gamma, x: \tau \semi \Sigma \vdashe \eret{v'}: \tau'$.
 By inversion, $\Gamma, x: \tau \semi \Sigma \vdashv v': \tau'$.
 Case \emph{(i)} of the inductive hypothesis gives $\Gamma \semi \Sigma \vdashv v'[v/x]: \tau'$,
 and reapplication \& definition of substitution let us conclude
 $\Gamma \semi \Sigma \vdashe (\eret{v'})[v/x]: \tau'$.
 
-\emph{Case} $\Gamma, x: \tau \semi \Sigma \vdashe
+\textbf{Case} \textsc{TVal-Let}:
+$\Gamma, x: \tau \semi \Sigma \vdashe
 \elet{y}{e_1}{e_2}: \tau_2$. Inversion gives 
-$\Gamma, x: \tau \semi \Sigma \vdashe e_1: \tau_1$ and in any case,
-and by inductive hypothesis, $\Gamma \semi \Sigma \vdashe e_1[v/x] : \tau_1$.
+$\Gamma, x: \tau \semi \Sigma \vdashe e_1: \tau_1$.
+We have two subcases, when $y=x$ and when not.
+In either case, $\Gamma \semi \Sigma \vdashe e_1[v/x] : \tau_1$
+by inductive hypothesis.
 
 If $y=x$, then $(\elet{y}{e_1}{e_2})[v/x]=\elet{y}{e_1[v/x]}{e_2}$.
 We reapply \textsc{TExp-Let} with the second premise obtained via inversion and
@@ -1104,7 +1574,7 @@ we are done. (Like the $\lambda$ case, we note the overwriting of $x: \tau$ in
 the second premise.)
 
 If $y \neq x$, then we apply the inductive hypothesis to the second premise,
-giving $\Gamma, x: \tau, y: \tau_1 \vdashe e_2: \tau_2$, and
+giving $\Gamma, x: \tau, y: \tau_1 \semi \Sigma \vdashe e_2: \tau_2$, and
 by inductive hypothesis and exchange, $\Gamma, y: \tau_1 \vdashe e_2[v/x]: \tau_2$.
 Reapplication of \textsc{TExpr-Let} and definition of substitution give
 $\Gamma \semi \Sigma \vdashe (\elet{y}{e_1}{e_2})[v/x]: \tau_2$.
@@ -1128,10 +1598,12 @@ $\sigma \semi e \mapsto e' \semi \sigma'$.
 \begin{proof}
 By induction on the derivation of the typing judgment.
 
-\emph{Case} $\cdot \semi \Sigma \vdashe \eret{v} \semi \tau$.
+\textbf{Case} \textsc{TExp-Ret}: 
+We have $\cdot \semi \Sigma \vdashe \eret{v} \semi \tau$.
 The theorem holds trivially by case \emph{(i)}.
 
-\emph{Case} $\cdot \semi \Sigma \vdashe \elet{x}{e_1}{e_2}: \tau_2$.
+\textbf{Case} \textsc{TExp-Let}:
+We have $\cdot \semi \Sigma \vdashe \elet{x}{e_1}{e_2}: \tau_2$.
 By inversion, $\cdot \semi \Sigma \vdashe e_1: \tau_1$
 and $x: \tau_1 \semi \Sigma \vdashe e_2: \tau_2$.
 By inductive hypothesis on the first premise,
@@ -1150,7 +1622,8 @@ $\sigma \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi \sigma'$.
 Thus, in either subcase, $\elet{x}{e_1}{e_2}$ steps given a proper $\sigma$,
 so the case holds.
 
-\emph{Case} $\cdot \semi \Sigma \vdashe v_1\ v_2: \tau_2$.
+\textbf{Case} \textsc{TExp-App}:
+We have $\cdot \semi \Sigma \vdashe v_1\ v_2: \tau_2$.
 By inversion, $\cdot \semi \Sigma \vdashv v_1: \tau_1 \rightarrow \tau_2$
 and $\cdot \semi \Sigma \vdashv v_2: \tau_1$.
 By the canonical forms lemma, $v_1=\lambda x.e$,
@@ -1158,7 +1631,8 @@ and so we apply rule \textsc{E-Beta}, i.e.
 $\sigma \semi (\lambda x.e) v_2 \mapsto e[v_2/x] \semi \sigma$ for
 any $\sigma$ such that $\cdot \semi \Sigma \vDash \sigma$.
 
-\emph{Case} $\cdot \semi \Sigma \vdashe \eif{v}{e_1}{e_2} : \tau$.
+\textbf{Case} \textsc{TExp-If}:
+We have $\cdot \semi \Sigma \vdashe \eif{v}{e_1}{e_2} : \tau$.
 By inversion, $\cdot \semi \Sigma \vdashv v: \mf{Bool}$,
 and by canonical forms, either $v=\mf{true}$ or $v=\mf{false}$.
 If $v=true$, then \textsc{E-IfTrue} says 
@@ -1166,12 +1640,14 @@ $\sigma \semi \eif{v}{e_1}{e_2} \mapsto e_1 \semi \sigma$,
 and if $v=false$, then $\sigma \semi \eif{v}{e_1}{e_2} \mapsto e_2 \semi \sigma$
 by \textsc{E-IfFalse}. In either case, we satisfy \emph{(ii)}.
 
-\emph{Case} $\cdot \semi \Sigma \vdashe \eref{v} : \mf{Ref}\ \tau$.
+\textbf{Case} \textsc{TExp-Ref}:
+We have $\cdot \semi \Sigma \vdashe \eref{v} : \mf{Ref}\ \tau$.
 Immediately apply \textsc{E-Ref} to get that 
 $\sigma, \eref{v} \mapsto \eret{\ell} \semi \sigma[\ell \mapsto v]$,
 which satisfies \emph{(ii)}.
 
-\emph{Case} $\cdot \semi \Sigma \vdashe \eget{v} : \tau$.
+\textbf{Case} \textsc{TExp-Get}:
+We have $\cdot \semi \Sigma \vdashe \eget{v} : \tau$.
 By inversion, $\cdot \semi \Sigma \vdashv v: \mf{Ref}\ \tau$,
 and by canonical forms, $v=\ell$.
 Again by inversion (on \textsc{TVal-Loc}), $\ell: \tau \in \Sigma$.
@@ -1180,7 +1656,8 @@ we have that $\sigma[\ell]$ exists.
 Thus, we apply \textsc{E-Get} to say
 $\sigma \semi \eget{v} \mapsto \eret{\sigma[\ell]} \semi \sigma$.
 
-\emph{Case} $\cdot \semi \Sigma \vdashe \eset{v_1}{v_2}: \one$.
+\textbf{Case} \textsc{TExp-Set}:
+We have $\cdot \semi \Sigma \vdashe \eset{v_1}{v_2}: \one$.
 By inversion, $\cdot \semi \Sigma \vdashv v_1: \mf{Ref}\ \tau$,
 and by canonical forms, $v=\ell$.
 Applying \textsc{E-Set} then gives 
@@ -1206,10 +1683,11 @@ then there is some $\Sigma'$ such that:
 \end{theorem}
 
 \begin{proof}
-By induction on derivation of \emph{(iii)}, $\sigma \semi e \mapsto e' \semi \sigma'$.
+By induction on derivation of \emph{(iii)}.
 
-\emph{Case} $\sigma \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi \sigma'$.
-By inversion on \textsc{E-Let}, we have $\sigma \semi e_1 \mapsto e_1' \semi \sigma'$.
+\textbf{Case} \textsc{E-Let}:
+We have $\sigma \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi \sigma'$.
+By inversion on \textsc{E-Let}, we also have $\sigma \semi e_1 \mapsto e_1' \semi \sigma'$.
 By inversion on \emph{(i)}, $\Gamma \semi \Sigma \vdashe e_1: \tau_1$.
 By inductive hypothesis, there exists some $\Sigma'$
 with $\Gamma \semi \Sigma' \vDash \sigma'$
@@ -1218,20 +1696,24 @@ Since $\Sigma \sqsubseteq \Sigma'$, and $\Gamma, x: \tau_1 \semi \Sigma \vdashe 
 we also get that $\Gamma, x: \tau_1 \semi \Sigma' \vdashe e_2: \tau_2$.
 We apply \textsc{E-Let} to get $\Gamma \semi \Sigma' \vdashe \elet{x}{e_1'}{e_2}: \tau$.
 
-\emph{Case} $\sigma \semi \elet{x}{\eret{v}}{e} \mapsto e[v/x] \semi \sigma$.
+\textbf{Case} \textsc{E-Ret}:
+We have $\sigma \semi \elet{x}{\eret{v}}{e} \mapsto e[v/x] \semi \sigma$.
 Inversion on \emph{(i)} gives that $\Gamma \semi \Sigma \vdashv v: \tau_1$ and
 $\Gamma, x: \tau_1 \semi \Sigma \vdashe e: \tau$. We conclude
 $\Gamma \semi \Sigma \vdashe e[v/x]: \tau$ via the substitution lemma.
 
-\emph{Case} $\sigma \semi (\lambda x: \tau_1.e)v \mapsto e[v/x] \semi \sigma$.
+\textbf{Case} \textsc{E-Beta}:
+We have $\sigma \semi (\lambda x: \tau_1.e)v \mapsto e[v/x] \semi \sigma$.
 Inversion on \emph{(i)} gives $\Gamma, x: \tau_1 \semi \Sigma \vdashe e: \tau$
 and $\Gamma \semi \Sigma \vdashv v: \tau_1$. We again get
 $\Gamma \semi \Sigma \vdashe e[v/x]: \tau$ via the substitution lemma.
 
-\emph{Case} $\sigma \semi \eif{\mf{true}}{e_1}{e_2} \mapsto e_1 \semi \sigma$.
+\textbf{Case} \textsc{E-IfTrue}:
+We have $\sigma \semi \eif{\mf{true}}{e_1}{e_2} \mapsto e_1 \semi \sigma$.
 Immediate by inversion on \emph{(i)}. Case for \textsc{E-IfFalse} is analogous.
 
-\emph{Case} $\sigma \semi \eref{v} \mapsto \eret{\ell} \semi \sigma[\ell \mapsto v]$
+\textbf{Case} \textsc{E-Ref}:
+We have $\sigma \semi \eref{v} \mapsto \eret{\ell} \semi \sigma[\ell \mapsto v]$
 (for $\ell$ fresh).
 By \emph{(i)} and enumeration of rules, 
 $\Gamma \semi \Sigma \vdashe \eref{v}: \mf{Ref}\ \tau$.
@@ -1249,7 +1731,8 @@ we need only apply the proposition from the previous paragraph.
 We also need to show that $\Gamma \semi \Sigma' \vdashe \eret{\ell} : \tau$.
 This follows by \textsc{TExp-Ret}, \textsc{TVal-Loc}, and $\Sigma'[\ell] = \tau$.
 
-\emph{Case} $\sigma \semi \eget{\ell} \mapsto \eret{\sigma[\ell]} \semi \sigma$.
+\textbf{Case} \textsc{E-Get}:
+We have $\sigma \semi \eget{\ell} \mapsto \eret{\sigma[\ell]} \semi \sigma$.
 
 Choose $\Sigma'=\Sigma$; 
 trivially $\Gamma \semi \Sigma' \vDash \sigma$ and $\Sigma \sqsubseteq \Sigma'$.
@@ -1259,7 +1742,8 @@ and $\ell: \tau \in \Sigma$.
 We can then apply \textsc{TVal-Loc} and \textsc{TExp-Ret}
 to get $\Gamma \semi \Sigma \vdashe \eret{\ell}: \tau$.
 
-\emph{Case} $\sigma \semi \eset{\ell}{v} \mapsto \eret{()} \semi \sigma[\ell \mapsto v]$.
+\textbf{Case} \textsc{E-Set}:
+We have $\sigma \semi \eset{\ell}{v} \mapsto \eret{()} \semi \sigma[\ell \mapsto v]$.
 
 Again choose $\Sigma'=\Sigma$. 
 It is easy to show $\Gamma \semi \Sigma \vdashe \eret{()} : \one$,
@@ -1289,14 +1773,27 @@ and $\Sigma' \vDash \sigma'$, we get $\cdot \semi \Sigma' \vdashv v: \tau$.
 \end{theorem}
 
 \begin{proof}
-Follows from progess \& preservation.
+Follows directly from progess \& preservation.
 \end{proof}
+
+\begin{corollary}
+If $\cdot \semi \cdot \vdashe e: \tau$ 
+and $\cdot \semi e \mapsto^* e' \semi \sigma$
+(and $e' \not \mapsto$),
+then $e' = \eret{v}$,
+and for any $\Sigma$ with $\Sigma \vDash \sigma$,
+we get $\cdot \semi \Sigma \vdashv v: \tau$.
+\end{corollary}
 
 \section{Translation}
 
 From React-tRace Core into $\lambda_{CC}$.
 
-\subsection{Type Translation}
+This requires the addition of (mutual) recursion into $\lambda_{CC}$,
+which is entirely standard.
+
+\subsection{Types}
+Judgment: $\llrr{\tau_{RTC}} = \tau_{CC}$
 
 \begin{align*}
 \llrr{\one} &= \one\\
@@ -1308,8 +1805,9 @@ From React-tRace Core into $\lambda_{CC}$.
 \llrr{\mf{Setter}\ \tau} &= \llrr{\tau} \rightarrow \one
 \end{align*}
 
-\subsection{Terms}
-Values:
+\subsection{Values}
+
+Judgment: $\llrr{v_{RTC}} = v_{CC}$
 \begin{align*}
 \llrr{x} &= x\\
 \llrr{()} &= ()\\
@@ -1319,49 +1817,88 @@ Values:
 \llrr{\lambda x: \tau . e} & = \lambda x: \llrr{\tau}.\llrr{e}\\
 \llrr{\mf{text}\ v} &= \mf{text}\ \llrr{v}\\
 \llrr{\mf{tag}(v, \num{v_i}, \num{v_j})} 
-&= \mf{tag}(\llrr{v}, \num{\llrr{v}_i}, \num{\llrr{v}_j})\\
+&= \mf{tag}(\llrr{v}, \num{\llrr{v_i}}, \num{\llrr{v_j}})\\
 \llrr{\mf{attr}(v_1, v_2)} &= \mf{attr}(\llrr{v_1}, \llrr{v_2})\\
 \llrr{\mf{onClick}\ v} &= \mf{onClick}\ \llrr{v}\\
 \llrr{\mc{C}} &= x_\mc{C}
 \end{align*}
-Expressions:
+
+\subsection{Expressions}
+Judgment: $\llrr{e_{RTC}} = e_{CC}$
 \begin{align*}
 \llrr{\eret{v}} &= \eret{\llrr{v}}\\
 \llrr{\elet{x}{e_1}{e_2}} &= \elet{x}{\llrr{e_1}}{\llrr{e_2}}\\
 \llrr{v_1\ v_2} &= \llrr{v_1}\ \llrr{v_2}\\
 \llrr{\eif{v}{e_1}{e_2}} &= \eif{\llrr{v}}{\llrr{e_1}}{\llrr{e_2}}\\
 \end{align*}
-Top-level expressions:
-\begin{align*}
-&\llrr{e} = \lambda \_: \one.\llrr{e}\\
-&\llrr{\estate{x}{\ell}{v}{\hat{e}}} =\\
-&\elet{x}{\eref{\llrr{v}}}{
-  \elet{x_\mf{set}}{\lambda y: ?.\eset{x}{y}}{\llrr{\hat{e}}}
-}
-\end{align*}
-Programs:
-\begin{align*}
-\llrr{\erun{e}} &= \llrr{e}\\
-\llrr{\elet{\mc{C}(x: \tau)}{\hat{e}}{P}} &= ?
-\end{align*}
 
-Current issues:
-\begin{itemize}
-\item Translating mutually dependent components
-requires mutual recursion in target language
-\begin{enumerate}
-    \item Remove mutual dependence from source (would probably also terminate)
-    \item Add mutual recursion to target only (straightforward)
-    \item Add mutual recursion to both (could maybe simplify source)
-\end{enumerate}
-\item useState intializes a reference,
-but we treat this as an (unqualified) variable in use
-\begin{itemize}
-    \item Solution: (capture-avoiding) substitute $\eget{x}/x$ 
-    in rest of expression
-    \item (how to express this idea?)
-\end{itemize}
-\end{itemize}
+\subsection{Top-level Expressions}
+Judgment: $\Theta \vdash \llrr{\hat{e}_{RTC}} = \hat{e}_{CC}$
+where $\Theta ::= \cdot \mid (x, \ell), \Theta$
+
+Also define $\Theta - x = \Theta \setminus \{x, \ell\}$ for any $\ell$
+\begin{mathpar}
+\inferrule*{
+  \Theta - x \vdash \llrr{\hat{e}} = e'
+} {
+  \Theta \vdash \llrr{\elet{x}{e}{\hat{e}}} = \elet{x}{e}{e'}
+}
+\and
+\inferrule*{
+  \ell_x\ \mf{fresh}
+  \and
+  \Theta, (x, \ell_x) \vdash \llrr{\hat{e}} = e'
+} {
+  \Theta \vdash \llrr{\estate{x}{\ell}{v}{\hat{e}}} =\\
+  \elet{\ell_x}{\eref{\llrr{v}}}{
+    \elet{x_\mf{set}}{\lambda y: ?.\eset{\ell_x}{y}}{e'}
+  }
+}
+\and
+\inferrule*{
+  \Theta \vdash \mf{deref}(\llrr{e}) = e'
+} {
+  \Theta \vdash \llrr{\hat{e}} = e'
+}
+\and
+\inferrule*{
+  \Theta \vdash \mf{deref}(e)
+} {
+  \Theta, (x, \ell_x) \vdash \mf{deref}(e) 
+  = \elet{x}{\eget{\ell_x}}{e'}
+}
+\and
+\inferrule*{ } {
+  \cdot \vdash \mf{deref}(e) = e
+}
+\end{mathpar}
+
+\subsection{Programs}
+Judgment: $\Omega \vdash \llrr{P} = e$ 
+where $\Omega = \cdot \mid \four{\mc{C}}{x}{\tau}{\hat{e}}, \Omega$
+\begin{mathpar}
+\inferrule*{
+  \Omega \vdash \llrr{P} = e'
+} {
+  \Omega \vdash \llrr{\elet{x}{e}{P}} = \elet{x}{\llrr{e}}{e'}
+}
+\and
+\inferrule*{
+  \Omega, \four{\mc{C}}{x}{\tau}{\hat{e}} \vdash \llrr{P} = e'
+} {
+  \Omega \vdash \llrr{\elet{\mc{C}(x: \tau)}{\hat{e}}{P}} = e'
+}
+\and
+\inferrule*{
+  \forall \four{\mc{C}_i}{x_i}{\tau_i}{\hat{e}_i} \in \Omega
+  \qquad
+  \cdot \vdash \llrr{\hat{e}_i} = e_i
+} {
+  \Omega \vdash \erun{e} 
+  = \eletrec{\num{\mc{C}_i: \llrr{\mf{Component}\ \tau_i}}}
+  {\num{\lambda x_i: \llrr{\tau_i} . e_i}}{\llrr{e}}
+}
+\end{mathpar}
 
 \section{$\lambda_{RTC}$-Anon}
 
