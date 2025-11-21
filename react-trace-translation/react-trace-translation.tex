@@ -551,16 +551,16 @@ Judgment: $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}'}{m'}{t}{\mu'}$
 
 \subsubsection{Memory Context}
 
-We introduce the additional context $M=\map{(p, \ell)}{\tau}$
+We introduce the additional context $M=\map{\ell}{\tau}$
 to type the tree memory.
 
 Define $\Gamma \semi M \vDash m$ to say that 
-$(p, \ell) \in M \Leftrightarrow m[p].\mf{st}(\ell)$ is defined
-and $\Gamma \semi M \vdashv m[p].\mf{st}(\ell): M[(p, \ell)]$.
+$\ell \in M$ iff, for all $p$ such that $m[p].\mf{st}(\ell)$ is defined,
+we have $\Gamma \semi M \vdashv m[p].\mf{st}(\ell): M[(p, \ell)]$.
 
 Further define $M \sqsubseteq M'$ to hold when,
-for all $(p, \ell) \in M$, both $\ell \in M'$ and $M(\ell) = M'(\ell)$.
-Overload $\sqsubseteq$ analogously for type contexts $\Gamma$.
+for all $\ell \in M$, both $\ell \in M'$ and $M[\ell] = M'[\ell]$.
+(Overload $\sqsubseteq$ analogously for type contexts $\Gamma$.)
 
 \subsubsection{Typing Rules}
 
@@ -647,15 +647,29 @@ Augmented value judgment: $\Gamma \semi M \vdashv v: \tau$
 }
 \and
 \inferrule*[right=\hl{TVal-Setter}] {
-  (p, \ell): \tau \in M 
+  \ell: \tau \in M 
 } {
   \Gamma \semi M \vdash \vset{\ell}{p} : \mf{Setter}\ \tau
 }
 \end{mathpar}
 
 We extend the judgments for expressions, top-level expressions,
-and programs with $M$ analogously; these extensions are straightforward
+and programs with $M$ analogously; these extensions are 
+mostly straightforward
 and thus elided.
+
+% The one exception is $\mf{useState}$, which gains an extra premise on $M$:
+% \begin{mathpar}
+% \inferrule*[right=\hl{THat-State}] {
+%   \ell: \tau_1 \in M
+%   \and
+%   \Gamma \semi M \vdashd v: \tau_1
+%   \\
+%   \Gamma, x: \tau_1, x_\mf{set}: \mf{Setter}\ \tau_1 \semi M \Vdashd \hat{e}: \tau_2
+% } {
+%   \Gamma \semi M \Vdashd \estate{x}{\ell}{v}{\hat{e}}: \tau_2
+% }
+% \end{mathpar}
 
 \subsubsection{Unproved Lemmas}
 
@@ -676,13 +690,13 @@ By induction on the derivation of the typing judgment.
 We also assume the following canonical forms lemma on values:
 
 \begin{lemma}[Canonical Forms]
-If $\cdot \semi \Sigma \vdashv v: \tau$, then
+If $\cdot \semi M \vdashv v: \tau$, then
 \begin{itemize}
 \item If $\tau=\mf{Bool}$, then $v=\mf{true}$ or $v=\mf{false}$.
 \item If $\tau=\one$, then $v=()$.
 \item If $\tau=\mf{String}$, then $v=s$ for some string $s$.
 \item If $\tau=\tau_1 \xrightarrow{E} \tau_2$, then $v=\lambda x: \tau_1.e$.
-\item If $\tau=\mf{Attr}$, then $v=\mf{attr}(v_1, v_2)$ or $v=\mf{onClick} v$.
+\item If $\tau=\mf{Attr}$, then $v=\mf{attr}(v_1, v_2)$ or $v=\mf{onClick}\ v$.
 \item If $\tau=\mf{View}$, then $v=\mf{text}\ v$ or $v=\mf{tag}(v, \num{v_i}, \num{v_j})$
 or $v=\pair{\mc{C}}{v}$. 
 \item If $\tau=\mf{Component}\ \tau'$, then $v=\mc{C}$.
@@ -765,7 +779,7 @@ Reapplication of \textsc{TVal-Spec} gives $\Gamma \semi M \vdashd \pair{\mc{C}}{
 
 \textbf{Case} \textsc{TVal-Setter}:
 We have $\Gamma, x: \tau \semi M \vdashd \vset{\ell}{p}: \mf{Setter}\ \tau'$.
-By inversion, $(p, \ell): \tau \in M$.
+By inversion, $\ell: \tau \in M$.
 Reapplication gives $\Gamma \semi M \vdashd \vset{\ell}{p}: \mf{Setter}\ \tau'$,
 and since $\vset{\ell}{p}[v/x] = \vset{\ell}{p}$, we are done.
 
@@ -798,6 +812,9 @@ $\Gamma \semi M \vdashd (\elet{y}{e_1}{e_2})[v/x]: \tau_2$.
 We elide the remaining cases for expressions, which are analogous to the above.
 
 \end{proof}
+
+Substitution lemmas for top-level expressions and programs are necessary,
+but we elide their (standard) proofs.
 
 \subsubsection{Progress}
 
@@ -855,7 +872,7 @@ We apply \text{E-AppComp} to get
 $m \semi \mc{C}\ v_2 \mapsto \eret{\pair{\mc{C}}{v_2}} \semi m$.
 
 \textbf{Case} \textsc{TExp-AppSet}:
-We have $\cdot semi M \vdashd v_1\ v_2: \one \mid \mf{Mut}$.
+We have $\cdot \semi M \vdashd v_1\ v_2: \one \mid \mf{Mut}$.
 By inversion, $\cdot \semi M \vdashd v_1: \mf{Setter}\ \tau$,
 and by canonical forms, $v_1=\vset{\ell}{p}$.
 We apply \text{E-AppSet} to get
@@ -883,149 +900,251 @@ $m \semi \hat{e} \mapsto^\phi_p \hat{e}' \semi m'$
 \end{enumerate}
 \end{theorem}
 
+\begin{proof}
+By induction on the derivation of the typing judgment.
+
+\textbf{Case} \textsc{THat-Lift}:
+We have $\cdot \semi M \Vdashd \hat{e}: \tau$,
+and by inversion, $\cdot \semi M \vdashd e: \tau \mid \epsilon$.
+By progress of expressions, $m \semi e \vdash e' \semi m'$ 
+for an appropriate $m$.
+We conclude by \textsc{E-Lift} that 
+$m \semi \hat{e} \smallstep{\phi}{p} \hat{e}' \semi m'$.
+
+\textbf{Case} \textsc{THat-Let}:
+We have $\cdot \semi M \Vdashd \elet{x}{e}{\hat{e}}: \tau_2$,
+and by inversion, $\cdot \semi M \vdashd e: \tau_1 \mid \epsilon$.
+By progress of expressions, we have two cases:
+either $e = \eret{v}$ or else $m \semi e \mapsto e' \semi m'$
+for an appropriate $m$.
+
+If $e = \eret{v}$, then we apply \textsc{E-RetTop}
+to get $m \semi \elet{x}{\eret{v}}{\hat{e}} 
+\smallstep{\phi}{p} \hat{e}[v/x] \semi m$
+and we are done.
+
+If instead $m \semi e \mapsto e' \semi m'$, then we apply \textsc{E-LetTop}
+to get $m \semi \elet{x}{e}{\hat{e}} 
+\smallstep{\phi}{p} \elet{x}{e'}{\hat{e}} \semi m'$ and we are done.
+
+\textbf{Case} \textsc{THat-State}:
+We have $\cdot \semi M \Vdashd \estate{x}{\ell}{v}{\hat{e}}$.
+We subcase on the value of our arbitrary $\phi$.
+
+If $\phi = \mf{Init}$, then \textsc{E-StInit}
+gives $m \semi \estate{x}{\ell}{v}{\hat{e}}
+\smallstep{\mf{Init}}{p} \hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}] \semi m'$
+(where $m' = m \mid m[p].\mf{st}[\ell] = v$) and we are done.
+
+If $\phi = \mf{Succ}$, then \textsc{E-StSucc}
+gives $m \semi \estate{x}{\ell}{v}{\hat{e}}
+\smallstep{\mf{Succ}}{p} \hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}] \semi m'$
+(where $v' = m[p].\mf{st}[\ell]$).
+
+\hl{It remains to be shown that $v'$ is defined in the above subcase.}
+Intuitively, if $\phi=\mf{Succ}$, then we must have initialized
+$m[p].\mf{st}[\ell]$ in a prior $\mf{Init}$ phase, but this is not
+currently captured in the judgment.
+
+\end{proof}
+
+\begin{theorem}[Progress of programs]
+If $\cdot \semi M \vdashd P$, then either:
+\begin{enumerate}[(i)]
+\item $P = \erun{(\eret{v})}$, or
+\item for all $\mc{D}$ and $m$ such that $\cdot \semi M \vDash m$,
+there exist some $\hat{e}'$, $\mc{D}'$, and $m'$ such that 
+$m \semi \mc{D} \semi \hat{e} \mapsto^\phi_p \hat{e}' \semi \mc{D}' \semi m'$.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+By induction over the typing derivation.
+Straightforward, and relies on progress of expressions.
+Note that $\mc{D}$ is not used, and so can be arbitrary (for now...)
+\end{proof}
+
 \subsubsection{Preservation}
 
 \begin{theorem}[Preservation of expressions]
 If
 \begin{enumerate}[(i)]
-\item $\Gamma \semi \Sigma \vdashe e: \tau$,
-\item $\Gamma \semi \Sigma \vDash \sigma$ for some $\sigma$, and
-\item $\sigma \semi e \mapsto e' \semi \sigma'$ for some $e'$ and $\sigma'$,
+\item $\Gamma \semi M \vdashd e: \tau \mid E$,
+\item $\Gamma \semi M \vDash m$ for some $m$, and
+\item $m \semi e \mapsto e' \semi m'$ for some $e'$ and $m'$,
 \end{enumerate}
-then there is some $\Sigma'$ such that:
+then there is some $M'$ such that:
 \begin{itemize}
-\item $\Sigma \sqsubseteq \Sigma'$,
-\item $\Gamma \semi \Sigma' \vDash \sigma'$, and
-\item $\Gamma \semi \Sigma' \vdashe e': \tau$.
+\item $M \sqsubseteq M'$,
+\item $\Gamma \semi M' \vDash m'$, and
+\item $\Gamma \semi M' \vdashd e': \tau \mid E$.
 \end{itemize}
 \end{theorem}
 
 \begin{proof}
 By induction on derivation of \emph{(iii)}.
 
-\textbf{Case} \textsc{E-Let}:
-We have $\sigma \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi \sigma'$.
-By inversion on \textsc{E-Let}, we also have $\sigma \semi e_1 \mapsto e_1' \semi \sigma'$.
-By inversion on \emph{(i)}, $\Gamma \semi \Sigma \vdashe e_1: \tau_1$.
-By inductive hypothesis, there exists some $\Sigma'$
-with $\Gamma \semi \Sigma' \vDash \sigma'$
-and $\Gamma \semi \Sigma' \vdashe e_1: \tau$.
-Since $\Sigma \sqsubseteq \Sigma'$, and $\Gamma, x: \tau_1 \semi \Sigma \vdashe e_2: \tau$,
-we also get that $\Gamma, x: \tau_1 \semi \Sigma' \vdashe e_2: \tau_2$.
-We apply \textsc{E-Let} to get $\Gamma \semi \Sigma' \vdashe \elet{x}{e_1'}{e_2}: \tau$.
+\textbf{Case} \textsc{E-LetPure}:
+We have $m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi m'$.
+By inversion on \textsc{E-Let}, we also have $m \semi e_1 \mapsto e_1' \semi m'$.
+By inversion on \emph{(i)}, $\Gamma \semi M \vdashd e_1: \tau_1 \mid E_1$.
+By inductive hypothesis, there exists some $M'$
+with $\Gamma \semi M' \vDash m'$
+and $\Gamma \semi M' \vdashd e_1: \tau_1 \mid E_1$.
+Since $M \sqsubseteq M'$, and $\Gamma, x: \tau_1 \semi M \vdashd e_2: \tau \mid E_2$ (by inversion),
+we also get that $\Gamma, x: \tau_1 \semi M' \vdashd e_2: \tau \mid E_2$.
+We apply \textsc{E-Let} to get $\Gamma \semi M' \vdashd \elet{x}{e_1'}{e_2}: \tau \mid E$
+(for $E = E_1 \circ E_2$).
 
 \textbf{Case} \textsc{E-Ret}:
-We have $\sigma \semi \elet{x}{\eret{v}}{e} \mapsto e[v/x] \semi \sigma$.
-Inversion on \emph{(i)} gives that $\Gamma \semi \Sigma \vdashv v: \tau_1$ and
-$\Gamma, x: \tau_1 \semi \Sigma \vdashe e: \tau$. We conclude
-$\Gamma \semi \Sigma \vdashe e[v/x]: \tau$ via the substitution lemma.
+We have $m \semi \elet{x}{\eret{v}}{e} \mapsto e[v/x] \semi m$.
+Inversion on \emph{(i)} gives that $\Gamma \semi M \vdashd v: \tau_1$ and
+$\Gamma, x: \tau_1 \semi M \vdashd e: \tau \mid E$. We conclude
+$\Gamma \semi M \vdashe e[v/x]: \tau \mid E$ via the substitution lemma.
 
-\textbf{Case} \textsc{E-Beta}:
-We have $\sigma \semi (\lambda x: \tau_1.e)v \mapsto e[v/x] \semi \sigma$.
-Inversion on \emph{(i)} gives $\Gamma, x: \tau_1 \semi \Sigma \vdashe e: \tau$
-and $\Gamma \semi \Sigma \vdashv v: \tau_1$. We again get
-$\Gamma \semi \Sigma \vdashe e[v/x]: \tau$ via the substitution lemma.
+\textbf{Case} \textsc{E-AppFun}:
+We have $m \semi (\lambda x: \tau_1.e)v \mapsto e[v/x] \semi m$.
+Inversion on \emph{(i)} gives $\Gamma, x: \tau_1 \semi M \vdashe e: \tau \mid E$
+and $\Gamma \semi M \vdashv v: \tau_1$. We again get
+$\Gamma \semi M \vdashe e[v/x]: \tau \mid E$ via the substitution lemma.
+
+\textbf{Case} \textsc{E-AppComp}:
+We have $m \semi \mc{C} v \mapsto \eret{\pair{\mc{C}}{v}} \semi m$.
+Both sides have type $\mf{View} \mid \epsilon$: the left-hand side
+follows from \textsc{TExp-AppComp}, and the right from \textsc{TExp-Ret}
+and \textsc{TVal-Spec}.
+
+\textbf{Case} \textsc{E-AppSet}:
+We have $m \semi \vset{\ell}{p}\ v \mapsto 
+\eret{()} \semi m \mid m[p].\mf{st}[\ell] = v$.
+Let $M'=M$; that $M' \sqsubseteq M$ is obvious,
+and the preserved type $\one \mid \mf{Mut}$ is easy to show.
+It remains to be shown that 
+$\Gamma \semi M \vDash m \mid m[p].\mf{st}[\ell] = v$.
+This is given by \emph{(ii)} for all $\ell' \neq \ell$;
+we want to show $\Gamma \semi v : M[\ell]$
+By inversion on \emph{(i)}, $\Gamma \semi M \vdashd v: \tau$
+and $\ell: \tau \in M$.
 
 \textbf{Case} \textsc{E-IfTrue}:
-We have $\sigma \semi \eif{\mf{true}}{e_1}{e_2} \mapsto e_1 \semi \sigma$.
+We have $m \semi \eif{\mf{true}}{e_1}{e_2} \mapsto e_1 \semi m$.
 Immediate by inversion on \emph{(i)}. Case for \textsc{E-IfFalse} is analogous.
-
-\textbf{Case} \textsc{E-Ref}:
-We have $\sigma \semi \eref{v} \mapsto \eret{\ell} \semi \sigma[\ell \mapsto v]$
-(for $\ell$ fresh).
-By \emph{(i)} and enumeration of rules, 
-$\Gamma \semi \Sigma \vdashe \eref{v}: \mf{Ref}\ \tau$.
-Inversion gives $\Gamma \semi \Sigma \vdashv v: \tau$.
-
-Choose $\Sigma' = \Sigma[\ell \mapsto \tau]$; 
-since $\ell$ is fresh, clearly $\Sigma \sqsubseteq \Sigma'$.
-Since both $\Sigma'$ and $\sigma'$ are extensions of
-$\Sigma$ and $\sigma$ by fresh label $\ell$, by definition of \emph{(ii)},
-to show $\Gamma \semi \Sigma' \vDash \sigma'$,
-it suffices to show $\cdot \semi \Sigma' \vdashv \sigma'[\ell]: \Sigma'[\ell]$.
-Now since $\sigma'[\ell]=v$ and we said $\Sigma'[\ell] = \tau$,
-we need only apply the proposition from the previous paragraph.
-
-We also need to show that $\Gamma \semi \Sigma' \vdashe \eret{\ell} : \tau$.
-This follows by \textsc{TExp-Ret}, \textsc{TVal-Loc}, and $\Sigma'[\ell] = \tau$.
-
-\textbf{Case} \textsc{E-Get}:
-We have $\sigma \semi \eget{\ell} \mapsto \eret{\sigma[\ell]} \semi \sigma$.
-
-Choose $\Sigma'=\Sigma$; 
-trivially $\Gamma \semi \Sigma' \vDash \sigma$ and $\Sigma \sqsubseteq \Sigma'$.
-
-By inversion on \emph{(i)}, $\Gamma \semi \Sigma \vdashv \ell: \mf{Ref}\ \tau$
-and $\ell: \tau \in \Sigma$.
-We can then apply \textsc{TVal-Loc} and \textsc{TExp-Ret}
-to get $\Gamma \semi \Sigma \vdashe \eret{\ell}: \tau$.
-
-\textbf{Case} \textsc{E-Set}:
-We have $\sigma \semi \eset{\ell}{v} \mapsto \eret{()} \semi \sigma[\ell \mapsto v]$.
-
-Again choose $\Sigma'=\Sigma$. 
-It is easy to show $\Gamma \semi \Sigma \vdashe \eret{()} : \one$,
-and by enumeration of rules and \emph{(i)} 
-we have $\Gamma \semi \Sigma \vdashe \eset{\ell}{v}: \one$.
-
-We also need to show $\Gamma \semi \Sigma \vDash \sigma[\ell \mapsto v]$.
-By \emph{(ii)}, this holds for all $\ell' \neq \ell$.
-For $\ell$, we want to show $\cdot \semi \Sigma \vdashv \sigma'[\ell]: \Sigma[\ell]$,
-i.e. that $\cdot \semi \Sigma \vdashv v: \Sigma[\ell]$.
-Inversion on \emph{(i)} gives us both that $\Sigma[\ell] = \tau$
-and that $\Gamma \semi \Sigma \vdashv v: \tau$.
 \end{proof}
 
-\subsubsection{Soundness}
-
-\begin{theorem}[Type soundness for expressions]
+\begin{theorem}[Preservation of top-level expressions]
 If
+\begin{enumerate}[(i)]
+\item $\Gamma \semi M \Vdashd \hat{e}: \tau$,
+\item $\Gamma \semi M \vDash m$ for some $m$, and
+\item $m \semi \hat{e} \mapsto^{\phi}_p \hat{e}' \semi m'$ 
+for some $\hat{e}'$, $m'$ and arbitary $\phi$, $p$,
+\end{enumerate}
+then there is some $M'$ such that:
 \begin{itemize}
-\item $\cdot \semi \Sigma \vdashe e: \tau$,
-\item $\Sigma \vDash \sigma$ for arbitrary $\sigma$,
-\item $\sigma \semi e \mapsto^* e' \semi \sigma'$ for some $e'$ and $\sigma'$,
-\item and $e' \not \mapsto$ (i.e. $e'$ cannot step further),
+\item $M \sqsubseteq M'$,
+\item $\Gamma \semi M' \vDash m'$, and
+\item $\Gamma \semi M' \Vdashd \hat{e}': \tau$.
 \end{itemize}
-then $e' = \eret{v}$, and for some $\Sigma'$ with $\Sigma \subseteq \Sigma'$
-and $\Sigma' \vDash \sigma'$, we get $\cdot \semi \Sigma' \vdashv v: \tau$.
 \end{theorem}
 
 \begin{proof}
-Follows directly from progess \& preservation.
+By induction on derivation of \emph{(iii)}.
+
+\textbf{Case} \textsc{E-Lift}:
+We have that $m \semi \hat{e} \smallstep{\phi}{p} \hat{e}' \semi m'$.
+By inversion, $m \semi e \mapsto e' \semi m'$.
+Inversion on \emph{(i)} gives that
+$\Gamma \semi M \vdashd e: \tau \mid \epsilon$,
+and by preservation of expressions, $\Gamma \semi M' \vdashd e': \tau \mid \epsilon$
+for some $M' \sqsubseteq M$ with $\Gamma \semi M' \vdashv m'$.
+Reapplication of \textsc{E-Lift} gives the desired conclusion,
+$\Gamma \semi M' \Vdashd \hat{e}': \tau$.
+
+\textbf{Case} \textsc{E-LetTop}:
+We have that $m \semi \elet{x}{e}{\hat{e}} 
+\smallstep{\phi}{p} \elet{x}{e'}{\hat{e}} \semi m'$,
+and by inversion, $m \semi e \mapsto e' \semi m'$.
+Inversion on \emph{(i)} gives that
+$\Gamma \semi M \vdashd e: \tau' \mid \epsilon$
+and $\Gamma, x: \tau' \semi M \Vdashd \hat{e}: \tau$.
+By preservation of expressions, $\Gamma \semi M' \vdashd e': \tau' \mid \epsilon$
+for some $M'$ with $M \sqsubseteq M'$ and $\Gamma \semi M' \vDash m'$.
+Since $M \sqsubseteq M'$, we can also say that
+$\Gamma, x: \tau' \semi M' \Vdashd \hat{e}: \tau$, and then
+reapplication of \textsc{E-LetTop} gives the desired conclusion,
+$\Gamma \semi M' \Vdashd \elet{x}{e'}{\hat{e}'}: \tau$.
+
+\textbf{Case} \textsc{E-RetTop}:
+We have $m \semi \elet{x}{\eret{v}}{\hat{e}} \smallstep{\phi}{p} \hat{e}[v/x] \semi m$.
+Inversion on \emph{(i)} gives that
+$\Gamma \semi M \vdashd v: \tau'$
+and $\Gamma, x: \tau' \semi M \Vdashd \hat{e}: \tau$.
+The conclusion follows from the substitution lemma.
+
+\textbf{Case} \textsc{E-StInit}:
+We have\\
+$m \semi \estate{x}{\ell}{v}{\hat{e}}
+\smallstep{\mf{Init}}{p}
+\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}] \semi m'$,
+where $m' = m | m[p].\mf{st}[\ell] = v$.
+By inversion on \emph{(i)}, we get
+$\Gamma \semi M \vdashd v: \tau_1$ and
+$\Gamma, x: \tau_1, x_\mf{set}: \mf{Setter}\ \tau_1 \semi M \Vdashd \hat{e}: \tau$.
+
+Let $M' = M[\ell \mapsto \tau_1]$.
+Clearly $\Gamma \semi M' \vDash m'$ for all $\ell' \neq \ell$;
+that it is satisfied for $\ell$ follows from that 
+$M'[\ell] = \tau_1$ and $\Gamma \semi M' \vdashd v: \tau_1$.
+That $\Gamma \semi M' \Vdashd \hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}]$
+follows quickly from the substitution lemma (if $M \sqsubseteq M'$).
+
+\hl{However, we cannot conclude that $M \sqsubseteq M'$,}
+since we do not know that $\ell: \tau' \notin M$.
+Intuitively, that we are in phase $\mf{Init}$
+and that $\ell$ is unique
+guarantees that $\ell \notin \mf{dom}(M)$,
+but this is not captured by the judgment nor an assumption.
+
+\textbf{Case} \textsc{E-StSucc}:
+We have\\
+$m \semi \estate{x}{\ell}{v}{\hat{e}}
+\smallstep{\mf{Succ}}{p}
+\hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}] \semi m$,
+where $v' = m[p].\mf{st}[\ell]$.
+By inversion on \emph{(i)},
+we know that $\Gamma, x: \tau_1, x_\mf{set}: \mf{Setter}\ \tau_1
+\semi M \Vdashd \hat{e}: \tau$.
+It follows by definition that
+$\Gamma \semi M \vdashv \vset{\ell}{p} : \mf{Setter}\ \tau_1$.
+% We can thus apply the substitution lemma to get that
+% $\Gamma \semi M \Vdashd \hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}] : \tau$.
+
+By \emph{(ii)}, we know $\Gamma \semi M \vdashd v': M[\ell]$.
+However, we cannot quite apply the substitution lemma since
+\hl{we do not know that $M[\ell] = \tau_1$}.
+Intuitively, $v'$ must have the same type as the original
+state value $v$, but this relationship escapes the current formalization.
 \end{proof}
 
-\begin{corollary}
-If $\cdot \semi \cdot \vdashe e: \tau$ 
-and $\cdot \semi e \mapsto^* e' \semi \sigma$
-(and $e' \not \mapsto$),
-then $e' = \eret{v}$,
-and for any $\Sigma$ with $\Sigma \vDash \sigma$,
-we get $\cdot \semi \Sigma \vdashv v: \tau$.
-\end{corollary}
+\begin{theorem}[Preservation of programs]
+If
+\begin{enumerate}[(i)]
+\item $\Gamma \semi M \vdashd P$,
+\item $\Gamma \semi M \vDash m$ for some $m$, and
+\item $m \semi \mc{D} \semi P \Mapsto P \semi \mc{D}' \semi m'$ 
+for some $P'$, $\mc{D}'$, and $m'$,
+\end{enumerate}
+then there is some $M'$ such that:
+\begin{itemize}
+\item $M \sqsubseteq M'$,
+\item $\Gamma \semi M' \vDash m'$, and
+\item $\Gamma \semi M' \Vdashd P$.
+\end{itemize}
+\end{theorem}
 
-- Prez: If $\Gamma \semi M \Vdashd \hat{e}: \tau$ and
-$m \semi \hat{e} \mapsto^{\phi}_p \hat{e}' \semi m$
-for some $m$ with $\Gamma \semi M \vDash m$ $\phi$,
-and $p$, then $\Gamma \semi M \Vdashd \hat{e}': \tau$.
-
-Case St-Succ:
-- Inversion: $\Gamma, x: \tau_1, x_\mf{set}: \mf{Setter}\ \tau_1
-\Vdashd \hat{e}: \tau$
-
-Need to conclude from $M$ that $m[p].\mf{st}[\ell]$ has type $\tau_1$
-
-$M \vDash m$ means forall $(p, \ell) \in m$,
-$m[p].\mf{st}[\ell]$ has type $M(p, \ell)$
-
-Say $\tau_1=M(p, \ell)$ and we're done
-
-Case St-Init: same inversion on usestate typing
-
-clearly need to extend $M$ w/ $M(p, \ell)=\tau_1$,
-where $\tau_1$ is the type of $v$
-
-Same $\sqsubseteq$ alteration to theorem as in CC,
-works out fine
+\begin{proof}
+By induction on \emph{(iii)}; standard. We again ignore $\mc{D}$.
+\end{proof}
 
 \section{$\lambda_{CC}$}
 
