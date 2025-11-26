@@ -94,7 +94,8 @@ Internal representations:
 \text{Realized component }\pi &::= \{\mf{spec}: \pair{\mc{C}}{v}, \mf{st}: \map{\ell}{v}, \mf{child}: t\}\\
 \text{Tree memory }m &::= \map{p}{\pi}\\
 \text{Component definitions }\mc{D} &::= \map{\mc{C}}{x.\hat{e}}\\
-\text{Mode }\mu &::= \mf{start}(P) \mid \mf{idle} \mid \mf{rerender}(m)
+\text{Mode }\mu &::= \mf{start}(P) \mid \mf{idle}
+\mid \mf{handle}(id) \mid \mf{rerender}(m)
 \end{align*}
 
 Effect unification:
@@ -149,7 +150,7 @@ Judgment: $\Gamma \vdashd v: \tau$
 }
 \and
 \inferrule*[right=\hl{TVal-Comp}] {
-  \mc{C}: \mf{Component}\ \tau \in \Delta
+  \mc{C}: \tau \in \Delta
 } {
   \Gamma \vdashd \mc{C} : \mf{Component}\ \tau
 }
@@ -288,6 +289,8 @@ Judgment: $\Gamma \vdashd P$
 }
 \and
 \inferrule*[right=\hl{TProg-Comp}] {
+  \mc{C}: \tau \in \Delta
+  \and
   \Gamma, x: \tau \Vdashd \hat{e}: \mf{View}
   \and 
   \Gamma \vdashd P
@@ -527,15 +530,19 @@ Judgment: $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}'}{m'}{t}{\mu'}$
   \four{\mc{D}}{m'}{t}{\mf{idle}}
 }
 \and
-\inferrule*[right=\hl{Loop-Event}] {
-  \exists\; id
-  \and
+\inferrule*[right=\hl{Loop-Event}] { } {
+  \four{\mc{D}}{m_0}{t}{\mf{idle}} \hookrightarrow \four{\mc{D}}{m}{t}{\mf{handle}(id)}
+}
+\and
+\inferrule*[right=\hl{Loop-Handle}] {
   m \vdash \mf{handlers}(t, id) = \num{v_i}
   \\
   (0 \leq i < n)\quad
   m_i \semi v_i\ () \mapsto^* \eret{()} \semi m_{i+1}
 } {
-  \four{\mc{D}}{m_0}{t}{\mf{idle}} \hookrightarrow \four{\mc{D}}{m}{t}{\mf{rerender}(m_n)}
+  \four{\mc{D}}{m_0}{t}{\mf{handle}(id)}
+  \hookrightarrow
+  \four{\mc{D}}{m}{t}{\mf{rerender}(m_n)}
 }
 \and
 \inferrule*[right=\hl{Loop-Rerender}] {
@@ -601,7 +608,7 @@ Augmented value judgment: $\Gamma \semi M \vdashv v: \tau$
 }
 \and
 \inferrule*[right=TVal-Comp] {
-  \mc{C}: \mf{Component}\ \tau \in \Delta
+  \mc{C}: \tau \in \Delta
 } {
   \Gamma \semi M \vdashd \mc{C} : \mf{Component}\ \tau
 }
@@ -734,7 +741,7 @@ We elide analogous cases for boolean and string constants.
 
 \textbf{Case} \textsc{TVal-Comp}:
 We have $\Gamma, x: \tau \semi M \vdashd \mc{C}: \mf{Component}\ \tau$.
-By inversion, $\mc{C}: \mf{Component}\ \tau \in \Delta$,
+By inversion, $\mc{C}: \tau \in \Delta$,
 and by definition of substitution, $\mc{C}[v/x]=\mc{C}$.
 Reapplication of \textsc{TVal-Comp} gives
 $\Gamma \semi M \vdashd \mc{C}: \mf{Component}\ \tau$.
@@ -867,15 +874,15 @@ any $m$ such that $\cdot \semi M \vDash m$.
 \textbf{Case} \textsc{TExp-AppComp}:
 We have $\cdot \semi M \vdashd v_1\ v_2: \mf{View} \mid \epsilon$.
 By inversion, $\cdot \semi M \vdashd v_1: \mf{Component}\ \tau$,
-and by canonical forms, $v_1=\mf{C}$.
-We apply \text{E-AppComp} to get 
+and by canonical forms, $v_1=\mc{C}$.
+We apply \textsc{E-AppComp} to get 
 $m \semi \mc{C}\ v_2 \mapsto \eret{\pair{\mc{C}}{v_2}} \semi m$.
 
 \textbf{Case} \textsc{TExp-AppSet}:
 We have $\cdot \semi M \vdashd v_1\ v_2: \one \mid \mf{Mut}$.
 By inversion, $\cdot \semi M \vdashd v_1: \mf{Setter}\ \tau$,
 and by canonical forms, $v_1=\vset{\ell}{p}$.
-We apply \text{E-AppSet} to get
+We apply \textsc{E-AppSet} to get
 $m \semi \vset{\ell}{p}\ v_2 \mapsto \eret{()} \semi m \mid m[p].\mf{st}[\ell] = v_2$.
 
 \textbf{Case} \textsc{TExp-If}:
@@ -2019,13 +2026,17 @@ where $\Omega = \cdot \mid \four{\mc{C}}{x}{\tau}{\hat{e}}, \Omega$
 }
 \end{mathpar}
 
-\section{$\lambda_{RTC}$-Anon}
+\section{$\lambda_{RTC}$-Anon (WIP)}
 
 Introduces \emph{anonymous components},
 while retaining previous expressivity via $\mf{let}\ \mf{rec}$.
 
 We restrict the number of variables declarable in a $\mf{let}\ \mf{rec}$
 block to $1$ for brevity, although this can be extended in the usual way.
+
+NOTE: $\mf{let}\ \mf{rec}$ should be replaced 
+with e.g. anonymous recursive functions;
+current substitution semantics are incorrect for FGCBV
 
 \subsection{Syntax}
 
