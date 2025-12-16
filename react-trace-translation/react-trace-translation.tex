@@ -1222,15 +1222,8 @@ and $\Delta[\mc{C}] = \tau$.
 \end{proof}
 
 \begin{theorem}[Soundness of programs]
-If \begin{enumerate}[(i)]
-\item $\cdot \vdprog P$ and
-\item $\cdot \semi P \Pstep P' \semi \mc{D}$,
-\end{enumerate}
-then \begin{enumerate}[(i)]
-\item $P'=\eret{v}$,
-\item $\cdot \semi \cdot \vdval v: \mf{View}$, and
-\item $\Delta \vDash \mc{D}$.
-\end{enumerate}
+If $\cdot \vdprog P$ and $\cdot \semi P \Pstep v \semi \mc{D}$,
+then $\cdot \semi \cdot \vdval v: \mf{View}$ and $\Delta \vDash \mc{D}$.
 \end{theorem}
 
 \begin{proof}
