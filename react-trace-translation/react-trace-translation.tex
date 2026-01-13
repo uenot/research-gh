@@ -43,15 +43,19 @@
 \newcommand{\vdtop}{\vdash^{\mf{Top}}_\Delta}
 \newcommand{\vdprog}{\vdash^{\mf{Prog}}_\Delta}
 \newcommand{\vdtree}{\vdash^{\mf{Tree}}_\Delta}
-\newcommand{\vdmwk}{\vDash^{\mf{wk}}_\Delta}
-\newcommand{\vdmstr}{\vDash^{\mf{str}}_\Delta}
+\newcommand{\vdmu}{\vdash^{\mf{Mode}}_\Delta}
+\newcommand{\vdcfg}{\vdash^{\mf{Cfg}}_\Delta}
+\newcommand{\vdm}{\vDash_\Delta}
+\newcommand{\wf}{\vdash_{\mf{wf}}}
 
 \newcommand{\topstep}[2]{\mapsto^{#1}_{#2}}
 \newcommand{\Topstep}[2]{\Mapsto^{#1}_{#2}}
 \newcommand{\pstep}{\mapsto^{\mf{Prog}}}
 \newcommand{\Pstep}{\Mapsto^{\mf{Prog}}}
-\newcommand{\bsinit}{\Downarrow^{\mf{Init}}}
-\newcommand{\bssucc}{\Downarrow^{\mf{Succ}}}
+\newcommand{\bsinit}[1]{\Downarrow^{\mf{Init}}_{#1}}
+\newcommand{\divinit}[1]{\Uparrow^{\mf{Init}}_{#1}}
+\newcommand{\bssucc}[1]{\Downarrow^{\mf{Succ}}_{#1}}
+\newcommand{\divsucc}[1]{\Uparrow^{\mf{Succ}}_{#1}}
 
 \newcommand{\one}{\mb{1}}
 \newcommand{\elet}[3]{\mf{let}\ #1 = #2\ \mf{in}\ #3}
@@ -127,7 +131,7 @@ on top-level expressions as:
 \text{Tree memory }m &::= \map{p}{\pi}\\
 \text{Component definitions }\mc{D} &::= \map{\mc{C}}{x.\hat{e}}\\
 \text{Mode }\mu &::= \mf{start}(P) \mid \mf{idle}
-\mid \mf{handle}(id) \mid \mf{rerender}(m)
+\mid \mf{search}(\mf{id}) \mid \mf{handle}(\num{e})
 \end{align*}
 
 We overload indexing notation on $\Delta$ for brevity,
@@ -354,7 +358,7 @@ Judgment: $\Gamma \vdprog P$
 
 \subsubsection{Trees}
 
-Judgment: $\Pi \vdtree t$
+\emph{\textbf{Typing}}. Judgment: $\Pi \vdtree t$
 \begin{mathpar}
 \inferrule*[right=TTree-Lit] {
   \cdot \semi \Pi \vdval v: \tau
@@ -383,6 +387,38 @@ Judgment: $\Pi \vdtree t$
 }
 \end{mathpar}
 
+\emph{\textbf{Well-Formedness}}.
+In addition to our typing judgment on trees,
+we have a \emph{well-formedness} judgment on trees
+with respect to a concrete memory $m$ and definition set $\mc{D}$.
+Informally, this says that all paths in a tree have been
+"properly initialized".
+
+Judgment: $\mc{D} \semi m \wf t$
+\begin{mathpar}
+\inferrule*[right=WF-Lit] { } {\mc{D} \semi m \wf \mf{lit}\ v}
+\and
+\inferrule*[right=WF-Node] {
+  (\forall j)
+  \quad
+  \mc{D} \semi m \wf t_j
+} {
+  \mc{D} \semi m \wf \mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})
+}
+\and
+\inferrule*[right=WF-Path] {
+  m[p].\mf{spec} = \pair{\mc{C}}{v}
+  \and
+  \mc{D}[\mc{C}] = x.\hat{e}
+  \\
+  \mc{L}(\hat{e}) \subseteq \dom(m[p].\mf{st})
+  \and
+  \mc{D} \semi m \wf m[p].\mf{child}
+} {
+  \mc{D} \semi m \wf p
+}
+\end{mathpar}
+
 \subsubsection{Component Context}
 Define $\Delta \vDash \mc{D}$ to say that,
 for all $\mc{C} \in \dom(\mc{D})$
@@ -391,32 +427,50 @@ we have $[x \mapsto \Delta[\mc{C}]] \semi \cdot \semi \mc{C} \vdtop \hat{e}$.
 (Implicitly, $\dom(\mc{D}) \subseteq \dom(\Delta)$).
 
 \subsubsection{Memory}
-We have \emph{weak} and \emph{strong} notions of a well-typed memory $m$.
-
-\textbf{\emph{Weak memory typing}}:
-We say $\Gamma \semi \Pi \vdmwk m$ if, for all $p \in \dom(m)$,
+We say $\Gamma \semi \Pi \vdm m$ if, for all $p \in \dom(m)$,
 \begin{itemize}
 \item for $m[p].\mf{spec}=\pair{\mc{C}}{v}$,
 $\Pi[p] = \mc{C}$ and $\Gamma \semi \Pi \vdval v: \Delta[\mc{C}]$, and
 \item for all $\ell$ in $m[p].\mf{st}$,
 $\Gamma \semi \Pi \vdval m[p].\mf{st}[\ell] : \Delta[\mc{C}][\ell]$.
+\item if $m[p].\mf{child}$ is defined, then $\Pi \vdtree m[p].\mf{child}$.
 \end{itemize}
 
-\textbf{\emph{Strong memory typing}}: 
-We say $\Gamma \semi \Pi \semi \mc{D} \vdmstr m$
-if:
-\begin{itemize}
-\item $\Gamma \semi \Pi \vdmwk m$,
-\item $\Delta \vDash \mc{D}$, and
-\item for all $p \in \dom(m)$,
-\begin{itemize}
-    \item for $\mc{D}[\Pi[p]]=x.\hat{e}$, 
-    $\mc{L}(\hat{e}) \subseteq \dom(m[p].\mf{st})$, and
-    \item $\Pi \vdtree m[p].\mf{child}$.
-\end{itemize}
-\end{itemize}
+\subsubsection{Modes}
 
-\subsubsection{Modes, Configurations}: To-do.
+Judgment: $\Pi \vdmu \mu$
+\begin{mathpar}
+\inferrule*[right=TMode-Idle] { } {\Pi \vdmu \mf{idle}}
+\and
+\inferrule*[right=TMode-Search] { } {\Pi \vdmu \mf{search}(id)}
+\and
+\inferrule*[right=TMode-Start] {
+  \cdot \semi \Pi \vdprog P
+} {
+  \Pi \vdmu \mf{start}(P)
+}
+\and
+\inferrule*[right=TMode-HandleNil] { } {\Pi \vdmu \mf{handle}([])}
+\and
+\inferrule*[right=TMode-HandleCons] {
+  \cdot \semi \Pi \vdexp e : \one \mid E
+  \and
+  \Pi \vdmu \mf{handle}(es)
+} {
+  \Pi \vdmu \mf{handle}(e :: es)
+}
+\end{mathpar}
+
+\subsubsection{Configurations}
+
+Define a configuration $\four{\mc{D}}{m}{t}{\mu}$
+to be well-typed via $\Pi \vdcfg \four{\mc{D}}{m}{t}{\mu}$ if:
+\begin{itemize}
+\item $\Delta \vDash \mc{D}$;
+\item $\Pi \vdmu \mu$;
+\item if $m$ is defined, then $\cdot \semi \Pi \vdm m$; and
+\item if $t$ is defined, then both $\Pi \vdtree t$ and $\mc{D} \semi m \wf t$.
+\end{itemize}
 
 \subsection{Program Semantics}
 
@@ -518,87 +572,128 @@ P \semi \mc{D}[\mc{C} \mapsto x.\hat{e}]
 \subsection{Event-Loop Semantics}
 
 Say $m \semi \hat{e} \Topstep{\phi}{p} v \semi m'$ 
-if $m \semi \hat{e} \xmapsto{*}^{\phi}_{p} \eret{v} \semi m'$
-and $m' \semi \hat{e}' \not \topstep{\phi}{p}$.
+if $m \semi \hat{e} \xmapsto{*}^{\phi}_{p} \eret{v} \semi m'$.
 
 \subsubsection{Initialization}
 
-Judgment: $\mc{D} \vdash v \bsinit \pair{t}{m}$.
+Judgment: $\mc{D} \vdash v \bsinit{n} \pair{t}{m}$.
+
+Define $\pi_0(\mc{C}, v)$ as $
+\{\mf{spec}: \pair{\mc{C}}{v}, \mf{st}: \emptyset, \mf{child}: \emptyset,
+\mf{rerender}: \mf{ff}\}$.
+
 \begin{mathpar}
-\inferrule*[right=\textsc{Init-Lit}] { } {
+\inferrule*[right=\textsc{Init-Lit}] {
+  n > 0
+} {
   \mc{D} \vdash \mf{text}\ v 
-  \bsinit
+  \bsinit{n}
   \pair{\mf{lit}\ v}{\cdot}
 }
 \and
 \inferrule*[right=\textsc{Init-Node}] {
+  n > 0
+  \and
   \mf{id\ fresh}
   \and
   (\forall j)
   \quad
   \mc{D} \vdash v_j
-  \bsinit
+  \bsinit{n-1}
   \pair{t_j}{m_j}
 } {
   \mc{D} \vdash \mf{tag}(v, \num{v_i}, \num{v_j})
-  \bsinit
+  \bsinit{n}
   \pair{\mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})}{\bigcup_j m_j}
 }
 \and
 \inferrule*[right=\textsc{Init-Comp}] {
+  n > 0
+  \and
   p\ \mf{fresh}
   \and
   \mc{D}[\mc{C}] = x.\hat{e}
   \\
-  [p \mapsto \{\mf{spec}: \pair{\mc{C}}{v}, \mf{st}: \emptyset, \mf{child}: \emptyset\}] 
+  [p \mapsto \pi_0(\mc{C}, v)] 
   \semi \hat{e}[v/x] \Topstep{\mf{Init}}{p} v' \semi m 
   \\
-  \mc{D} \vdash v' \Downarrow^{\mf{Init}} \pair{t}{m'}
+  \mc{D} \vdash v' \bsinit{n-1} \pair{t}{m'}
 } {
   \mc{D} \vdash \pair{\mc{C}}{v}
-  \bsinit
+  \bsinit{n}
+  \pair{p}{m' \uplus (m \mid m[p].\mf{child} = t)}
+}
+\and
+\inferrule*[right=\textsc{Init-Div}] { } {
+  \mc{D} \vdash \bsinit{0} \bot
+}
+\and
+\inferrule*[right=\textsc{Init-Node}$_\bot$] {
+  n > 0
+  \and
+  (\exists j)
+  \quad
+  \mc{D} \vdash v_j \bsinit{n-1} \bot
+} {
+  \mc{D} \vdash \mf{node}(\mf{id}, v, \num{v_i}, \num{v_j}) \bsinit{n} \bot
+}
+\and
+\inferrule*[right=\textsc{Init-Comp}$_\bot$] {
+  n > 0
+  \and
+  p\ \mf{fresh}
+  \and
+  \mc{D}[\mc{C}] = x.\hat{e}
+  \\
+  [p \mapsto \pi_0(\mc{C}, v)] 
+  \semi \hat{e}[v/x] \Topstep{\mf{Init}}{p} v' \semi m 
+  \\
+  \mc{D} \vdash v' \bsinit{n-1} \bot
+} {
+  \mc{D} \vdash \pair{\mc{C}}{v}
+  \bsinit{n}
   \pair{p}{m' \uplus (m \mid m[p].\mf{child} = t)}
 }
 \end{mathpar}
 
 \subsubsection{Rerendering}
 
-Judgment: $\mc{D} \semi m \vdash t \bssucc m'$
+Judgment: $\mc{D} \semi m \vdash t \bssucc{n} m'$
 
 \begin{mathpar}
 \inferrule*[right=Check-Lit] { } {
-  \mc{D} \semi m \vdash \mf{lit}\ v \bssucc \cdot
+  \mc{D} \semi m \vdash \mf{lit}\ v \bssucc{n} \cdot
 }
 \and
 \inferrule*[right=Check-Node] {
-  (0 \leq j < n) \quad
-  \mc{D} \semi m \vdash t_j \bssucc m_j
+  (\forall j) \quad
+  \mc{D} \semi m \vdash t_j \bssucc{n} m_j
 } {
   \mc{D} \semi m \vdash \mf{node}(id, v, \num{v_i}, \num{t_j}) 
-  \bssucc \bigcup_{\forall j} m_j
+  \bssucc{n} \bigcup_{\forall j} m_j
 }
 \and
 \inferrule*[right=\hl{Check-PathConst}] {
   m[p].\mf{rerender} = \mf{ff}
-  \and
-  \mc{D} \semi m \vdash m[p].\mf{child} \bssucc m'
+  \\
+  \mc{D} \semi m \vdash m[p].\mf{child} \bssucc{n} m'
   = m
 } {
-  \mc{D} \semi m \vdash p \bssucc m'
+  \mc{D} \semi m \vdash p \bssucc{n} m'
 }
 \and
 \inferrule*[right=\hl{Check-PathDiff}] { 
   m[p].\mf{rerender} = \mf{tt}
-  \and
+  \\
   m'[p].\mf{spec} = \pair{\mc{C}}{v}
   \and
   \mc{D}[\mc{C}] = x.\hat{e}
   \\
   m \semi \hat{e}[v/x] \multistep{\mf{Succ}}{p} \eret{v'} \semi \_
   \\
-  \mc{D} \semi m \vdash v' \bsinit \pair{t}{m'}
+  \mc{D} \semi m \vdash v' \bsinit{n} \pair{t}{m'}
 } {
-  \mc{D} \semi m \vdash p \bssucc m' \mid 
+  \mc{D} \semi m \vdash p \bssucc{n} m' \mid 
   m'[p].\mf{child}=t\ \mf{and}\ m'[p].\mf{rerender}=\mf{ff}
 }
 \end{mathpar}
@@ -624,7 +719,7 @@ Judgment: $m \semi \mf{id} \vdash \mf{handlers}(t) = \num{v}$
 }
 \and
 \inferrule*[right=Handlers-Node] {
-  id \neq id'
+  \mf{id} \neq \mf{id}'
   \and
   (\forall j)\ 
   m \semi \mf{id}\vdash \mf{handlers}(v_j) = h_j
@@ -648,7 +743,9 @@ Judgment: $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}'}{m'}{t}{\mu'}$
 }
 \and
 \inferrule*[right=\hl{Loop-Init}] {
-  \mc{D} \vdash v \bsinit \pair{t}{m}
+  (\forall n \in \mathbb{N})
+  \quad
+  \mc{D} \vdash v \bsinit{n} \pair{t}{m}
 } {
   \four{\mc{D}}{\_}{\_}{\mf{start}(\eret{v})} 
   \hookrightarrow 
@@ -677,20 +774,183 @@ Judgment: $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}'}{m'}{t}{\mu'}$
   \four{\mc{D}}{m'}{t}{\mf{handle}(e' :: es)}
 }
 \and
-\inferrule*[right=\hl{Loop-HandlePop}] { } {
+\inferrule*[right=\hl{Loop-HandleNext}] { } {
   \four{\mc{D}}{m}{t}{\mf{handle}(\eret{()} :: es)}
   \hookrightarrow
   \four{\mc{D}}{m}{t}{\mf{handle}(es)}
 }
 \and
 \inferrule*[right=\hl{Loop-Rerender}] {
-  \mc{D} \semi m \vdash t \bssucc m'
+  (\forall n \in \mathbb{N})
+  \quad
+  \mc{D} \semi m \vdash t \bssucc{n} m'
 } {
   \four{\mc{D}}{m}{t}{\mf{handle}([])}
   \hookrightarrow
   \four{\mc{D}}{m'}{t}{idle}
 }
 \end{mathpar}
+
+\subsection{Small-Step Event Loop?}
+
+\begin{align*}
+\iota 
+&::= \mf{return}_\iota\ t 
+\mid \mf{done} 
+\mid \mf{init}\ v 
+\mid \mf{check}\ t
+\mid \mf{inits}(v, \num{v}, \num{\iota}, \num{t})
+\mid \mf{checks}(\iota)\\
+&\quad \mid \mf{eval}^\phi_p\ \hat{e}
+\mid \mf{path}^\phi_p\ \iota\\
+\mc{E} &::= [\cdot] 
+\mid \mf{inits}(v, \num{v}, \mc{E} :: \num{\iota}, \num{t})
+\mid \mf{checks}(\mc{E} :: \num{\iota})
+\mid \mf{path}^\phi_p\ \mc{E}\\
+\mu
+&::= P \mid \iota \mid \mf{idle} \mid \mf{search\ id} \mid \mf{handle}(\num{e})
+\end{align*}
+
+Judgment: $m \semi \iota \mapsto_\mc{D} \iota \semi m$
+\begin{mathpar}
+\inferrule*[right=I-Ctx] {
+  m \semi \iota \mapsto_\mc{D} \iota' \semi m'
+} {
+  m \semi \mc{E}[\iota] \mapsto_\mc{D} \mc{E}[\iota'] \semi m'
+}
+\and
+\inferrule*[right=I-Eval] {
+  m \semi \hat{e} \topstep{\phi}{p} \hat{e}' \semi m'
+} {
+  m \semi \mf{eval}^\phi_p\ \hat{e} 
+  \mapsto_\mc{D}
+  \mf{eval}^\phi_p\ \hat{e}' \semi m'
+}
+\and
+\inferrule*[right=I-InitSpec] {
+  p\ \mf{fresh}
+  \and
+  \mc{D}[\mc{C}] = x.\hat{e}
+  \\
+  \pi_0 = \{
+    \mf{spec}: \pair{\mc{C}}{v}, 
+    \mf{st}: [], \mf{child}: \cdot, \mf{rerender}: \mf{ff}
+  \}
+} {
+  m \semi \mf{init}\ \pair{\mc{C}}{v}
+  \mapsto_\mc{D} 
+  \mf{eval}^\mf{Init}_p\ \hat{e}[v/x] \semi m[p \mapsto \pi_0]
+}
+\and
+\inferrule*[right=I-CheckPathT] {
+  m[p].\mf{spec} = \pair{\mc{C}}{v}
+  \and
+  \mc{D}[\mc{C}] = x.\hat{e}
+} {
+  m \semi \mf{check}\ p 
+  \mapsto_\mc{D} 
+  \mf{eval}^\mf{Succ}_p \hat{e}[v/x] \semi m \mid m[p].\mf{rerender} = \mf{ff}
+}
+\end{mathpar}
+\begin{align*}
+m \semi \mf{init}(\mf{text}\ v) 
+&\mapsto_\mc{D} \mf{return}_\iota(\mf{lit}\ v) \semi m
+&&\textsc{I-InitText}\\
+m \semi \mf{init}(\mf{tag}(v, \num{v_i}, \num{v_j})) 
+&\mapsto_\mc{D} \mf{inits}(v, \num{v_i}, \num{\mf{init}\ v_j}, []) \semi m
+&&\textsc{I-InitTag}\\
+m \semi \mf{inits}(v, \num{v_i}, \mf{return}_\iota\ t :: \num{\iota_j}, \num{t_k})
+&\mapsto_\mc{D} \mf{inits}(v, \num{v_i}, \num{\iota_j}, t :: \num{t_k}) \semi m
+&&\textsc{I-InitsNext}\\
+m \semi \mf{inits}(v, \num{v_i}, [], \num{t_k})
+&\mapsto_\mc{D} \mf{return}_\iota\ \mf{node}(\mf{id}, v, \num{v_i}, \num{t_k}) \semi m
+&&\textsc{I-InitsRet}\\
+&\qquad (\mf{id\ fresh})
+\end{align*}
+\begin{align*}
+m \semi \mf{check}(\mf{lit}\ v)
+&\mapsto_\mc{D} \mf{done} \semi m
+&&\textsc{I-CheckLit}\\
+m \semi \mf{check}(\mf{node}(\mf{id}, v, \num{v_i}, \num{t_j}))
+&\mapsto_\mc{D} \mf{checks}(\num{\mf{check}\ t_j}) \semi m
+&&\textsc{I-CheckNode}\\
+m \semi \mf{checks}(\mf{done} :: \num{t})
+&\mapsto_\mc{D} \mf{checks}(\num{t}) \semi m
+&&\textsc{I-ChecksNext}\\
+m \semi \mf{checks}([])
+&\mapsto_\mc{D} \mf{done} \semi m
+&&\textsc{I-ChecksDone}\\
+m \semi \mf{check}\ p
+&\mapsto_\mc{D} \mf{check}\ m[p].\mf{child} \semi m
+&&\textsc{I-CheckPathF}\\
+&\qquad (m[p].\mf{rerender} = \mf{ff})
+\end{align*}
+\begin{align*}
+m \semi \mf{eval}^\phi_p (\eret{v})
+&\mapsto_\mc{D} \mf{path}^\phi_p(\mf{init}\ v) \semi m
+&&\textsc{I-EvalRet}\\
+m \semi \mf{path}^\mf{Init}_p (return_\iota\ t)
+&\mapsto_\mc{D} \mf{return}_\iota\ p \semi m \mid m[p].\mf{child} = t
+&&\textsc{I-PathInit}\\
+m \semi \mf{path}^\mf{Succ}_p (return_\iota\ t)
+&\mapsto_\mc{D} \mf{done} \semi m \mid m[p].\mf{child} = t
+&&\textsc{I-PathSucc}\\
+\end{align*}
+
+Judgment: $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}}{m}{t}{\mu}$
+\begin{mathpar}
+\inferrule*[right=Loop-Start] {
+  \mc{D} \semi P \pstep P' \semi \mc{D}'
+} {
+  \four{\mc{D}}{m}{t}{P} 
+  \hookrightarrow 
+  \four{\mc{D}'}{m}{t}{P'}
+}
+\and
+\inferrule*[right=Loop-Iota] {
+  m \semi \iota \mapsto_\mc{D} \iota' \semi m'
+} {
+  \four{\mc{D}}{m}{t}{\iota} 
+  \hookrightarrow 
+  \four{\mc{D}}{m'}{t}{\iota'}
+}
+\and
+\inferrule*[right=Loop-HandleCong] {
+  m \semi e \mapsto e' \semi m'
+} {
+  \four{\mc{D}}{m}{t}{\mf{handle}(e :: es)}
+  \hookrightarrow
+  \four{\mc{D}}{m'}{t}{\mf{handle}(e' :: es)}
+}
+\and
+\inferrule*[right=Loop-Search] {
+  m \semi \mf{id} \vdash \mf{handlers}(t) = \num{v}
+} {
+  \four{\mc{D}}{m}{t}{\mf{search\ id}}
+  \hookrightarrow
+  \four{\mc{D}}{m}{t}{\mf{handle}(\num{v\ ()})}
+}
+\end{mathpar}
+\begin{align*}
+\four{\mc{D}}{m}{t}{\eret{v}}
+&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{init}(v)}
+&&\textsc{Loop-Init}\\
+\four{\mc{D}}{m}{\_}{\mf{return}_\iota\ t}
+&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{idle}}
+&&\textsc{Loop-InitRet}\\
+\four{\mc{D}}{m}{t}{\mf{idle}}
+&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{search}\ \mf{id}}
+&&\textsc{Loop-Event}\\
+\four{\mc{D}}{m}{t}{\mf{handle}(\eret{()} :: \num{e})}
+&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{handle}(\num{e})}
+&&\textsc{Loop-HandleNext}\\
+\four{\mc{D}}{m}{t}{\mf{handle}([])}
+&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{check}\ t}
+&&\textsc{Loop-Check}\\
+\four{\mc{D}}{m}{t}{\mf{done}}
+&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{idle}}
+&&\textsc{Loop-CheckDone}\\
+\end{align*}
 
 \subsection{Type Soundness}
 
@@ -776,7 +1036,7 @@ The appropriate rule immediately gives $m'=m$ and we are done.
 If $\cdot \semi \Pi \vdexp e: \tau \mid E$, then either:
 \begin{enumerate}[(i)]
 \item $e = \eret{v}$, or
-\item for all $m$ such that $\cdot \semi \Pi \vdmwk m$, 
+\item for all $m$ such that $\cdot \semi \Pi \vdm m$, 
 there exist some $e'$ and $m'$ such that 
 $m \semi e \mapsto e' \semi m'$.
 \end{enumerate}
@@ -869,13 +1129,13 @@ and we are done.
 If
 \begin{enumerate}[(i)]
 \item $\Gamma \semi \Pi \vdexp e: \tau \mid E$,
-\item $\Gamma \semi \Pi \vdmwk m$, and
+\item $\Gamma \semi \Pi \vdm m$, and
 \item $m \semi e \mapsto e' \semi m'$ for some $e'$ and $m'$,
 \end{enumerate}
 then
 \begin{enumerate}[(i)]
 \item $\Gamma \semi \Pi \vdexp e': \tau \mid E$ and
-\item $\Gamma \semi \Pi \vdmwk m'$.
+\item $\Gamma \semi \Pi \vdm m'$.
 \end{enumerate}
 \end{lemma}
 
@@ -980,7 +1240,7 @@ $\Gamma \semi \Pi \vdval v : \Delta[\Pi[p]][\ell]$.
 If $\cdot \semi \Pi \semi \mc{C} \vdtop \hat{e}$, then either:
 \begin{enumerate}[(i)]
 \item $\hat{e} = \eret{v}$, or
-\item for all $m$ such that $\cdot \semi \Pi \vdmwk m$
+\item for all $m$ such that $\cdot \semi \Pi \vdm m$
 and arbitrary $p \in \Pi$,
 there exist some $\hat{e}'$ and $m'$ such that
 $m \semi \hat{e} \topstep{\mf{Init}}{p} \hat{e}' \semi m'$.
@@ -1001,7 +1261,7 @@ By induction on the derivation of the typing judgment.
 there exist some $e'$ and $m'$ such that
 $m \semi e \mapsto e' \semi m'$.
 \begin{itemize}
-  \item By definition of $\vdmwk$, $m=\cdot$.
+  \item By definition of $\vdm$, $m=\cdot$.
   \item By pure progress, $m' = \cdot$.
   \item Apply \textsc{E-Lift} to get
 $m \semi \hat{e} \topstep{\mf{Init}}{p} \hat{e}' \semi m$,
@@ -1019,7 +1279,7 @@ satisfying conclusion \emph{(ii)}.
 \item Subcase (b): for all $m$ with $\cdot \semi \Pi \vDash^\mf{wk}_\Delta m$, 
 there exist some $e'$ and $m'$ such that
 $m \semi e \mapsto e' \semi m'$.\begin{itemize}
-  \item By definition of $\vdmwk$, $m=\cdot$.
+  \item By definition of $\vdm$, $m=\cdot$.
   \item By pure progress, $m' = \cdot$.
   \item Apply \textsc{E-LetTop} to get
   $m \semi \elet{x}{e}{\hat{e}} \topstep{\mf{Init}}{p} \elet{x}{e'}{\hat{e}} \semi m$.
@@ -1107,24 +1367,6 @@ since the judgment requires that $\phi=\mf{Succ}$.
 
 \end{proof}
 
-\begin{theorem}[Soundness of top-level expressions, initial phase.]
-If 
-\begin{enumerate}[(i)]
-\item $\cdot \semi \Pi \vdtop \hat{e}$,
-\item $\cdot \semi \Pi \vDash^\mf{wk}_\Delta m$, and
-\item $m \semi \hat{e} \Topstep{\mf{Init}}{p} v \semi m'$,
-\end{enumerate}
-then 
-\begin{enumerate}[(i)]
-\item $\cdot \semi \Pi \vdval v: \mf{View}$ and
-\item $\cdot \semi \Pi \vDash^\mf{wk}_\Delta m'$.
-\end{enumerate}
-\end{theorem}
-
-\begin{proof}
-Follows from progress \& preservation.
-\end{proof}
-
 \subsubsection{Programs}
 
 \begin{lemma}[Progress of programs]
@@ -1147,10 +1389,10 @@ By induction over the derivation of the typing judgment.
 \begin{itemize}
   \item Conclusion \emph{(i)} is trivially satisfied.
 \end{itemize}
-\item Subcase (b): for all $m$ with $\cdot \semi \cdot \vdmwk m$,
+\item Subcase (b): for all $m$ with $\cdot \semi \cdot \vdm m$,
 there exist some $e'$ and $m'$ with $m \semi e \mapsto e' \semi m$.
 \begin{itemize}
-  \item By definition of $\vdmwk$, we must have $m=\cdot$.
+  \item By definition of $\vdm$, we must have $m=\cdot$.
   \item By pure progress, $m' = \cdot$.
   \item We can therefore apply \textsc{P-Lift} to get 
 $\mc{D} \semi e \pstep e' \semi \mc{D}$,
@@ -1167,10 +1409,10 @@ thus satisfying conclusion \emph{(ii)}.
   $\mc{D} \semi \elet{x}{\eret{v}}{P} \pstep P[v/x] \semi \mc{D}$
   and we are done.
 \end{itemize}
-\item Subcase (b): for all $m$ with $\cdot \semi \cdot \vdmwk m$,
+\item Subcase (b): for all $m$ with $\cdot \semi \cdot \vdm m$,
 there exist some $e'$ and $m'$ with $m \semi e \mapsto e' \semi m$.
 \begin{itemize}
-  \item By definition of $\vdmwk$, we must have $m=\cdot$.
+  \item By definition of $\vdm$, we must have $m=\cdot$.
   \item By pure progress, $m' = \cdot$.
   \item We can therefore apply \textsc{P-Let} to get 
 $\mc{D} \semi \elet{x}{e}{P} \pstep \elet{x}{e'}{P} \semi \mc{D}$,
@@ -1242,16 +1484,73 @@ and $\Delta[\mc{C}] = \tau$.
 \end{itemize}
 \end{proof}
 
-\begin{theorem}[Soundness of programs]
-If $\cdot \vdprog P$ and $\cdot \semi P \Pstep v \semi \mc{D}$,
-then $\cdot \semi \cdot \vdval v: \mf{View}$ and $\Delta \vDash \mc{D}$.
-\end{theorem}
+\subsubsection{Initialization (New)}
+
+\begin{lemma}[Progress of initialization]
+If $\Delta \vDash \mc{D}$ and $\cdot \semi \Pi \vdval v: \mf{View}$,
+then, for all $n \in \mathbb{N}$,
+either $\mc{D} \vdash v \divinit{n}$ or $\mc{D} \vdash v \bsinit{n} \pair{t}{m}$.
+\end{lemma}
 
 \begin{proof}
-Follows from progress \& preservation of programs.
+By induction on $n$.
+
+In the base case, when $n=0$, we can always apply rule \textsc{Init-Div}
+to conclude that $\mc{D} \vdash v \divinit{0}$ and we are done.
+
+In the inductive case, we have $n>0$ by assumption.
+We apply the canonical forms lemma to the typing premise
+and case-analyze the result.
+
+\textbf{Case} $v = \mf{text} v'$: 
+We simply apply $\textsc{Init-Lit}$ to get 
+$\mc{D} \vdash \mf{text}\ v' \bsinit{n} \pair{\mf{lit}\ v'}{\cdot}$
+and we are done.
+
+\textbf{Case} $v = \mf{tag}(v', \num{v_i}, \num{v_j})$: unfinished
+
+\textbf{Case} $v = \pair{\mc{C}}{v}$: unfinished
+
 \end{proof}
 
-\subsubsection{Initialization}
+
+\begin{lemma}[Preservation of initialization]
+If \begin{enumerate}[(i)]
+\item $\Delta \vDash \mc{D}$, 
+\item $\cdot \semi \Pi \vdval v: \mf{View}$, and
+\item $\mc{D} \vdash v \bsinit{n} \pair{t}{m}$,
+\end{enumerate}
+then there exists some $\Pi'$ with \begin{enumerate}[(i)]
+\item $\Pi \po \Pi'$, 
+\item $\cdot \semi \Pi' \vdm m$, and
+\item $\Pi' \vdtree t$. We also have
+\item $\mc{D} \semi m \wf t$.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+By induction on the derivation of the big-step judgment.
+\end{proof}
+
+\begin{theorem}[Progress of configurations]
+If $\Pi \vdcfg \four{\mc{D}}{m}{t}{\mu}$, then either:
+\begin{enumerate}[(i)]
+\item $\mu = \mf{idle}$,
+\item $\mu = \mf{start}(\eret{v})$ and $\mc{D} \vdash v \divinit{ }$,
+\item $\mu = \mf{handle}([])$ and $\mc{D} \semi m \vdash t \divsucc{ }$, or
+\item $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}'}{m'}{t'}{\mu'}$.
+\end{enumerate}
+\end{theorem}
+
+\begin{theorem}[Preservation of configurations]
+If $\Pi \vdcfg \four{\mc{D}}{m}{t}{\mu}$\\
+and $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}'}{m'}{t'}{\mu'}$,
+there exists some $\Pi'$ with $\Pi \po \Pi'$
+and $\Pi' \vdcfg \four{\mc{D}'}{m'}{t'}{\mu'}$.
+    
+\end{theorem}
+
+\subsubsection{Initialization (Old)}
 
 We first prove a number of lemmas which are necessary in our critical property.
 
@@ -1288,7 +1587,7 @@ Immediate from path preservation and definition of $\Topstep{\phi}{p}$.
 \end{proof}
 
 \begin{lemma}[Memory Freshness]
-If $\mc{D} \vdash v \bsinit \pair{t}{m}$,
+If $\mc{D} \vdash v \bsinit{n} \pair{t}{m}$,
 then for all $p \in \dom(m)$, we have $p\ \mf{fresh}$.
 \end{lemma}
 
@@ -1300,9 +1599,9 @@ By induction over the derivation of the big-step judgment.
 \textbf{Case} \textsc{Init-Node}: \begin{itemize}
 \item We have
 $\mc{D} \vdash \mf{tag}(v, \num{v_i}, \num{v_j}) 
-\bsinit
+\bsinit{n}
 \pair{\mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})}{\bigcup_j m_j}$.
-\item For all $j$, we also have $\mc{D} \vdash v_j \bsinit \pair{t_j}{m_j}$.
+\item For all $j$, we also have $\mc{D} \vdash v_j \bsinit{n} \pair{t_j}{m_j}$.
 \item We apply the inductive hypothesis to each, getting that
 all $m_j$ only contain fresh $p$.
 \item Therefore, their union $\bigcup_j m_j$ also only contains fresh $p$,
@@ -1311,14 +1610,14 @@ and we are done.
 
 \textbf{Case} \textsc{Init-Comp}: \begin{itemize}
 \item We start with $\mc{D} \vdash \pair{\mc{C}}{v} 
-\bsinit \pair{p}{m' \cup (m \mid m[p].\mf{child} = t)}$.
+\bsinit{n} \pair{p}{m' \cup (m \mid m[p].\mf{child} = t)}$.
 \item Let $\mc{D}[\mc{C}] = x.\hat{e}$ and
 $m_0 = \{\mf{spec}: \pair{\mc{C}}{v_0}, \mf{st}: \emptyset, \mf{child}: \emptyset\}$.
 \item We have the following premises:
 \begin{enumerate}[(a)]
   \item $p$ is fresh,
   \item $m_0 \semi \hat{e}[v_0/x] \Topstep{\mf{Init}}{p} v \semi m$, and
-  \item $\mc{D} \vdash v \bsinit \pair{t}{m'}$.
+  \item $\mc{D} \vdash v \bsinit{n} \pair{t}{m'}$.
 \end{enumerate}
 \item By (a), clearly $m_0$ has all $p$ fresh.
 \item By the path preservation corollary on (b), $m$ also has all $p$ fresh.
@@ -1336,7 +1635,7 @@ then $\mc{L}(\hat{e}) \setminus \mc{L}(\hat{e}') \subseteq \dom(m'[p].\mf{st})$.
 \begin{proof}
 By case-analysis of the small-step judgment. Note that if 
 $\mc{L}(\hat{e}) \setminus \mc{L}(\hat{e}') = \emptyset$,
-the conclusion holds vacuously.
+the conclusion holds trivially.
 
 \textbf{Case} \textsc{E-Lift}: \begin{itemize}
 \item We have $\cdot \semi e \mapsto e' \semi \cdot$.
@@ -1403,27 +1702,27 @@ $\mc{L}(\hat{e}) \setminus \mc{L}(\eret{v}) = \mc{L}(\hat{e})$.
 
 \begin{lemma}[Strong Disjoint Memory]
 If \begin{enumerate}[(i)]
-\item $\Gamma \semi \Pi \semi \mc{D} \vdmstr m$,
-\item $\Gamma \semi \Pi \semi \mc{D} \vdmstr m'$, and
+\item $\Gamma \semi \Pi \semi \mc{D} \vdm m$,
+\item $\Gamma \semi \Pi \semi \mc{D} \vdm m'$, and
 \item $\dom(m) \cap \dom(m') = \emptyset$,
 \end{enumerate}
-then $\Gamma \semi \Pi \semi \mc{D} \vdmstr m \cup m'$.
+then $\Gamma \semi \Pi \semi \mc{D} \vdm m \cup m'$.
 \end{lemma}
 
 \begin{proof}
-Follows easily from definition of $\vdmstr$.
+Follows easily from definition of $\vdm$.
 \end{proof}
 
 \begin{theorem}[Critical Property of Initialization]
 If \begin{enumerate}[(i)]
-\item $\mc{D} \vdash v \bsinit \pair{t}{m}$,
+\item $\mc{D} \vdash v \bsinit{n} \pair{t}{m}$,
 \item $\Delta \vDash \mc{D}$, and
 \item $\cdot \semi \Pi \vdval v: \mf{View}$,
 \end{enumerate}
 then there exists some $\Pi'$ such that: \begin{enumerate}[(i)]
 \item $\Pi \sqsubseteq \Pi'$,
 \item $\Pi' \vdtree t$, and
-\item $\cdot \semi \Pi' \semi \mc{D} \vdmstr m$.
+\item $\cdot \semi \Pi' \semi \mc{D} \vdm m$.
 \end{enumerate}
 \end{theorem}
 
@@ -1431,7 +1730,7 @@ then there exists some $\Pi'$ such that: \begin{enumerate}[(i)]
 By induction on derivation of \emph{(i)}.
 
 \textbf{Case} \textsc{Init-Lit}: \begin{itemize}
-\item We have $\mc{D} \vdash \mf{text}\ v \bsinit \pair{\mf{lit}\ v}{\cdot}$.
+\item We have $\mc{D} \vdash \mf{text}\ v \bsinit{n} \pair{\mf{lit}\ v}{\cdot}$.
 \item Choose $\Pi'=\Pi$; conclusions \emph{(i)} and \emph{(iii)} are trivial.
 \item By premise \emph{(iii)} and \textsc{TVal-Text},
 we have $\cdot \semi \Pi \vdval v: \tau$ with $\tau \in \lits$.
@@ -1441,9 +1740,9 @@ and we are done.
 
 \textbf{Case} \textsc{Init-Node}: \begin{itemize}
 \item We have $\mc{D} \vdash \mf{tag}(v, \num{v_i}, \num{v_j})
-  \bsinit
+  \bsinit{n}
   \pair{\mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})}{\bigcup_j m_j}$.
-\item Furthermore, for all $j$, we have (a) that $\mc{D} \vdash v_j \bsinit \pair{t_j}{m_j}$.
+\item Furthermore, for all $j$, we have (a) that $\mc{D} \vdash v_j \bsinit{n} \pair{t_j}{m_j}$.
 \item By \emph{(iii)} and \textsc{TVal-Tag}, we have \begin{enumerate}[(a)]
   \stepcounter{enumi}
   \item $\cdot \semi \Pi \vdval v: \mf{String}$,
@@ -1466,7 +1765,7 @@ and we are done.
     \setcounter{enumi}{5}
     \item $\Pi_j \po \Pi_{j+1}$,
     \item $\Pi_{j+1} \vdtree t_j$, and
-    \item $\cdot \semi \Pi_{j+1} \semi \mc{D} \vdmstr m_{j}$.
+    \item $\cdot \semi \Pi_{j+1} \semi \mc{D} \vdm m_{j}$.
   \end{enumerate}
 \end{itemize}
 \item Choose $\Pi'=\Pi_n$.
@@ -1475,13 +1774,13 @@ and we are done.
 \begin{enumerate}[(a$'$)]
   \setcounter{enumi}{6}
   \item $\Pi_n \vdtree t_j$ and
-  \item $\cdot \semi \Pi_{n} \semi \mc{D} \vdmstr m_j$.
+  \item $\cdot \semi \Pi_{n} \semi \mc{D} \vdm m_j$.
 \end{enumerate}
 \item By the memory freshness lemma on (a), we get that all $p \in m_j$ are fresh,
 i.e. all $m_j$ are disjoint.
 \item Therefore, by the strong disjoint memory lemma,
 we get by (h$'$) that
-$\cdot \semi \Pi_n \vdmstr \bigcup_j m_j$, i.e. conclusion \emph{(iii)}.
+$\cdot \semi \Pi_n \vdm \bigcup_j m_j$, i.e. conclusion \emph{(iii)}.
 \item Finally, we apply \textsc{TTree-Node} using (b) and (c) weakened on $\Pi$,
 as well as (g$'$),
 to get $\Pi_n \vdtree \mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})$, 
@@ -1490,7 +1789,7 @@ i.e conclusion \emph{(ii)}, and we are done.
 
 \textbf{Case} \textsc{Init-Comp}: \begin{itemize}
 \item We start with $\mc{D} \vdash \pair{\mc{C}}{v_0}
-  \bsinit
+  \bsinit{n}
   \pair{p}{m' \cup (m \mid m[p].\mf{child} = t)}$.
 \item Let $\mc{D}[\mc{C}] = x.\hat{e}$ and
 $m_0 = \{\mf{spec}: \pair{\mc{C}}{v_0}, \mf{st}: \emptyset, \mf{child}: \emptyset\}$.
@@ -1498,10 +1797,10 @@ $m_0 = \{\mf{spec}: \pair{\mc{C}}{v_0}, \mf{st}: \emptyset, \mf{child}: \emptyse
 \begin{enumerate}[(a)]
   \item $p$ is fresh,
   \item $m_0 \semi \hat{e}[v_0/x] \Topstep{\mf{Init}}{p} v \semi m$ (S3), and
-  \item $\mc{D} \vdash v \bsinit \pair{t}{m'}$.
+  \item $\mc{D} \vdash v \bsinit{n} \pair{t}{m'}$.
 \end{enumerate}
 \item Let $\Pi_0=\Pi[p \mapsto \mc{C}]$; by freshness of $p$, $\Pi \po \Pi_0$.
-Note that $\cdot \semi \Pi_0 \vdmwk m_0$ (S2) by definition.
+Note that $\cdot \semi \Pi_0 \vdm m_0$ (S2) by definition.
 \item By premise \emph{(ii)}, we get 
 $[x \mapsto \Delta[\mc{C}]] \semi \cdot \semi \mc{C} \vdtop \hat{e}$.
 \item Premise \emph{(iii)} gives the following derivation (bottom-up):
@@ -1527,7 +1826,7 @@ to (S1-3), and get that:
 \begin{enumerate}[(a)]
   \setcounter{enumi}{5}
   \item $\cdot \semi \Pi_0 \vdval v: \mf{View}$, and
-  \item $\cdot \semi \Pi_0 \vdmwk m$.
+  \item $\cdot \semi \Pi_0 \vdm m$.
 \end{enumerate}
 \item We then apply the inductive hypothesis to (c) and (f) to get some $\Pi_1$ with:
 \begin{enumerate}[(a)]
@@ -1535,7 +1834,7 @@ to (S1-3), and get that:
   \item $\Pi_0 \po \Pi_1$,
   \stepcounter{enumi}
   \item $\Pi_1 \vdtree t$, and
-  \item $\cdot \semi \Pi_1 \semi \mc{D} \vdmstr m'$.
+  \item $\cdot \semi \Pi_1 \semi \mc{D} \vdm m'$.
 \end{enumerate}
 \item Choose this $\Pi_1$ as our $\Pi'$. We now need to show each of the conclusions.
 \item That $\Pi \po \Pi'$ follows from (h), definition of $\Pi_0$,
@@ -1543,13 +1842,13 @@ and transitivity of $\po$. (Conclusion \emph{(i)} satisfied.)
 \item That $\Pi' \vdtree p$ (conclusion \emph{(ii)}) 
 is immediate from \textsc{TTree-Path} and $\Pi_0 \po \Pi'$.
 \item We then need to show conclusion \emph{(iii)}, that 
-$\cdot \semi \Pi' \semi \mc{D} \vdmstr m' \cup (m \mid m[p].\mf{child} = t)$.
+$\cdot \semi \Pi' \semi \mc{D} \vdm m' \cup (m \mid m[p].\mf{child} = t)$.
 \item Let $m_1 = m \mid m[p].\mf{child} = t$.
 By (k) and the strong disjoint memory lemma, it suffices to show
-that $\cdot \semi \Pi' \semi \mc{D} \vdmstr m_1$.
-\item By definition of $\vdmstr$, we need the following sub-conclusions:
+that $\cdot \semi \Pi' \semi \mc{D} \vdm m_1$.
+\item By definition of $\vdm$, we need the following sub-conclusions:
 \begin{enumerate}[(\emph{iii}-a)]
-  \item $\cdot \semi \Pi' \vdmwk m_1$,
+  \item $\cdot \semi \Pi' \vdm m_1$,
   \item $\Delta \vDash \mc{D}$,
   \item for all $p \in \dom(m_1)$, for $\mc{D}[\Pi[p]]=x.\hat{e}$,
   $\mc{L}(\hat{e}) \subseteq \dom(m_1[p].\mf{st})$, and
