@@ -669,20 +669,19 @@ Judgment: $\mc{D} \semi m \vdash t \bssucc{n} m'$
   (\forall j) \quad
   \mc{D} \semi m \vdash t_j \bssucc{n} m_j
 } {
-  \mc{D} \semi m \vdash \mf{node}(id, v, \num{v_i}, \num{t_j}) 
+  \mc{D} \semi m \vdash \mf{node}(\mf{id}, v, \num{v_i}, \num{t_j}) 
   \bssucc{n} \bigcup_{\forall j} m_j
 }
 \and
-\inferrule*[right=\hl{Check-PathConst}] {
+\inferrule*[right=\hl{Check-PathF}] {
   m[p].\mf{rerender} = \mf{ff}
   \\
   \mc{D} \semi m \vdash m[p].\mf{child} \bssucc{n} m'
-  = m
 } {
   \mc{D} \semi m \vdash p \bssucc{n} m'
 }
 \and
-\inferrule*[right=\hl{Check-PathDiff}] { 
+\inferrule*[right=\hl{Check-PathT}] { 
   m[p].\mf{rerender} = \mf{tt}
   \\
   m'[p].\mf{spec} = \pair{\mc{C}}{v}
@@ -695,6 +694,36 @@ Judgment: $\mc{D} \semi m \vdash t \bssucc{n} m'$
 } {
   \mc{D} \semi m \vdash p \bssucc{n} m' \mid 
   m'[p].\mf{child}=t\ \mf{and}\ m'[p].\mf{rerender}=\mf{ff}
+}
+\and
+\inferrule*[right=\hl{Check-PathDiv}] { 
+  m[p].\mf{rerender} = \mf{tt}
+  \\
+  m'[p].\mf{spec} = \pair{\mc{C}}{v}
+  \and
+  \mc{D}[\mc{C}] = x.\hat{e}
+  \\
+  m \semi \hat{e}[v/x] \multistep{\mf{Succ}}{p} \eret{v'} \semi \_
+  \\
+  \mc{D} \semi m \vdash v' \bsinit{n} \bot
+} {
+  \mc{D} \semi m \vdash p \bssucc{n} \bot
+}
+\and
+\inferrule*[right=Check-Node$_\bot$] {
+  (\exists j)
+  \quad
+  \mc{D} \semi m \vdash t_j \bssucc{n} \bot
+} {
+  \mc{D} \semi m \vdash \mf{node}(\mf{id}, v, \num{v_i}, \num{t_j}) \bssucc{n} \bot
+}
+\and
+\inferrule*[right=Check-PathF$_\bot$] {
+  m[p].\mf{rerender} = \mf{ff}
+  \\
+  \mc{D} \semi m \vdash m[p].\mf{child} \bssucc{n} \bot
+} {
+  \mc{D} \semi m \vdash p \bssucc{n} \bot
 }
 \end{mathpar}
 
@@ -1023,8 +1052,7 @@ and $m \semi e_1 \mapsto e_1' \semi e_2$.
 \textbf{Case} \textsc{E-AppSet}: Impossible,
 since by \textsc{TExp-AppSet}, 
 $\Gamma \semi \Pi \vdexp \vset{\ell}{p}\ v: \one \mid \mf{Mut}$,
-i.e. the expression can never have an empty effect.\\
-\hl{(How to express this idea?)}
+i.e. the expression can never have an empty effect.
 
 \textbf{All other cases}: 
 The appropriate rule immediately gives $m'=m$ and we are done.
