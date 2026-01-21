@@ -5,7 +5,7 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
-\usepackage{amsthm}
+\usepackage[standard,thref,thmmarks]{ntheorem}
 \usepackage{listings}
 \usepackage{stmaryrd}
 \usepackage{parskip}
@@ -43,9 +43,11 @@
 \newcommand{\vdtop}{\vdash^{\mf{Top}}_\Delta}
 \newcommand{\vdprog}{\vdash^{\mf{Prog}}_\Delta}
 \newcommand{\vdtree}{\vdash^{\mf{Tree}}_\Delta}
+\newcommand{\vdi}{\Vdash_\Delta}
 \newcommand{\vdmu}{\vdash^{\mf{Mode}}_\Delta}
 \newcommand{\vdcfg}{\vdash^{\mf{Cfg}}_\Delta}
 \newcommand{\vdm}{\vDash_\Delta}
+\newcommand{\vdd}{\vDash}
 \newcommand{\wf}{\vdash_{\mf{wf}}}
 
 \newcommand{\topstep}[2]{\mapsto^{#1}_{#2}}
@@ -63,6 +65,7 @@
 \newcommand{\erun}[1]{\mf{run}\ #1}
 \newcommand{\eif}[3]{\mf{if}\ #1\ \mf{then}\ #2\ \mf{else}\ #3}
 \newcommand{\eret}[1]{\mf{return}\ #1}
+\newcommand{\ecase}[5]{\mf{case}\ #1\ \{#2 \rightarrow #3 \mid #4 \rightarrow #5\}}
 \newcommand{\estate}[4]{\mf{let}\ (#1, #1_{\mf{set}}) = \mf{useState}^{#2}(#3)\ \mf{in}\ #4}
 \newcommand{\vset}[2]{\mf{set}@^{#1}_{#2}}
 \newcommand{\eref}[1]{\mf{ref}(#1)}
@@ -71,12 +74,6 @@
 \newcommand{\vrec}[4]{\mf{rec}\ #1(#2 : #3).#4}
 \newcommand{\vcomp}[4]{\mf{comp}\ #1(#2 : #3).#4}
 \newcommand{\lits}{\{\mf{Bool}, \mf{String}\}}
-
-\newtheorem{theorem}{Theorem}
-\newtheorem{lemma}[theorem]{Lemma}
-\newtheorem{corollary}[theorem]{Corollary}
-\newtheorem{proposition}[theorem]{Proposition}
-\newtheorem{postulate}[theorem]{Postulate}
 
 \title{React-tRanslation}
 \author{Toby Ueno}
@@ -100,7 +97,7 @@ Other non-standard constructs are \hl{highlighted}.
 &\mid \mathgrey{\pair{\mc{C}}{v}} \mid \mathgrey{\vset{\ell}{p}}\\
 \text{Expression } e &::= \eret{v} \mid \elet{x}{e}{e} \mid v\ v \mid \eif{v}{e}{e}\\
 \text{Top-level expr }\hat{e} &::= e \mid \mathhl{\estate{x}{\ell}{v}{\hat{e}}} \mid \elet{x}{e}{\hat{e}}\\
-\text{Program } P &::= e \mid \elet{x}{e}{P} \mid \mathhl{\elet{\mc{C}(x : \tau)}{\hat{e}}{P}}\\
+\text{Program } P &::= e \mid \elet{x}{e}{P} \mid \mathhl{\elet{\mc{C}(x)}{\hat{e}}{P}}\\
 \text{Type } \tau &::= \one \mid \mf{Bool} \mid \mf{String} \mid \tau \xrightarrow{E} \tau
 \mid \mathhl{\mf{View}} \mid \mathhl{\mf{Attr}}\\
 &\mid \mathhl{\mf{Component}\ \tau} \mid \mathhl{\mf{Setter}\ \tau}\\
@@ -125,19 +122,23 @@ on top-level expressions as:
 \text{Path context }\Pi &::= \map{p}{\mc{C}}\\
 \text{Component context }\Delta &::= \map{\mc{C}}{\pair{\tau}{\map{\ell}{\tau}}}\\
 \text{Phase }\phi &::= \mf{Init} \mid \mf{Succ}\\
-\text{Tree }t &::= \mf{lit}\ v \mid \mf{node}(\mf{id}, v, \num{v}, \num{t}) \mid p\\
 \text{Realized component }\pi &::= \{\mf{spec}: \pair{\mc{C}}{v}, 
-\mf{st}: \map{\ell}{v}, \mf{child}: t, \mf{rerender}: \mf{tt} \mid \mf{ff}\}\\
+\mf{st}: \map{\ell}{v}, \mf{tree}: \rho, \mf{rerender}: \mf{tt} \mid \mf{ff}\}\\
 \text{Tree memory }m &::= \map{p}{\pi}\\
-\text{Component definitions }\mc{D} &::= \map{\mc{C}}{x.\hat{e}}\\
-\text{Mode }\mu &::= \mf{start}(P) \mid \mf{idle}
-\mid \mf{search}(\mf{id}) \mid \mf{handle}(\num{e})
+\text{Component definitions }\mc{D} &::= \map{\mc{C}}{x.\hat{e}}
 \end{align*}
+We elide the grammar of runtime expressions $\rho$ until a later section.
 
 We overload indexing notation on $\Delta$ for brevity,
 i.e. $\Delta[\mc{C}]=\tau$ and $\Delta[\mc{C}][\ell]=\tau$.
 
-\subsection{User-Facing Typing}
+We also use the notation $m \mid x = v$
+to concisely denote nested map/record updates.
+The above should be read as ``$m$ with field $x$ set to $v$''.
+For instance, $m \mid m[p].\mf{st}[\ell] = v$ updates the
+state field of $m$ at path $p$ and location $\ell$ to value $v$.
+
+\subsection{Program-Level Typing}
 
 Names of noteworthy rules are \hl{highlighted}.
 Rules for typing internal representations,
@@ -150,29 +151,29 @@ Similarly, $\Pi$ is unnecessary for typechecking.
 Judgment: $\Gamma \semi \Pi \vdval v: \tau$
 
 \begin{mathpar}
-\inferrule*[right=TVal-Var] {
+\inferrule*[right=TV-Var] {
   \Gamma[x] = \tau
 } {
   \Gamma \semi \Pi \vdval x: \tau
 }
 \and
-\inferrule*[right=TVal-Unit] { } {
+\inferrule*[right=TV-Unit] { } {
   \Gamma \semi \Pi \vdval () : \one
 }
 \and
-\inferrule*[right=TVal-True] { } {
+\inferrule*[right=TV-True] { } {
   \Gamma \semi \Pi \vdval \mf{true} : \mf{Bool}
 }
 \and
-\inferrule*[right=TVal-False] { } {
+\inferrule*[right=TV-False] { } {
   \Gamma \semi \Pi \vdval \mf{false} : \mf{Bool}
 }
 \and
-\inferrule*[right=TVal-Str] { } {
+\inferrule*[right=TV-Str] { } {
   \Gamma \semi \Pi \vdval s : \mf{String}
 }
 \and
-\inferrule*[right=TVal-Lam] {
+\inferrule*[right=TV-Lam] {
   \Gamma[x \mapsto \tau_1] \semi \Pi \vdexp e : \tau_2 \mid E
 } {
   \Gamma \semi \Pi 
@@ -180,13 +181,13 @@ Judgment: $\Gamma \semi \Pi \vdval v: \tau$
   \lambda x: \tau_1.e: \tau_1 \xrightarrow{E} \tau_2
 }
 \and
-\inferrule*[right=\hl{TVal-Comp}] {
+\inferrule*[right=\hl{TV-Comp}] {
   \Delta[\mc{C}] = \tau
 } {
   \Gamma \semi \Pi \vdval \mc{C} : \mf{Component}\ \tau
 }
 \and
-\inferrule*[right=\hl{TVal-Text}] {
+\inferrule*[right=\hl{TV-Text}] {
   \Gamma \semi \Pi \vdval v: \tau
   \and
   \tau \in \lits
@@ -194,7 +195,7 @@ Judgment: $\Gamma \semi \Pi \vdval v: \tau$
   \Gamma \semi \Pi \vdval \mf{text}\ v: \mf{View}
 }
 \and
-\inferrule*[right=\hl{TVal-Tag}] {
+\inferrule*[right=\hl{TV-Tag}] {
   \Gamma \semi \Pi \vdval v: \mf{String}
   \and
   (\forall i)\ \Gamma \semi \Pi \vdval v_i: \mf{Attr}
@@ -204,7 +205,7 @@ Judgment: $\Gamma \semi \Pi \vdval v: \tau$
   \Gamma \semi \Pi \vdval \mf{tag}(v, \num{v_i}, \num{v_j}): \mf{View}
 }
 \and
-\inferrule*[right=\hl{TVal-Attr}] {
+\inferrule*[right=\hl{TV-Attr}] {
   \Gamma \semi \Pi \vdval v_k: \mf{String}
   \and
   \Gamma \semi \Pi \vdval v_v: \mf{String}
@@ -212,13 +213,13 @@ Judgment: $\Gamma \semi \Pi \vdval v: \tau$
   \Gamma \semi \Pi \vdval \mf{attr}(v_k, v_v): \mf{Attr}
 }
 \and
-\inferrule*[right=\hl{TVal-OnClick}] {
+\inferrule*[right=\hl{TV-OnClick}] {
   \Gamma \vdval v: \one \xrightarrow{E} \one
 } {
   \Gamma \vdval \mf{onClick}\ v: \mf{Attr}
 }
 \and
-\inferrule*[right=\grey{TVal-Spec}] {
+\inferrule*[right=\grey{TV-Spec}] {
   \Gamma \semi \Pi \vdval \mc{C}: \mf{Component}\ \tau
   \and
   \Gamma \semi \Pi \vdval v: \tau
@@ -226,7 +227,7 @@ Judgment: $\Gamma \semi \Pi \vdval v: \tau$
   \Gamma \semi \Pi \vdval \pair{\mc{C}}{v}: \mf{View}
 }
 \and
-\inferrule*[right=\grey{TVal-Setter}] {
+\inferrule*[right=\grey{TV-Set}] {
   \Delta[\Pi[p]][\ell] = \tau
 } {
   \Gamma \semi \Pi \vdval \vset{\ell}{p} : \mf{Setter}\ \tau
@@ -235,32 +236,32 @@ Judgment: $\Gamma \semi \Pi \vdval v: \tau$
 
 \subsubsection{Expression Typing}
 
-Judgment: $\Gamma \semi \Pi \vdexp e : x \mid E$
+Judgment: $\Gamma \semi \Pi \vdexp e : \tau \mid E$
 
 \begin{mathpar}
-\inferrule*[right=TExp-Ret] {
+\inferrule*[right=TE-Ret] {
   \Gamma \semi \Pi \vdval v: \tau
 } {
   \Gamma \semi \Pi \vdexp \eret{v}: \tau \mid \epsilon
 }
 \and
-\inferrule*[right=TExp-Let] {
+\inferrule*[right=TE-Let] {
   \Gamma \semi \Pi \vdexp e_1 : \tau_1 \mid E
   \and
   \Gamma[x \mapsto \tau_1] \semi \Pi \vdexp e_2 : \tau_2 \mid E
 } {
-  \Gamma \vdexp \elet{x}{e_1}{e_2}: \tau_2 \mid E
+  \Gamma \semi \Pi \vdexp \elet{x}{e_1}{e_2}: \tau_2 \mid E
 }
 \and
-\inferrule*[right=TExp-AppFun] {
+\inferrule*[right=TE-AppL] {
   \Gamma \semi \Pi \vdval v_1 : \tau_1 \xrightarrow{E} \tau_2
   \and
   \Gamma \semi \Pi \vdval v_2 : \tau_1
 } {
-  \Gamma \vdexp v_1\ v_2: \tau_2 \mid E
+  \Gamma \semi \Pi \vdexp v_1\ v_2: \tau_2 \mid E
 }
 \and
-\inferrule*[right=\hl{TExp-AppComp}] {
+\inferrule*[right=\hl{TE-AppC}] {
   \Gamma \semi \Pi \vdval v_1 : \mf{Component}\ \tau
   \and
   \Gamma \semi \Pi \vdval v_2 : \tau
@@ -268,7 +269,7 @@ Judgment: $\Gamma \semi \Pi \vdexp e : x \mid E$
   \Gamma \semi \Pi \vdexp v_1\ v_2: \mf{View} \mid \epsilon
 }
 \and
-\inferrule*[right=\hl{TExp-AppSet}] {
+\inferrule*[right=\hl{TE-AppS}] {
   \Gamma \semi \Pi \vdval v_1 : \mf{Setter}\ \tau
   \and
   \Gamma \semi \Pi \vdval v_2 : \tau
@@ -276,17 +277,17 @@ Judgment: $\Gamma \semi \Pi \vdexp e : x \mid E$
   \Gamma \semi \Pi \vdexp v_1\ v_2: \one \mid \mf{Mut}
 }
 \and
-\inferrule*[right=TExp-If] {
+\inferrule*[right=TE-If] {
   \Gamma \semi \Pi \vdval v : \mf{Bool}
   \and
   \Gamma \semi \Pi \vdexp e_1 : \tau \mid E
   \and
   \Gamma \semi \Pi \vdexp e_2 : \tau \mid E
 } {
-  \Gamma \vdexp \eif{v}{e_1}{e_2} : \tau \mid E
+  \Gamma \semi \Pi \vdexp \eif{v}{e_1}{e_2} : \tau \mid E
 }
 \and
-\inferrule*[right=\hl{TExp-Sub}] {
+\inferrule*[right=\hl{TE-Sub}] {
   \Gamma \semi \Pi \vdexp e: \tau \mid \epsilon
 } {
   \Gamma \semi \Pi \vdexp e: \tau \mid \mf{Mut}
@@ -298,13 +299,13 @@ Judgment: $\Gamma \semi \Pi \vdexp e : x \mid E$
 Judgment: $\Gamma \semi \Pi \semi \mc{C} \vdtop \hat{e}$
 
 \begin{mathpar}
-\inferrule*[right=THat-Lift] {
+\inferrule*[right=TH-Lift] {
   \Gamma \semi \Pi \vdexp e: \mf{View} \mid \epsilon
 } {
   \Gamma \semi \Pi \semi \mc{C} \vdtop e
 }
 \and
-\inferrule*[right=THat-Let] {
+\inferrule*[right=TH-Let] {
   \Gamma \semi \Pi \vdexp e: \tau_1 \mid \epsilon
   \and
   \Gamma[x \mapsto \tau_1] \semi \Pi \semi \mc{C} \vdtop \hat{e}
@@ -312,7 +313,7 @@ Judgment: $\Gamma \semi \Pi \semi \mc{C} \vdtop \hat{e}$
   \Gamma \semi \Pi \semi \mc{C} \vdtop \elet{x}{e}{\hat{e}}
 }
 \and
-\inferrule*[right=\hl{THat-State}] {
+\inferrule*[right=\hl{TH-State}] {
   \Delta[\mc{C}][\ell] = \tau_1
   \and
   \Gamma \semi \Pi \vdval v: \tau_1
@@ -329,32 +330,1720 @@ Judgment: $\Gamma \semi \Pi \semi \mc{C} \vdtop \hat{e}$
 Judgment: $\Gamma \vdprog P$
 
 \begin{mathpar}
-\inferrule*[right=TProg-Lift] {
+\inferrule*[right=TP-Lift] {
   \Gamma \semi \cdot \vdexp {e}: \mf{View} \mid \epsilon
 } {
   \Gamma \vdprog e
 }
 \and
-\inferrule*[right=TProg-Let] {
+\inferrule*[right=TP-Let] {
   \Gamma \semi \cdot \vdexp e: \tau \mid \epsilon
   \and 
   \Gamma[x \mapsto \tau] \vdprog P
 } {
-  \Gamma \semi \cdot \vdprog \elet{x}{e}{P}
+  \Gamma \vdprog \elet{x}{e}{P}
 }
 \and
-\inferrule*[right=\hl{TProg-Comp}] {
-  \Delta[\mc{C}] = \tau
-  \and
-  \Gamma[x \mapsto \tau] \semi \cdot \semi \mc{C} \vdtop \hat{e}
+\inferrule*[right=\hl{TP-Def}] {
+  \Gamma[x \mapsto \Delta[\mc{C}]] \semi \cdot \semi \mc{C} \vdtop \hat{e}
   \and
   \Gamma \vdprog P
 } {
-  \Gamma \vdprog \elet{\mc{C}(x: \tau)}{\hat{e}}{P}
+  \Gamma \vdprog \elet{\mc{C}(x)}{\hat{e}}{P}
 }
 \end{mathpar}
 
-\subsection{Runtime Typing}
+\subsubsection{Memory Typing}
+
+Define $\Gamma \semi \Pi \vdm m$ if, for all $p \in \mf{dom}(m)$:
+\begin{itemize}
+\item for $m[p].\mf{spec}=\pair{\mc{C}}{v}$,
+$\Pi[p] = \mc{C}$ and $\Gamma \semi \Pi \vdval v: \Delta[\mc{C}]$,
+\item for all $\ell$ in $m[p].\mf{st}$,
+$\Gamma \semi \Pi \vdval m[p].\mf{st}[\ell] : \Delta[\mc{C}][\ell]$, and
+\item if $m[p].\mf{tree}$ is defined, then $\Pi \vdi m[p].\mf{tree}$.
+\end{itemize}
+
+Note that we have not yet defined what it means
+for a runtime expression $\rho$, such as $m[p].\mf{tree}$,
+to be well-typed; we postpone this notion for later,
+as doing so is unnecessary for the program-level proofs,
+in which no trees are initialized.
+
+\subsubsection{Component Context Typing}
+Define $\Gamma \semi \Delta \vdd \mc{D}$ to say that,
+for all $\mc{C} \in \dom(\mc{D})$
+(such that $\mc{D}[\mc{C}] = x.\hat{e}$),
+we have $\Gamma[x \mapsto \Delta[\mc{C}]] \semi \cdot \semi \mc{C} \vdtop \hat{e}$.
+
+\subsection{Program-Level Semantics}
+
+We \hl{highlight} interesting rules.
+
+\subsubsection{Expression Semantics}
+
+Judgment: $m \semi e \mapsto e' \semi m'$
+\begin{mathpar}
+\inferrule*[right=E-Let] {
+  m \semi e_1 \mapsto e_1' \semi m'
+} {
+  m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \elet{x}{\eret{v}}{e} &\mapsto e[v/x] \semi m
+&&\textsc{E-Ret}\\
+m \semi (\lambda x.e) v &\mapsto e[v/x] \semi m
+&&\textsc{E-AppL}\\
+m \semi \mc{C}\ v &\mapsto \eret{\pair{\mc{C}}{v}} \semi m
+&&\textsc{\hl{E-AppC}}\\
+m \semi \vset{\ell}{p}\ v &\mapsto \eret{()} \semi m'
+&&\textsc{\hl{E-AppS}}\\
+(m' = m \mid m[p].\mf{st}[\ell] &= v\ 
+    \mf{and}\ m[p].\mf{rerender} = \mf{tt})\\
+m \semi \eif{\mf{true}}{e_1}{e_2} &\mapsto e_1 \semi m
+&&\textsc{E-IfT}\\
+m \semi \eif{\mf{false}}{e_1}{e_2} &\mapsto e_2 \semi m
+&&\textsc{E-IfF}
+\end{align*}
+
+\subsubsection{Top-Level Expression Semantics}
+
+Judgment: $m \semi \hat{e} \topstep{\phi}{p} \hat{e}' \semi m'$
+\begin{mathpar}
+\inferrule*[right=EH-Lift] {
+  m \semi e \mapsto e' \semi m
+} {
+  m \semi e \topstep{\phi}{p} e' \semi m
+}
+\and
+\inferrule*[right=EH-Let] {
+  m \semi e \mapsto e' \semi m
+} {
+  m \semi \elet{x}{e}{\hat{e}} \topstep{\phi}{p} \elet{x}{e'}{\hat{e}} \semi m
+}
+\end{mathpar}
+\begin{align*}
+m \semi \elet{x}{\eret{v}}{\hat{e}} &\topstep{\phi}{p} \hat{e}[v/x] \semi m
+&&\textsc{EH-Ret}\\
+m \semi \estate{x}{\ell}{v}{\hat{e}}
+&\topstep{\mf{Init}}{p}
+\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}] \semi m'
+&&\textsc{\hl{EH-StI}}\\
+(m' &= m \mid m[p].\mf{st}[\ell] = v)\\
+m \semi \estate{x}{\ell}{v}{\hat{e}}
+&\topstep{\mf{Succ}}{p}
+\hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}] \semi m
+&&\textsc{\hl{EH-StS}}\\
+(v' &= m[p].\mf{st}[\ell])
+\end{align*}
+
+\subsubsection{Program Expression Semantics}
+
+Judgment: $\mc{D} \semi P \pstep P' \semi \mc{D}'$
+\begin{mathpar}
+\inferrule*[right=EP-Lift] {
+  \cdot \semi e \mapsto e' \semi \cdot
+} {
+  \mc{D} \semi e \pstep e' \semi \mc{D}
+}
+\and
+\inferrule*[right=EP-Let] {
+  \cdot \semi e \mapsto e' \semi \cdot
+} {
+  \mc{D} \semi \elet{x}{e}{P}
+  \pstep
+  \elet{x}{e'}{P} \semi \mc{D}
+}
+\end{mathpar}
+\begin{align*}
+\mc{D} \semi \elet{x}{\eret{v}}{P}
+&\pstep
+P[v/x] \semi \mc{D}
+&&\textsc{EP-Ret}\\
+\mc{D} \semi \elet{\mc{C}(x)}{\hat{e}}{P}
+&\pstep
+P \semi \mc{D}[\mc{C} \mapsto x.\hat{e}]
+&&\textsc{\hl{EP-Def}}
+\end{align*}
+
+\subsection{Program-Level Soundness}
+
+Throughout, \emph{propositions} refer to (as-of-yet) unproved assumptions.
+
+\subsubsection{General Lemmas}
+
+We postulate weakening on $\Gamma$ for all typing judgments involving $\Gamma$.
+For instance, the statement for weaking $\Gamma$ on values is:
+\begin{proposition}[Type context weakening, values]
+If $\Gamma \semi \Pi \vdval v: \tau$ and $\Gamma \po \Gamma'$,
+then $\Gamma' \semi \Pi \vdval v: \tau$.
+\end{proposition}
+
+Similarly, we require weakening on $\Pi$ for all typing judgments involving $\Pi$:
+\begin{proposition}[Path context weakening, values]
+If $\Gamma \semi \Pi \vdval v: \tau$ and $\Pi \po \Pi'$,
+then $\Gamma \semi \Pi' \vdval v: \tau$.
+\end{proposition}
+
+We elide statements of all other weakening lemmas.
+
+\begin{proposition}[Canonical Forms]
+\label{thm:canon}
+If $\cdot \semi \Pi \vdval v: \tau$, then:
+\begin{itemize}
+\item if $\tau=\one$, then $v=()$.
+\item if $\tau=\mf{Bool}$, then either $v=\mf{true}$ or $v=\mf{false}$.
+\item if $\tau=\mf{String}$, then $v=s$.
+\item if $\tau=\tau_1 \xrightarrow{E} \tau_2$, then $v=\lambda x: \tau_1.e$.
+\item if $\tau=\mf{View}$, then either $v=\mf{text}\ v'$,
+    $v=\mf{tag}(v' \num{v_i}, \num{v_j})$, or $v=\pair{\mc{C}}{v'}$.
+\item if $\tau=\mf{Attr}$, then either $v=\mf{attr}(v_1, v_2)$ or $v=\mf{onClick}\ v'$.
+\item if $\tau=\mf{Component}\ \tau'$, then $v=\mc{C}$.
+\item if $\tau=\mf{Setter}\ \tau'$, then $v=\vset{\ell}{p}$.
+\end{itemize}
+\end{proposition}
+
+We postulate substitution lemmas on all typing judgments involving $\Gamma$.
+\begin{proposition}[Substitution lemma, expressions.]
+\label{thm:subexp}
+If $\Gamma[x \mapsto \tau_v] \semi \Pi \vdexp e: \tau \mid E$
+and $\Gamma \semi \Pi \vdval v: \tau_v$,
+then $\Gamma \semi \Pi \vdexp e[v/x]: \tau \mid E$.
+\end{proposition}
+
+\begin{proposition}[Substitution lemma, top-level expressions.]
+\label{thm:subtle}
+If\\$\Gamma[x \mapsto \tau_v] \semi \Pi \semi \mc{C} \vdtop \hat{e}$
+and $\Gamma \semi \Pi \vdval v: \tau_v$,
+then $\Gamma \semi \Pi \semi \mc{C} \vdtop \hat{e}[v/x]$.
+\end{proposition}
+
+\begin{proposition}[Substitution lemma, programs.]
+\label{thm:subprog}
+If\\$\Gamma[x \mapsto \tau_v] \vdprog P$
+and $\Gamma \semi \cdot \vdval v: \tau_v$,
+then $\Gamma \vdprog \hat{e}[v/x]$.
+\end{proposition}
+
+Finally, we have the following properties regarding labels:
+\begin{proposition}[Label-set substitution]
+\label{thm:sublab}
+For all top-level expressions $\hat{e}$, values $v$, 
+and variables $x$, 
+$\mc{L}(\hat{e}[v/x]) = \mc{L}(\hat{e})$.
+\end{proposition}
+
+\subsubsection{Expressions}
+
+\begin{lemma}[Progress of expressions.]
+\label{thm:progexp}
+If $\cdot \semi \Pi \vdexp e: \tau \mid E$ and $\cdot \semi \Pi \vdm m$,
+then either:
+\begin{enumerate}[(i)]
+\item $e = \eret{v}$, or
+\item there exist some $e'$ and $m'$ such that
+$m \semi e \mapsto e' \semi m'$.
+\end{enumerate}
+
+
+\begin{Proof}
+By induction on the derivation of the expression typing judgment.
+
+\textbf{Case} \textsc{TE-Ret}: We have 
+$\cdot \semi \Pi \vdexp \eret{v}: \tau \mid \epsilon$,
+and the theorem holds trivially by case \emph{(i)}.
+
+\textbf{Case} \textsc{TE-Let}: \begin{mathpar}
+\inferrule*[right=TE-Let] {
+  \inferrule*[right=(1)] { } {\cdot \semi \Pi \vdexp e_1 : \tau_1 \mid E}
+  \and
+  \inferrule*[right=(2)] { } {
+    [x \mapsto \tau_1] \semi \Pi \vdexp e_2 : \tau_2 \mid E
+  }
+} {
+  \cdot \semi \Pi \vdexp \elet{x}{e_1}{e_2}: \tau_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1), we have two subcases on $e_1$:
+either (a) $e_1 = \eret{v}$,
+or (b) we have $m \semi e_1 \mapsto e_1' \semi m'$.
+\begin{itemize}
+\item Subcase (a): \textsc{E-Ret} gives 
+  $m \semi \elet{x}{\eret{v}}{e_2} \mapsto e_2[v/x] \semi m$.
+\item Subcase (b):
+  \begin{mathpar}
+    \inferrule*[right=E-Let] {
+      m \semi e_1 \mapsto e_1' \semi m'
+    } {
+      m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi m'
+    }
+  \end{mathpar}
+\end{itemize}
+\item Thus, in any subcase, $\elet{x}{e_1}{e_2}$ steps,
+and we satisfy conclusion \emph{(ii)}.
+\end{itemize}
+
+\textbf{Case} \textsc{TE-AppL}: \begin{mathpar}
+\inferrule*[right=TE-AppL] {
+  \cdot \semi \Pi \vdval v_1 : \tau_1 \xrightarrow{E} \tau_2
+  \and
+  \cdot \semi \Pi \vdval v_2 : \tau_1
+} {
+  \cdot \semi \Pi \vdexp v_1\ v_2: \tau_2 \mid E
+}
+\end{mathpar}\begin{itemize}
+\item By canonical forms, $v_1=\lambda x.e$.
+\item We apply \textsc{E-AppL} to get that
+$m \semi (\lambda x.e)\ v_2 \mapsto e[v_2/x] \semi m$,
+satisfying conclusion \emph{(ii)}.
+\end{itemize}
+
+\textbf{Case} \textsc{TE-AppC}: \begin{mathpar}
+\inferrule*[right=TE-AppC] {
+  \cdot \semi \Pi \vdval v_1 : \mf{Component}\ \tau
+  \and
+  \cdot \semi \Pi \vdval v_2 : \tau
+} {
+  \cdot \semi \Pi \vdexp v_1\ v_2: \mf{View} \mid \epsilon
+}
+\end{mathpar}\begin{itemize}
+\item By canonical forms, $v_1 = \mc{C}$.
+\item \textsc{E-AppC} gives
+$m \semi \mc{C}\ v_2 \mapsto \eret{\pair{\mc{C}}{v_2}} \semi m$,
+satisfying conclusion \emph{(ii)}.
+\end{itemize}
+
+\textbf{Case} \textsc{TE-AppS}: \begin{mathpar}
+\inferrule*[right=TE-AppS] {
+  \cdot \semi \Pi \vdval v_1 : \mf{Setter}\ \tau
+  \and
+  \cdot \semi \Pi \vdval v_2 : \tau
+} {
+  \cdot \semi \Pi \vdexp v_1\ v_2: \one \mid \mf{Mut}
+}
+\end{mathpar}\begin{itemize}
+\item By canonical forms, $v_1 = \vset{\ell}{p}$.
+\item We apply \textsc{E-AppS} to get that
+$m \semi \vset{\ell}{p}\ v_2 \mapsto \eret{()} \semi m'$,
+where $m' = m \mid m[p].\mf{st}[\ell] = v_2$ 
+and $m[p].\mf{rerender} = \mf{tt}$,
+satisfying conclusion \emph{(ii)}.
+\end{itemize}
+
+\textbf{Case} \textsc{TE-If}: \begin{mathpar}
+\inferrule*[right=TE-If] {
+  \cdot \semi \Pi \vdval v : \mf{Bool}
+  \and
+  \cdot \semi \Pi \vdexp e_1 : \tau \mid E
+  \and
+  \cdot \semi \Pi \vdexp e_2 : \tau \mid E
+} {
+  \cdot \semi \Pi \vdexp \eif{v}{e_1}{e_2} : \tau \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By \thref{thm:canon} (canonical forms), either $v=\mf{true}$ or $v=\mf{false}$, giving two subcases.
+\begin{itemize}
+\item If $v=\mf{true}$, then \textsc{E-IfT} gives 
+$m \semi \eif{v}{e_1}{e_2} \mapsto e_1 \semi m$.
+\item If $v=\mf{false}$, ththen \textsc{E-IfF} gives
+$m \semi \eif{v}{e_1}{e_2} \mapsto e_2 \semi m$.
+\end{itemize}
+\item In either subcase, we satisfy conclusion \emph{(ii)}.
+\end{itemize}
+
+\textbf{Case} \textsc{TE-Sub}: \begin{mathpar}
+\inferrule*[right=TE-Sub] {
+  \Gamma \semi \Pi \vdexp e: \tau \mid \epsilon
+} {
+  \Gamma \semi \Pi \vdexp e: \tau \mid \mf{Mut}
+}
+\end{mathpar}
+The result follows immediately from the inductive hypothesis
+on the more conservative typing premise.
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Preservation of expressions.]
+\label{thm:prezexp}
+If
+\begin{enumerate}[(i)]
+\item $\Gamma \semi \Pi \vdexp e: \tau \mid E$,
+\item $\Gamma \semi \Pi \vdm m$, and
+\item $m \semi e \mapsto e' \semi m'$ for some $e'$ and $m'$,
+\end{enumerate}
+then
+\begin{enumerate}[(i)]
+\item $\Gamma \semi \Pi \vdexp e': \tau \mid E$ and
+\item $\Gamma \semi \Pi \vdm m'$.
+\end{enumerate}
+
+\begin{Proof}
+By induction on derivation of the step judgment \emph{(iii)}.
+
+\textbf{Case} \textsc{E-Let}: We have \begin{mathpar}
+\inferrule*[right=E-Let] {
+  \inferrule*[right=(1)] { } {m \semi e_1 \mapsto e_1' \semi m'}
+} {
+  m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi m'
+}
+\and
+\inferrule*[right=TE-Let] {
+  \inferrule*[right=(2)] { } {\Gamma \semi \Pi \vdexp e_1 : \tau_1 \mid E}
+  \and
+  \inferrule*[right=(3)] { } {
+    \Gamma[x \mapsto \tau_1] \semi \Pi \vdexp e_2 : \tau_2 \mid E
+  }
+} {
+  \Gamma \semi \Pi \vdexp \elet{x}{e_1}{e_2}: \tau_2 \mid E
+}
+\end{mathpar}\begin{itemize}
+\item We apply the inductive hypothesis with (1), (2), and premise \emph{(ii)}
+to get: \begin{itemize}
+\item $\Gamma \semi \Pi \vdm m'$, satisfying conclusion \emph{(ii)}, and
+\item (4) $\Gamma \semi \Pi \vdexp e_1': \tau_1 \mid E$.
+\end{itemize}
+\item We reapply \textsc{TE-Let} as follows to get conclusion \emph{(i)}:
+\begin{mathpar}
+\inferrule*[right=TE-Let] {
+  \inferrule*[right=(4)] { } {\Gamma \semi \Pi \vdexp e_1' : \tau_1 \mid E}
+  \and
+  \inferrule*[right=(3)] { } {
+    \Gamma[x \mapsto \tau_1] \semi \Pi \vdexp e_2 : \tau_2 \mid E
+  }
+} {
+  \Gamma \semi \Pi \vdexp \elet{x}{e_1'}{e_2}: \tau_2 \mid E
+}
+\end{mathpar}
+\end{itemize}
+
+\textbf{Case} \textsc{E-Ret}: \begin{itemize}
+\item We have $m \semi \elet{x}{\eret{v}}{e} \mapsto e[v/x] \semi m$ and:
+\begin{mathpar}
+\inferrule*[right=TE-Let] {
+  \inferrule*[right=(1)] { } {\Gamma \semi \Pi \vdexp \eret{v} : \tau_1 \mid E}
+  \ 
+  \inferrule*[right=(2)] { } {
+    \Gamma[x \mapsto \tau_1] \semi \Pi \vdexp e : \tau_2 \mid E
+  }
+} {
+  \Gamma \vdexp \elet{x}{\eret{v}}{e}: \tau_2 \mid E
+}
+\end{mathpar}
+\item (1) lets us derive (3) $\Gamma \semi \Pi \vdval v: \tau_1$
+by subcasing on $E$ as follows:
+\begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \inferrule*[right=(3)] { } {\Gamma \semi \Pi \vdval v: \tau_1}
+} {
+  \Gamma \semi \Pi \vdexp \eret{v}: \tau_1 \mid \epsilon
+}
+\and
+\inferrule*[right=TE-Sub] {
+  \inferrule*[right=TE-Ret] {
+    \inferrule*[right=(3)] { } {\Gamma \semi \Pi \vdval v: \tau_1}
+  } {
+    \Gamma \semi \Pi \vdexp \eret{v}: \tau_1 \mid \epsilon
+  }
+} {
+  \Gamma \semi \Pi \vdexp \eret{v}: \tau_1 \mid \mf{Mut}
+}
+\end{mathpar}
+\item By \thref{thm:subexp} (substitution for expressions)
+on (2) and (3), we get
+$\Gamma \semi \Pi \vdexp e[v/x] : \tau_2 \mid E$ and we are done.
+\end{itemize}
+
+\textbf{Case} \textsc{E-AppL}: \begin{itemize}
+\item We have $m \semi (\lambda x.e) v \mapsto e[v/x] \semi m$ and:
+\begin{mathpar}
+\inferrule*[right=TE-AppL] {
+  \inferrule*[right=TV-Lam] {
+    \inferrule*[right=(1)] { } {
+      \Gamma[x \mapsto \tau_1] \semi \Pi \vdexp e: \tau_2 \mid E
+    }
+  } {
+    \Gamma \semi \Pi \vdval \lambda x.e : \tau_1 \xrightarrow{E} \tau_2
+  }
+  \:
+  \inferrule*[right=(2)] { } {
+    \Gamma \semi \Pi \vdval v_2 : \tau_1
+  }
+} {
+  \Gamma \semi \Pi \vdexp (\lambda x.e)\ v_2: \tau_2 \mid E
+}
+\end{mathpar}
+\item By \thref{thm:subexp} (substitution for expressions)
+on (1) and (2), we get
+$\Gamma \semi \Pi \vdexp e[v/x] : \tau_2 \mid E$ and we are done.
+\end{itemize}
+
+\textbf{Case} \textsc{E-AppC}: \begin{itemize}
+\item We have $m \semi \mc{C}\ v \mapsto \eret{\pair{\mc{C}}{v}} \semi m$ and:
+\begin{mathpar}
+\inferrule*[right=TE-AppC] {
+  \inferrule*[right=(1)] { } {
+    \Gamma \semi \Pi \vdval \mc{C} : \mf{Component}\ \tau
+  }
+  \and
+  \inferrule*[right=(2)] { } {
+    \Gamma \semi \Pi \vdval v : \tau
+  }
+} {
+  \Gamma \semi \Pi \vdexp \mc{C}\ v: \mf{View} \mid \epsilon
+}
+\end{mathpar}
+\item We can then derive conclusion \emph{(i)}:
+\begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \inferrule*[right=TV-Spec] {
+    \inferrule*[right=(1)] { } {\Gamma \semi \Pi \vdval \mc{C}: \mf{Component}\ \tau}
+    \ 
+    \inferrule*[right=(2)] { } {\Gamma \semi \Pi \vdval v: \tau}
+  } {
+    \Gamma \semi \Pi \vdval \pair{\mc{C}}{v} : \mf{View}
+}
+} {
+  \Gamma \semi \Pi \vdexp \eret{\pair{\mc{C}}{v}}: \mf{View} \mid \epsilon
+}
+\end{mathpar}
+\end{itemize}
+
+\textbf{Case} \textsc{E-AppS}: \begin{itemize}
+\item We have $m \semi \vset{\ell}{p}\ v \mapsto \eret{()} \semi m'$,
+where $m' = m \mid m[p].\mf{st}[\ell] = v$ and $m[p].\mf{rerender} = \mf{tt}$.
+\item The typing premise gives us:
+\begin{mathpar}
+\inferrule*[right=TE-AppS] {
+  \inferrule*[right=TV-Set] {
+    \inferrule*[right=(1)] { } {\Delta[\Pi[p]][\ell] = \tau}
+  } {
+    \Gamma \semi \Pi \vdval \vset{\ell}{p}: \mf{Setter}\ \tau
+  }
+  \and
+  \inferrule*[right=(2)] { } {\Gamma \semi \Pi \vdval v: \tau}
+} {
+  \Gamma \semi \Pi \vdexp \vset{\ell}{p}\ v: \one \mid \mf{Mut}
+}
+\end{mathpar}
+\item Conclusion \emph{(i)} follows from the derivation:
+\begin{mathpar}
+\inferrule*[right=TE-Sub] {
+  \inferrule*[right=TE-Ret] {
+    \inferrule*[right=TV-Unit] { } {
+      \Gamma \semi \Pi \vdval (): \one
+    }
+  } {
+    \Gamma \semi \Pi \vdexp \eret{()}: \one \mid \epsilon
+  }
+} {
+  \Gamma \semi \Pi \vdexp \eret{()}: \one \mid \mf{Mut}
+}
+\end{mathpar}
+\item To show $\Gamma \semi \Pi \vdm m'$ given premise $\Gamma \semi \Pi \vdm m$,
+it suffices to show that 
+$\Gamma \semi \Pi \vdval m'[p].\mf{st}[\ell] : \Delta[\Pi[p]][\ell]$.
+\item By definition of $m'$, we want to show 
+$\Gamma \semi \Pi \vdval v : \Delta[\Pi[p]][\ell]$.
+\item This fact follows from (1) and (2), and we are done.
+\end{itemize}
+
+\textbf{Case} \textsc{E-IfT}: \begin{itemize}
+\item We have $m \semi \eif{\mf{true}}{e_1}{e_2} \mapsto e_1 \semi m$ and:
+\begin{mathpar}
+\inferrule*[right=TE-If] {
+  \Gamma \semi \Pi \vdval v : \mf{Bool}
+  \ \ 
+  \inferrule*[right=(1)] { } {\Gamma \semi \Pi \vdexp e_1 : \tau \mid E}
+  \:
+  \inferrule*[right=(2)] { } {\Gamma \semi \Pi \vdexp e_2 : \tau \mid E}
+} {
+  \Gamma \semi \Pi \vdexp \eif{v}{e_1}{e_2} : \tau \mid E
+}
+\end{mathpar}
+\item The conclusion follows immediately from (1).
+\end{itemize}
+
+\textbf{Case} \textsc{E-IfF}: Analogous to \textsc{E-IfT}, using (2).
+\end{Proof}
+\end{lemma}
+
+The above two lemmas are sufficient for type soundness of expressions,
+but we also prove a "purity lemma" on expressions for later use:
+
+\begin{lemma}[Purity of expressions.]
+\label{thm:pure}
+If $\cdot \semi \Pi \vdexp e: \tau \mid \epsilon$
+and $m \semi e \mapsto e' \semi m'$,
+then $m' = m$.
+\begin{Proof}
+By induction on the derivation of the typing judgment.
+
+\textbf{Case} \textsc{E-Ret}: We have \begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \cdot \semi \Pi \vdval v: \tau
+} {
+  \cdot \semi \Pi \vdexp \eret{v}: \tau \mid \epsilon
+}
+\end{mathpar}
+But there is no rule that steps an expression of form $\eret{v}$,
+so the theorem holds vacuously.
+
+\textbf{Case} \textsc{TE-Let}: We have \begin{mathpar}
+\inferrule*[right=E-Let] {
+  \inferrule*[right=(1)] { } {m \semi e_1 \mapsto e_1' \semi m'}
+} {
+  m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi m'
+}
+\and
+\inferrule*[right=TE-Let] {
+  \inferrule*[right=(2)] { } {\cdot \semi \Pi \vdexp e_1 : \tau_1 \mid \epsilon}
+  \and
+  \inferrule*[right=(3)] { } {
+    [x \mapsto \tau_1] \semi \Pi \vdexp e_2 : \tau_2 \mid \epsilon
+  }
+} {
+  \cdot \semi \Pi \vdexp \elet{x}{e_1}{e_2}: \tau_2 \mid \epsilon
+}
+\end{mathpar}
+The inductive hypothesis on (1) and (2) gives that $m' = m$, and we are done.
+
+\textbf{Case} \textsc{TE-AppL}: We have
+\begin{mathpar}
+\inferrule*[right=TE-AppL] {
+  \inferrule*[right=(1)] { } {
+    \cdot \semi \Pi \vdval v_1 : \tau_1 \xrightarrow{\epsilon} \tau_2
+  }
+  \and
+  \cdot \semi \Pi \vdval v_2 : \tau_1
+} {
+  \cdot \semi \Pi \vdexp v_1\ v_2: \tau_2 \mid \epsilon
+}
+\end{mathpar}
+\begin{itemize}
+\item By \thref{thm:canon} (canonical forms) on (1), $v_1 = \lambda x.e$.
+\item The only step rule which applies is \textsc{E-AppL}, which says
+that $m \semi (\lambda x.e) v \mapsto e[v/x] \semi m$,
+i.e. $m' = m$ and we are done.
+\end{itemize}
+
+\textbf{Case} \textsc{TE-AppC}: We have
+\begin{mathpar}
+\inferrule*[right=TE-AppC] {
+  \inferrule*[right=(1)] { } {
+    \cdot \semi \Pi \vdval v_1 : \mf{Component}\ \tau
+  }
+  \and
+  \cdot \semi \Pi \vdval v_2 : \tau
+} {
+  \cdot \semi \Pi \vdexp v_1\ v_2: \mf{View} \mid \epsilon
+}
+\end{mathpar}
+\begin{itemize}
+\item By \thref{thm:canon} (canonical forms) on (1), $v_1 = \mc{C}$.
+\item The only step rule that applies is \textsc{E-AppC}, which says
+that $m \semi (\lambda x.e) v \mapsto \eret{\pair{\mc{C}}{v}} \semi m$,
+i.e. $m' = m$ and we are done.
+\end{itemize}
+
+\textbf{Case} \textsc{TE-If}: We have \begin{mathpar}
+\inferrule*[right=TE-If] {
+  \inferrule*[right=(1)] { } {\Gamma \semi \Pi \vdval v : \mf{Bool}}
+  \and
+  \Gamma \semi \Pi \vdexp e_1 : \tau \mid \epsilon
+  \and
+  \Gamma \semi \Pi \vdexp e_2 : \tau \mid \epsilon
+} {
+  \Gamma \semi \Pi \vdexp \eif{v}{e_1}{e_2} : \tau \mid \epsilon
+}
+\end{mathpar}
+\begin{itemize}
+\item By \thref{thm:canon} (canonical forms) on (1), 
+$v_1 = \mf{true}$ or $v_1 = \mf{false}$.
+\item If $v_1=\mf{true}$, then \textsc{E-IfT} says
+that $m \semi \eif{v}{e_1}{e_2} \mapsto e_1 \semi m$.
+\item If $v_1=\mf{false}$, then \textsc{E-IfF} says
+that $m \semi \eif{v}{e_1}{e_2} \mapsto e_2 \semi m$.
+\item In either case, $m' = m$ and we are done.
+\end{itemize}
+
+\textbf{Cases} \textsc{TE-AppS} and \textsc{TE-Sub}
+are both impossible, since they type their conclusions
+with the $\mf{Mut}$ effect.
+\end{Proof}
+\end{lemma}
+
+\subsubsection{Top-Level Expressions}
+
+\begin{lemma}[Progress of top-level expressions, initial phase.]
+\label{thm:progtlei}
+If\\[0.2mm]
+$\cdot \semi \Pi \semi \Pi[p] \vdtop \hat{e}$ and $\cdot \semi \Pi \vdm m$,
+then either:
+\begin{enumerate}[(i)]
+\item $\hat{e} = \eret{v}$, or
+\item there exist some $\hat{e}'$ and $m'$ such that
+$m \semi \hat{e} \topstep{\mf{Init}}{p} \hat{e}' \semi m'$.
+\end{enumerate}
+
+\begin{Proof}
+By induction on the derivation of the expression typing judgment.
+
+\textbf{Case} \textsc{TH-Lift}: \begin{mathpar}
+\inferrule*[right=TH-Lift] {
+  \inferrule*[right=(1)] { } {\cdot \semi \Pi \vdexp e: \mf{View} \mid \epsilon}
+} {
+  \cdot \semi \Pi \semi \mc{C} \vdtop e
+}
+\end{mathpar}\begin{itemize}
+\item By \thref{thm:progexp} (progress of expressions) on (1), we have two subcases:
+either $e=\eret{v}$ (and we are done by conclusion \emph{(i)}), 
+or we have some $e'$ and $m'$ such that
+(2) $m \semi e \mapsto e' \semi m'$.
+\item By \thref{thm:pure} (purity) on (1) and (2), $m' = m$.
+\item We derive the conclusion as follows:
+\begin{mathpar}
+\inferrule*[right=EH-Lift] {
+  m \semi e \mapsto e' \semi m
+} {
+  m \semi e \topstep{\mf{Init}}{p} e' \semi m
+}
+\end{mathpar}
+\end{itemize}
+
+\textbf{Case} \textsc{TH-Let}: \begin{mathpar}
+\inferrule*[right=TH-Let] {
+  \inferrule*[right=(1)] { } {\Gamma \semi \Pi \vdexp e: \tau_1 \mid \epsilon}
+  \and
+  \Gamma[x \mapsto \tau_1] \semi \Pi \semi \mc{C} \vdtop \hat{e}
+} {
+  \Gamma \semi \Pi \semi \mc{C} \vdtop \elet{x}{e}{\hat{e}}
+}
+\end{mathpar}\begin{itemize}
+\item By \thref{thm:progexp} (progress of expressions) on (1), we have two subcases:
+either (a) $e = \eret{v}$,
+or (b) we have $m \semi e \mapsto e' \semi m'$.
+\begin{itemize}
+\item Subcase (a): \textsc{EH-Ret} gives us that
+$m \semi \elet{x}{\eret{v}}{\hat{e}} \topstep{\mf{Init}}{p} \hat{e}[v/x] \semi m$.
+\item Subcase (b): by \thref{thm:pure} (purity) on (1), $m' = m$,
+so we derive a step as follows:
+\begin{mathpar}
+\inferrule*[right=EH-Let] {
+  m \semi e \mapsto e' \semi m
+} {
+  m \semi \elet{x}{e}{\hat{e}} \topstep{\mf{Init}}{p} \elet{x}{e'}{\hat{e}} \semi m
+}
+\end{mathpar}
+\end{itemize}
+\item Thus, in either subcase, we take a step and satisfy conclusion \emph{(ii)}.
+\end{itemize}
+\textbf{Case} \textsc{TH-State}: \begin{mathpar}
+\inferrule*[right=TH-State] {
+  \Delta[\mc{C}][\ell] = \tau_1
+  \and
+  \Gamma \semi \Pi \vdval v: \tau_1
+  \\
+  \Gamma[x \mapsto \tau_1, x_\mf{set} \mapsto \mf{Setter}\ \tau_1]
+  \semi \Pi \semi \mc{C} \vdtop \hat{e}
+} {
+  \Gamma \semi \Pi \semi \mc{C} \vdtop \estate{x}{\ell}{v}{\hat{e}}
+}
+\end{mathpar}
+\begin{itemize}
+\item Rule \textsc{EH-StI} immediately applies, giving us
+$$m \semi \estate{x}{\ell}{v}{\hat{e}}
+\topstep{\mf{Init}}{p}
+\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}] \semi m'$$
+for $m' = m \mid m[p].\mf{st}[\ell] = v$.
+\end{itemize}
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Preservation of top-level expressions, initial phase.]
+\label{thm:preztlei}
+If
+\begin{enumerate}[(i)]
+\item $\Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}$,
+\item $\Gamma \semi \Pi \vdm m$ (with $p \in \dom(m)$), and
+\item $m \semi \hat{e} \topstep{\mf{Init}}{p} \hat{e}' \semi m'$,
+\end{enumerate}
+then
+\begin{enumerate}[(i)]
+\item $\Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}'$,
+\item $\Gamma \semi \Pi \vdm m'$, and
+\item $\mc{L}(\hat{e}) \cup \dom(m[p].\mf{st}) 
+= \mc{L}(\hat{e}') \cup \dom(m'[p].\mf{st})$.
+\end{enumerate}
+
+\begin{Proof}
+By induction on derivation of the step judgment \emph{(iii)}.
+
+\textbf{Case} \textsc{EH-Lift}: We have \begin{mathpar}
+\inferrule*[right=EH-Lift] {
+  \inferrule*[right=(1)] { } {m \semi e \mapsto e' \semi m}
+} {
+  m \semi e \topstep{\mf{Init}}{p} e' \semi m
+}
+\and
+\inferrule*[right=TH-Lift] {
+  \inferrule*[right=(2)] { } {\Gamma \semi \Pi \vdexp e: \mf{View} \mid \epsilon}
+} {
+  \Gamma \semi \Pi \semi \mc{C} \vdtop e
+}
+\end{mathpar}\begin{itemize}
+\item By \thref{thm:prezexp} (preservation of expressions)
+on (1), (2), and premise \emph{(ii)},
+we get (3) $\Gamma \semi \Pi \vdexp e': \mf{View} \mid \epsilon$.
+\item We satisfy conclusion \emph{(i)} via the following derivation:
+\begin{mathpar}
+\inferrule*[right=TH-Lift] {
+  \inferrule*[right=(3)] { } {\Gamma \semi \Pi \vdexp e': \mf{View} \mid \epsilon}
+} {
+  \Gamma \semi \Pi \semi \mc{C} \vdtop e'
+}
+\end{mathpar}
+\item Since $\mc{L}(e)=\mc{L}(e')=\emptyset$ and $m' = m$,
+we also get $\mc{L}(e) \cup \dom(m[p].\mf{st}) 
+= \mc{L}(e') \cup \dom(m[p].\mf{st})$, i.e. conclusion \emph{(iii)} holds.
+\item Conclusion \emph{(ii)} is trivial, and we are done.
+\end{itemize}
+
+\textbf{Case} \textsc{EH-Let}: We have \begin{mathpar}
+\inferrule*[right=EH-Let] {
+  \inferrule*[right=(1)] { } {m \semi e \mapsto e' \semi m}
+} {
+  m \semi \elet{x}{e}{\hat{e}} \topstep{\mf{Init}}{p} \elet{x}{e'}{\hat{e}} \semi m
+}
+\and
+\inferrule*[right=TH-Let] {
+  \inferrule*[right=(2)] { } {\Gamma \semi \Pi \vdexp e: \tau \mid \epsilon}
+  \and
+  \inferrule*[right=(3)] { } {
+    \Gamma[x \mapsto \tau] \semi \Pi \semi \mc{C} \vdtop \hat{e}
+  }
+} {
+  \Gamma \semi \Pi \semi \mc{C} \vdtop \elet{x}{e}{\hat{e}}
+}
+\end{mathpar}\begin{itemize}
+\item By \thref{thm:prezexp} (preservation of expressions)
+on (1), (2), and premise \emph{(ii)},
+we get that (4) $\Gamma \semi \Pi \vdexp e': \tau \mid \epsilon$.
+\item We derive conclusion \emph{(i)} as follows:
+\begin{mathpar}
+\inferrule*[right=TH-Let] {
+  \inferrule*[right=(4)] { } {\Gamma \semi \Pi \vdexp e': \tau \mid \epsilon}
+  \and
+  \inferrule*[right=(3)] { } {
+    \Gamma[x \mapsto \tau] \semi \Pi \semi \mc{C} \vdtop \hat{e}
+  }
+} {
+  \Gamma \semi \Pi \semi \mc{C} \vdtop \elet{x}{e}{\hat{e}}
+}
+\end{mathpar}
+\item By definition, 
+$\mc{L}(\elet{x}{e}{\hat{e}})=\mc{L}(\hat{e})=\mc{L}(\elet{x}{e'}{\hat{e}})$.
+Since also $m'=m$, conclusion \emph{(iii)} holds.
+\item Conclusion \emph{(ii)} is again trivial, and we are done.
+\end{itemize}
+
+\textbf{Case} \textsc{EH-Ret}:\begin{itemize}
+\item We have
+(1) $m \semi \elet{x}{\eret{v}}{\hat{e}} 
+\topstep{\mf{Init}}{p} \hat{e}[v/x] \semi m$ 
+and:
+\begin{mathpar}
+\inferrule*[right=TH-Let] {
+  \inferrule*[right=TE-Ret] { 
+    \inferrule*[right=(2)] { } {\Gamma \semi \Pi \vdexp v: \tau}
+  } {
+    \Gamma \semi \Pi \vdexp \eret{v}: \tau \mid \epsilon
+  }
+  \ 
+  \inferrule*[right=(3)] { } {
+    \Gamma[x \mapsto \tau] \semi \Pi \semi \mc{C} \vdtop \hat{e}
+  }
+} {
+  \Gamma \semi \Pi \semi \mc{C} \vdtop \elet{x}{\eret{v}}{\hat{e}}
+}
+\end{mathpar}
+\item By \thref{thm:subtle} (substitution for top-level expressions) on (2) and (3),
+we get that $\Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}[v/x]$,
+satisfying conclusion \emph{(i)}.
+\item By \thref{thm:sublab} (substitution for label-sets) and definition of $\mc{L}$,
+we get $\mc{L}(\elet{x}{\eret{v}}{\hat{e}})=\mc{L}(\hat{e})=\mc{L}(\hat{e}[v/x])$.
+Since also $m' = m$, conclusion \emph{(iii)} holds.
+\item Conclusion \emph{(ii)} is once again trivial, and we are done.
+\end{itemize}
+
+\textbf{Case} \textsc{EH-StI}: \begin{itemize}
+\item We have
+$$m \semi \estate{x}{\ell}{v}{\hat{e}} \topstep{\mf{Init}}{p}
+\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}] \semi m'$$
+where $m' = m \mid m[p].\mf{st}[\ell] = v$, and:
+\begin{mathpar}
+\inferrule*[right=TH-State] {
+  \Delta[\Pi[p]][\ell] = \tau_1\ (1)
+  \and
+  \Gamma \semi \Pi \vdval v: \tau_1\ (2)
+  \\
+  \Gamma[x \mapsto \tau_1, x_\mf{set} \mapsto \mf{Setter}\ \tau_1]
+  \semi \Pi \semi \mc{C} \vdtop \hat{e}\ (3)
+} {
+  \Gamma \semi \Pi \semi \Pi[p] \vdtop \estate{x}{\ell}{v}{\hat{e}}
+}
+\end{mathpar}
+\item We derive the setter type as follows:
+\begin{mathpar}
+\inferrule*[right=TV-Set] {
+  \inferrule*[right=(1)] { } {\Delta[\Pi[p]][\ell] = \tau_1}
+} {
+  \Gamma \semi \Pi \vdval \vset{\ell}{p} : \mf{Setter}\ \tau_1\ (4)
+}
+\end{mathpar}
+\item \thref{thm:subtle} (substitution for top-level expressions),
+applied twice to (3) using (2) and (4),
+yields $\Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}]$,
+satisfying conclusion \emph{(i)}.
+\item To show conclusion \emph{(ii)} given premise \emph{(ii)}, 
+it suffices to show that
+$\Gamma \semi \Pi \vdval m'[p].\mf{st}[\ell] : \Delta[\Pi[p]][\ell]$.
+By construction of $m'$, we need to show
+$\Gamma \semi \Pi \vdval v : \Delta[\Pi[p]][\ell]$.
+This is given by (1) and (2).
+\item Finally, we need to show conclusion \emph{(iii)}.
+By definition of $\mc{L}$, 
+$$\mc{L}(\estate{x}{\ell}{v}{\hat{e}}) = \{\ell\} \cup \mc{L}(\hat{e})$$
+and by \thref{thm:sublab} (substitution for label-sets), 
+$\mc{L}(\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}])=\mc{L}(\hat{e})$.
+By construction, $\dom(m'[p].\mf{st}) = \dom(m[p].\mf{st}) \cup \{\ell\}$.
+Conclusion \emph{(iii)} now follows, and we are done:
+$$
+(\{\ell\} \cup \mc{L}(\hat{e})) \cup \dom(m[p].\mf{st}) 
+= \mc{L}(\hat{e}) \cup (\dom(m[p].\mf{st}) \cup \{\ell\})
+$$
+\end{itemize}
+
+\textbf{Case} \textsc{EH-StS}: Impossible,
+since the judgment requires that $\phi=\mf{Succ}$.
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Progress of top-level expressions, successor phase.]
+\label{thm:progtles}
+If \begin{enumerate}[(i)]
+\item $\cdot \semi \Pi \semi \Pi[p] \vdtop \hat{e}$,
+\item $\cdot \semi \Pi \vdm m$, and
+\item $\mc{L}(\hat{e}) \subseteq \dom(m[p].\mf{st})$,
+\end{enumerate}
+then either:
+\begin{enumerate}[(i)]
+\item $\hat{e} = \eret{v}$, or
+\item there exist some $\hat{e}'$ and $m'$ such that
+$m \semi \hat{e} \topstep{\mf{Succ}}{p} \hat{e}' \semi m'$.
+\end{enumerate}
+\begin{Proof}
+By induction over the derivation of the expression typing judgment.
+
+\textbf{Cases} \textsc{TH-Lift}, \textsc{TH-Let}:
+Analogous to \thref{thm:progtlei}
+(progress at initial phase).
+
+\textbf{Case} \textsc{TH-State}: \begin{mathpar}
+\inferrule*[right=TH-State] {
+  \Delta[\mc{C}][\ell] = \tau_1
+  \and
+  \Gamma \semi \Pi \vdval v: \tau_1
+  \\
+  \Gamma[x \mapsto \tau_1, x_\mf{set} \mapsto \mf{Setter}\ \tau_1]
+  \semi \Pi \semi \mc{C} \vdtop \hat{e}
+} {
+  \Gamma \semi \Pi \semi \mc{C} \vdtop \estate{x}{\ell}{v}{\hat{e}}
+}
+\end{mathpar}
+We want to apply step rule \textsc{EH-StS}, which says:
+$$m \semi \estate{x}{\ell}{v}{\hat{e}}
+\topstep{\mf{Succ}}{p}
+\hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}] \semi m$$
+where $v' = m[p].\mf{st}[\ell]$.
+It suffices to show that $v'$ is well-defined.
+
+By premise \emph{(iii)} and definition of $\mc{L}$,
+we must have that $\ell \in \dom(m[p].\mf{st})$.
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Preservation of top-level expressions, successor phase.]
+\label{thm:preztles}
+If
+\begin{enumerate}[(i)]
+\item $\Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}$,
+\item $\Gamma \semi \Pi \vdm m$ (with $p \in \dom(m)$), and
+\item $m \semi \hat{e} \topstep{\mf{Succ}}{p} \hat{e}' \semi m'$,
+\end{enumerate}
+then
+\begin{enumerate}[(i)]
+\item $\Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}'$,
+\item $\Gamma \semi \Pi \vdm m'$, and
+\item $\mc{L}(\hat{e}') \subseteq \mc{L}(\hat{e})$.
+\end{enumerate}
+
+\begin{Proof}
+By induction on derivation of the step judgment \emph{(iii)}.
+
+\textbf{Case} \textsc{EH-Lift}: We have \begin{mathpar}
+\inferrule*[right=EH-Lift] {
+  m \semi e \mapsto e' \semi m
+} {
+  m \semi e \topstep{\mf{Succ}}{p} e' \semi m
+}
+\end{mathpar}\begin{itemize}
+\item Conclusion \emph{(i)} is shown analogously to \thref{thm:preztlei}
+(preservation at initial phase),
+and conclusion \emph{(ii)} is trivial.
+\item By definition, $\mc{L}(e)=\emptyset=\mc{L}(e')$,
+so conclusion \emph{(iii)} holds and we are done.
+\end{itemize}
+
+\textbf{Case} \textsc{EH-Let}: We have \begin{mathpar}
+\inferrule*[right=EH-Let] {
+  m \semi e \mapsto e' \semi m
+} {
+  m \semi \elet{x}{e}{\hat{e}} \topstep{\phi}{p} \elet{x}{e'}{\hat{e}} \semi m
+}
+\end{mathpar}\begin{itemize}
+\item Again, conclusion \emph{(i)} is shown analogously to \thref{thm:preztlei}
+and conclusion \emph{(ii)} is trivial.
+\item By definition, 
+$\mc{L}(\elet{x}{e}{\hat{e}})=\mc{L}(\hat{e})=\mc{L}(\elet{x}{e'}{\hat{e}})$,
+so conclusion \emph{(iii)} holds and we are done.
+\end{itemize}
+
+\textbf{Case} \textsc{EH-Ret}: \begin{itemize}
+\item We have $m \semi \elet{x}{\eret{v}}{\hat{e}} 
+\topstep{\mf{Init}}{p} \hat{e}[v/x] \semi m$.
+\item Once again, conclusion \emph{(i)} is shown analogously to \thref{thm:preztlei}
+and conclusion \emph{(ii)} is trivial.
+\item By definition,
+$\mc{L}(\elet{x}{e}{\hat{e}})=\mc{L}(\hat{e})$,
+and by \thref{thm:sublab} (substitution for label-sets),
+$\mc{L}(\hat{e}[v/x])=\mc{L}(\hat{e})$.
+Therefore, conclusion \emph{(iii)} holds and we are done.
+\end{itemize}
+
+\textbf{Case} \textsc{EH-StI}: Impossible,
+since the judgment requires that $\phi=\mf{Init}$.
+
+\textbf{Case} \textsc{EH-StS}: 
+\begin{itemize}
+\item We have
+$$m \semi \estate{x}{\ell}{v}{\hat{e}}
+\topstep{\mf{Succ}}{p}
+\hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}] \semi m$$
+where $v' = m[p].\mf{st}[\ell]$, and:
+\begin{mathpar}
+\inferrule*[right=TH-State] {
+  \Delta[\Pi[p]][\ell] = \tau_1\ (1)
+  \and
+  \Gamma \semi \Pi \vdval v: \tau_1
+  \\
+  \Gamma[x \mapsto \tau_1, x_\mf{set} \mapsto \mf{Setter}\ \tau_1]
+  \semi \Pi \semi \mc{C} \vdtop \hat{e}\ (2)
+} {
+  \Gamma \semi \Pi \semi \Pi[p] \vdtop \estate{x}{\ell}{v}{\hat{e}}
+}
+\end{mathpar}
+\item As in \thref{thm:preztlei}, we derive the setter type as follows:
+\begin{mathpar}
+\inferrule*[right=TV-Set] {
+  \inferrule*[right=(1)] { } {\Delta[\Pi[p]][\ell] = \tau_1}
+} {
+  \Gamma \semi \Pi \vdval \vset{\ell}{p} : \mf{Setter}\ \tau_1\ (3)
+}
+\end{mathpar}
+\item By the memory typing premise \emph{(ii)},
+we get that $\Gamma \semi \Pi \vdval v' : \Delta[\Pi[p]][\ell]$.
+By (1), we get (4) that $\Gamma \semi \Pi \vdval v' : \tau_1$.
+\item Now, we apply \thref{thm:subtle} (substitution for top-level expressions)
+twice to (2) using (3) and (4) to get that 
+$\Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}]$,
+satisfying conclusion \emph{(i)}.
+\item Conclusion \emph{(iii)} follows from definition of $\mc{L}$:
+clearly $\mc{L}(\hat{e}) \subseteq \{\ell\} \cup \mc{L}(\hat{e})$.
+\item Conclusion \emph{(ii)} is trivial, and we are done.
+\end{itemize}
+
+\end{Proof}
+
+\end{lemma}
+
+\subsubsection{Programs}
+
+\begin{lemma}[Progress of programs.]
+\label{thm:progprog}
+If $\cdot \vdprog P$ and $\cdot \semi \Delta \vdd \mc{D}$,
+then either:
+\begin{enumerate}[(i)]
+\item $P = \eret{v}$, or
+\item there exist some $P'$ and $\mc{D}'$ such that
+$\mc{D} \semi P \pstep P' \semi \mc{D}'$.
+\end{enumerate}
+\begin{Proof}
+By induction on the program typing derivation.
+
+\textbf{Case} \textsc{TP-Lift}: \begin{mathpar}
+\inferrule*[right=TP-Lift] {
+  \inferrule*[right=(1)] { } {
+    \cdot \semi \cdot \vdexp {e}: \mf{View} \mid \epsilon
+  }
+} {
+  \cdot \vdprog e
+}
+\end{mathpar}
+\begin{itemize}
+\item By definition, the empty memory is well-typed 
+by the empty component context, i.e. (2) $\cdot \semi \cdot \vdm \cdot$.
+\item \thref{thm:progexp} (progress of expressions) on (1) and (2)
+gives us two subcases: either $P=\eret{v}$ (and we are done by conclusion \emph{(i)})
+or we have some $e'$ and $m'$ such that $\cdot \semi e \mapsto e' \semi m'$.
+\item Furthermore, \thref{thm:pure} (purity) tells us that
+$m' = \cdot$.
+\item We conclude via the following derivation:
+\begin{mathpar}
+\inferrule*[right=EP-Lift] {
+  \cdot \semi e \mapsto e' \semi \cdot
+} {
+  \mc{D} \semi e \pstep e \semi \mc{D}
+}
+\end{mathpar}
+\end{itemize}
+
+\textbf{Case} \textsc{TP-Let}: \begin{mathpar}
+\inferrule*[right=TP-Let] {
+  \inferrule*[right=(1)] { } {
+    \cdot \semi \cdot \vdexp e: \tau \mid \epsilon
+  }
+  \and 
+  [x \mapsto \tau] \vdprog P
+} {
+  \cdot \vdprog \elet{x}{e}{P}
+}
+\end{mathpar}
+\begin{itemize}
+\item We again apply \thref{thm:progexp} on (1) and the empty memory
+to get that either (a) $e = \eret{v}$ or (b) $\cdot \semi e \mapsto e' \semi m$.
+\begin{itemize}
+\item Subcase (a): \textsc{EP-Ret} gives us that
+$\mc{D} \semi \elet{x}{\eret{v}}{P} \pstep P[v/x] \semi \mc{D}$.
+\item Subcase (b): by \thref{thm:pure} (purity) on (1), $m' = \cdot$,
+so we derive a step as follows:
+\begin{mathpar}
+\inferrule*[right=EP-Let] {
+  \cdot \semi e \mapsto e' \semi \cdot
+} {
+  \mc{D} \semi \elet{x}{e}{P}
+  \pstep
+  \elet{x}{e'}{P} \semi \mc{D}
+}
+\end{mathpar}
+\end{itemize}
+\end{itemize}
+
+\textbf{Case} \textsc{TP-Def}: \begin{mathpar}
+\inferrule*[right=TP-Def] {
+  \Gamma[x \mapsto \Delta[\mc{C}]] \semi \cdot \semi \mc{C} \vdtop \hat{e}
+  \and
+  \Gamma \vdprog P
+} {
+  \Gamma \vdprog \elet{\mc{C}(x)}{\hat{e}}{P}
+}
+\end{mathpar}
+Rule \textsc{EP-Def} immediately applies,
+giving us $$\mc{D} \semi \elet{\mc{C}(x)}{\hat{e}}{P}
+\pstep
+P \semi \mc{D}[\mc{C} \mapsto x.\hat{e}]$$
+and we are done.
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Preservation of programs.]
+\label{thm:prezprog}
+If
+\begin{enumerate}[(i)]
+\item $\Gamma \vdprog P$,
+\item $\Gamma \semi \Delta \vdd \mc{D}$, and
+\item $\mc{D} \semi P \pstep P' \semi \mc{D}'$,
+\end{enumerate}
+then
+\begin{enumerate}[(i)]
+\item $\Gamma \vdprog P'$ and
+\item $\Gamma \semi \Delta \vdd \mc{D}'$.
+\end{enumerate}
+
+\begin{Proof}
+By induction on the derivation of the step judgment \emph{(iii)}.
+
+\textbf{Case} \textsc{EP-Lift}: We have \begin{mathpar}
+\inferrule*[right=EP-Lift] {
+  \inferrule*[right=(1)] { } {\cdot \semi e \mapsto e' \semi \cdot}
+} {
+  \mc{D} \semi e \pstep e' \semi \mc{D}
+}
+\and
+\inferrule*[right=TP-Lift] {
+  \inferrule*[right=(2)] { } {\Gamma \semi \cdot \vdexp e: \mf{View} \mid \epsilon}
+} {
+  \Gamma \vdprog e
+}
+\end{mathpar}
+\begin{itemize}
+\item \thref{thm:prezexp} (preservation of expressions) on (1), (2), and the
+empty memory gives us (3) that 
+$\Gamma \semi \cdot \vdexp e': \mf{View} \mid \epsilon$.
+\item We conclude by the following derivation:
+\begin{mathpar}
+\inferrule*[right=TP-Lift] {
+  \inferrule*[right=(3)] { } {\Gamma \semi \cdot \vdexp e': \mf{View} \mid \epsilon}
+} {
+  \Gamma \vdprog e'
+}
+\end{mathpar}
+\end{itemize}
+
+\textbf{Case} \textsc{EP-Let}: We have \begin{mathpar}
+\inferrule*[right=EP-Let] {
+  \inferrule*[right=(1)] { } {\cdot \semi e \mapsto e' \semi \cdot}
+} {
+  \mc{D} \semi \elet{x}{e}{P}
+  \pstep
+  \elet{x}{e'}{P} \semi \mc{D}
+}
+\and
+\inferrule*[right=TP-Let] {
+  \inferrule*[right=(2)] { } {\Gamma \semi \cdot \vdexp e: \tau \mid \epsilon}
+  \and 
+  \inferrule*[right=(3)] { } {\Gamma[x \mapsto \tau] \vdprog P}
+} {
+  \Gamma \vdprog \elet{x}{e}{P}
+}
+\end{mathpar}
+\begin{itemize}
+\item As in the prior case, \thref{thm:prezexp} on (1), (2), 
+and the empty memory gives us (4) that 
+$\Gamma \semi \cdot \vdexp e': \tau \mid \epsilon$.
+\item We derive the conclusion as follows:
+\begin{mathpar}
+\inferrule*[right=TP-Let] {
+  \inferrule*[right=(4)] { } {\Gamma \semi \cdot \vdexp e': \tau \mid \epsilon}
+  \and 
+  \inferrule*[right=(3)] { } {\Gamma[x \mapsto \tau] \vdprog P}
+} {
+  \Gamma \vdprog \elet{x}{e'}{P}
+}
+\end{mathpar}
+\end{itemize}
+
+\textbf{Case} \textsc{EP-Ret}: We have
+$\mc{D} \semi \elet{x}{\eret{v}}{P} \pstep P[v/x] \semi \mc{D}$ and 
+\begin{mathpar}
+\inferrule*[right=TP-Let] {
+  \inferrule*[right=TE-Ret] {
+    \inferrule*[right=(1)] { } {
+      \Gamma \semi \cdot \vdval v: \tau
+    }
+  } {
+    \Gamma \semi \cdot \vdexp \eret{v}: \tau \mid \epsilon
+  }
+  \and 
+  \inferrule*[right=(2)] { } {\Gamma[x \mapsto \tau] \vdprog P}
+} {
+  \Gamma \vdprog \elet{x}{\eret{v}}{P}
+}
+\end{mathpar}
+\begin{itemize}
+\item \thref{thm:subprog} (substitution for programs) on (1) and (2)
+gives the desired conclusion, that $\Gamma \vdprog P[v/x]$.
+\end{itemize}
+
+\textbf{Case} \textsc{EP-Def}: We have
+$\mc{D} \semi \elet{\mc{C}(x)}{\hat{e}}{P}
+\pstep
+P \semi \mc{D}[\mc{C} \mapsto x.\hat{e}]$ and
+\begin{mathpar}
+\inferrule*[right=TP-Def] {
+  \inferrule*[right=(1)] { } {
+    \Gamma[x \mapsto \Delta[\mc{C}]] \semi \cdot \semi \mc{C} \vdtop \hat{e}
+  }
+  \and
+  \inferrule*[right=(2)] { } {\Gamma \vdprog P}
+} {
+  \Gamma \vdprog \elet{\mc{C}(x)}{\hat{e}}{P}
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion \emph{(i)} is immediate from (2).
+\item To show conclusion \emph{(ii)} given premise \emph{(ii)},
+it suffices to show that 
+$\Gamma[x \mapsto \Delta[\mc{C}]] \semi \cdot \semi \mc{C} \vdtop \hat{e}$.
+This is immediate from (1), and we are done.
+\end{itemize}
+\end{Proof}
+\end{lemma}
+
+\subsection{Runtime Language (New)}
+
+$\mc{E}$ in this section generalizes expressions $\rho$ with
+the form $\rho[\cdots]$. This is \emph{not} exactly an evaluation context,
+but instead the notation used in the big-stop semantics paper,
+where the subexpressions in the brackets are to be reduced
+to values before the root expression is evaluated.
+
+\begin{align*}
+\text{Runtime expression } \rho 
+&::= \mf{done} \mid \mf{lit}\ v \mid \mf{node}(\mf{id}, v, \num{v})[\num{\rho}]
+\mid p\\
+&\quad \mid \mf{init}\ v \mid \mf{check}[\rho] \mid \mf{checks}[\num{\rho}]\\
+&\quad \mid \mf{eval}^\phi_p\ \hat{e} \mid \mf{new}^\phi_p[\rho]\\
+\text{Runtime type } \tau_\rho &::= \one_r \mid \mf{Tree}\\
+\text{Mode } \mu &::= P \mid \rho \mid \mf{idle} 
+\mid \mf{search}(\mf{id}) \mid \mf{handle}(\num{e})
+\end{align*}
+\[
+\tau_\rho(\phi) = \begin{cases}
+    \mf{Tree} & \phi=\mf{Init}\\
+    \one_r & \phi=\mf{Succ}
+\end{cases}
+\]
+
+\begin{mathpar}
+\inferrule*[right=VR-Done] { } {\mf{done}\ \mf{value}}
+\and
+\inferrule*[right=VR-Lit] { } {\mf{lit}\ v\ \mf{value}}
+\and
+\inferrule*[right=VR-Path] { } {p\ \mf{value}}
+\and
+\inferrule*[right=VR-Node] {
+  (\forall i)
+  \quad
+  \rho_i\ \mf{value}
+} {
+  \mf{node}(\mf{id}, v, \num{v})[\num{\rho_i}]\ \mf{value}
+}
+\end{mathpar}
+
+\begin{mathpar}
+\inferrule*[right=TR-Done] { } {\Pi \vdval \mf{done}: \one_r}
+\and
+\inferrule*[right=TR-Lit] {
+  \cdot \semi \Pi \vdval v: \tau
+  \and
+  \tau \in \{\mf{Bool}, \mf{String}\}
+} {
+  \Pi \vdval \mf{lit}\ v: \mf{Tree}
+}
+\and
+\inferrule*[right=TR-Node] {
+  \cdot \semi \Pi \vdval v: \mf{String}
+  \and
+  (\forall i)\ \cdot \semi \Pi \vdval v_i: \mf{Attr}
+  \and
+  (\forall j)\ \Pi \vdval \rho_j: \mf{Tree}
+} {
+  \Pi \vdval \mf{node}(\mf{id}, v, \num{v_i})[\num{\rho_j}]: \mf{Tree}
+}
+\and
+\inferrule*[right=TR-Path] {
+  p \in \Pi \and \Pi[p] \in \Delta
+} {
+  \Pi \vdval p: \mf{Tree}
+}
+\and
+\inferrule*[right=TR-Init] {
+  \cdot \semi \Pi \vdval v: \mf{View}
+} {
+  \Pi \vdval \mf{init}\ v: \mf{Tree}
+}
+\and
+\inferrule*[right=TR-Chk] {
+  \Pi \vdval \rho: \mf{Tree}
+} {
+  \Pi \vdval \mf{check}[\rho]: \one_r
+}
+\and
+\inferrule*[right=TR-Chks] {
+  (\forall i)\ \Pi \vdval \rho_i: \one_r
+} {
+  \Pi \vdval \mf{checks}[\num{\rho_i}]: \one_r
+}
+\and
+\inferrule*[right=TR-Eval] {
+  \cdot \semi \Pi \semi \Pi[p] \vdtop \hat{e}
+} {
+  \Pi \vdval \mf{eval}^\phi_p\ \hat{e}: \tau_\rho(\phi)
+}
+\and
+\inferrule*[right=TR-New] {
+  \Pi \vdval \rho: \mf{Tree}
+} {
+  \Pi \vdval \mf{new}^\phi_p[\rho]: \tau_\rho(\phi)
+}
+\end{mathpar}
+
+\begin{mathpar}
+\inferrule*[right=ER-Redex] {
+  0 \leq k \leq n
+  \and
+  (0 \leq i < k)\ \rho_i\ \mf{value}
+  \\
+  m \semi \rho_k \mapsto_\mc{D} \rho'_k \semi m'
+  \and
+  (\forall i \neq k)\ \rho'_i = \rho_i
+} {
+  m \semi \mc{E}[\rho_0,\cdots,\rho_n]
+  \mapsto_\mc{D}
+  \mc{E}[\rho'_0,\cdots,\rho'_n] \semi m'
+}
+\and
+\inferrule*[right=ER-Eval] {
+  m \semi \hat{e} \topstep{\phi}{p} \hat{e}' \semi m'
+} {
+  m \semi \mf{eval}^\phi_p\ \hat{e}
+  \mapsto_\mc{D}
+  \mf{eval}^\phi_p\ \hat{e}' \semi m'
+}
+\and
+\inferrule*[right=ER-Tag] {
+  \mf{id\ fresh}
+} {
+  m \semi \mf{init}(\mf{tag}(v, \num{v_i}, \num{v_j})) 
+  \mapsto_\mc{D}
+  \mf{node}(\mf{id}, v, \num{v_i})[\num{\mf{init}\ v_j}]
+}
+\and
+\inferrule*[right=ER-Spec] {
+  p\ \mf{fresh}
+  \and
+  \mc{D}[\mc{C}] = x.\hat{e}
+  \\
+  \pi_0 = \{\
+    \mf{spec}: \pair{\mc{C}}{v},
+    \mf{st}: \cdot,
+    \mf{tree}: \cdot,
+    \mf{rerender}: \mf{ff}
+  \}
+} {
+  m \semi \mf{init}\ \pair{\mc{C}}{v}
+  \mapsto_\mc{D}
+  \mf{eval}^\mf{Init}_p\ \hat{e}[v/x] \semi m[p \mapsto \pi_0]
+}
+\and
+\inferrule*[right=ER-PathF] {
+  m[p].\mf{rerender} = \mf{ff}
+} {
+  m \semi \mf{check}\ p
+  \mapsto_\mc{D}
+  \mf{check}\ m[p].\mf{tree} \semi m
+}
+\and
+\inferrule*[right=ER-PathT] {
+  m[p].\mf{rerender} = \mf{tt}
+  \and
+  m[p].\mf{spec} = \pair{\mc{C}}{v}
+  \and
+  \mc{D}[\mc{C}] = x.\hat{e}
+} {
+  m \semi \mf{check}\ p
+  \mapsto_\mc{D}
+  \mf{eval}^\mf{Succ}_p\ \hat{e}[v/x] \semi m
+}
+\and
+\inferrule*[right=ER-NewI] {
+  \rho\ \mf{value}
+} {
+  m \semi \mf{new}^\mf{Init}_p[\rho]
+  \mapsto_\mc{D}
+  p \semi m \mid m[p].\mf{tree} = \rho
+}
+\and
+\inferrule*[right=ER-NewS] {
+  \rho\ \mf{value}
+} {
+  m \semi \mf{new}^\mf{Succ}_p[\rho]
+  \mapsto_\mc{D}
+  \mf{done} \semi m \mid m[p].\mf{tree} = \rho
+}
+\end{mathpar}
+\begin{align*}
+m \semi \mf{init}(\mf{text}\ v) 
+&\mapsto_\mc{D} \mf{lit}\ v \semi m
+&&\textsc{ER-Text}\\
+m \semi \mf{check}(\mf{lit}\ v) 
+&\mapsto_\mc{D} \mf{done} \semi m
+&&\textsc{ER-Lit}\\
+m \semi \mf{check}(\mf{node}(\mf{id}, v, \num{v_i})[\num{\rho_j}]) 
+&\mapsto_\mc{D} \mf{checks}[\num{\mf{check}\ \rho_j}] \semi m
+&&\textsc{ER-Node}\\
+m \semi \mf{checks}[\num{\mf{done}}]
+&\mapsto_\mc{D} \mf{done} \semi m
+&&\textsc{ER-Dones}\\
+m \semi \mf{eval}^\phi_p\ \eret{v}
+&\mapsto_\mc{D} \mf{new}^\phi_p[\mf{init}\ v] \semi m
+&&\textsc{ER-New}
+\end{align*}
+
+\begin{mathpar}
+\inferrule*[right=WF-Cong] {
+  \mc{E} \neq \mf{new}^\phi_p
+  \and
+  (\forall i)\ \mc{D} \semi m \wf \rho_i
+} {
+  \mc{D} \semi m \wf \mc{E}[\num{\rho_i}]
+}
+\and
+\inferrule*[right=WF-Path] {
+  m[p].\mf{spec} = \pair{\mc{C}}{v} \and \mc{D}[\mc{C}] = x.\hat{e}_0
+  \and
+  \mc{L}(\hat{e}_0) = \mf{dom}(m[p].\mf{st})
+  \\
+  \mc{D} \semi m \wf m[p].\mf{child}
+} {
+  \mc{D} \semi m \wf p
+}
+\and
+\inferrule*[right=WF-EvalI] {
+  m[p].\mf{spec} = \pair{\mc{C}}{v} \and \mc{D}[\mc{C}] = x.\hat{e}_0
+  \and
+  \mc{L}(\hat{e}_0) = \mc{L}(\hat{e}) \cup \mf{dom}(m[p].\mf{st})
+} {
+  \mc{D} \semi m \wf \mf{eval}^\mf{Init}_p\ \hat{e}
+}
+\and
+\inferrule*[right=WF-EvalS] {
+  \mc{D} \semi m \wf p
+  \and
+  \mc{L}(\hat{e}) \subseteq \mf{dom}(m[p].\mf{st})
+} {
+  \mc{D} \semi m \wf \mf{eval}^\mf{Succ}_p\ \hat{e}
+}
+\and
+\inferrule*[right=WF-New] {
+  m[p].\mf{spec} = \pair{\mc{C}}{v} \and \mc{D}[\mc{C}] = x.\hat{e}_0
+  \and
+  \mc{L}(\hat{e}_0) = \mf{dom}(m[p].\mf{st})
+  \\
+  \mc{D} \semi m \wf \rho
+} {
+  \mc{D} \semi m \wf \mf{new}^\phi_p[\rho]
+}
+\end{mathpar}
+\begin{align*}
+\mc{D} \semi m &\wf \mf{done} &&\textsc{WF-Done}\\
+\mc{D} \semi m &\wf \mf{lit}\ v &&\textsc{WF-Lit}\\
+\mc{D} \semi m &\wf \mf{init}\ v &&\textsc{WF-Init}\\
+\end{align*}
+
+\begin{mathpar}
+\inferrule*[right=TC-Prog] {
+  \Gamma \semi \Delta \vdd \mc{D}
+  \and
+  \Gamma \semi \Pi \vdm m
+  \and
+  \Gamma \vdprog P
+  \and
+  p_0 \notin m
+} {
+  \Gamma \semi \Pi \vdcfg \trip{\mc{D}}{m}{P}
+}
+\and
+\inferrule*[right=TC-Init] {
+  \Gamma \semi \Delta \vdd \mc{D}
+  \and
+  \Gamma \semi \Pi \vdm m
+  \and
+  \Pi \vdval \rho: \mf{Tree}
+  \and
+  p_0 \notin m
+} {
+  \Gamma \semi \Pi \vdcfg \trip{\mc{D}}{m}{\rho}
+}
+\and
+\inferrule*[right=TC-Succ] {
+  \Gamma \semi \Delta \vdd \mc{D}
+  \and
+  \Gamma \semi \Pi \vdm m
+  \and
+  \Pi \vdval \rho: \one_r
+  \and
+  p_0 \in m
+} {
+  \Gamma \semi \Pi \vdcfg \trip{\mc{D}}{m}{\rho}
+}
+\and
+\inferrule*[right=TC-Idle] {
+  \Gamma \semi \Delta \vdd \mc{D}
+  \and
+  \Gamma \semi \Pi \vdm m
+  \and
+  p_0 \in m
+} {
+  \Gamma \semi \Pi \vdcfg \trip{\mc{D}}{m}{\mf{idle}}
+}
+\and
+\inferrule*[right=TC-Search] {
+  \Gamma \semi \Delta \vdd \mc{D}
+  \and
+  \Gamma \semi \Pi \vdm m
+  \and
+  p_0 \in m
+} {
+  \Gamma \semi \Pi \vdcfg \trip{\mc{D}}{m}{\mf{search\ id}}
+}
+\and
+\inferrule*[right=TC-HNil] {
+  \Gamma \semi \Delta \vdd \mc{D}
+  \and
+  \Gamma \semi \Pi \vdm m
+  \and
+  p_0 \in m
+} {
+  \Gamma \semi \Pi \vdcfg \trip{\mc{D}}{m}{\mf{handle}([])}
+}
+\and
+\inferrule*[right=TC-HCons] {
+  \Gamma \semi \Delta \vdexp e: \one \mid E
+  \and
+  \Gamma \semi \Pi \vdcfg \trip{\mc{D}}{m}{\mf{handle}(\num{e})}
+} {
+  \Gamma \semi \Pi \vdcfg \trip{\mc{D}}{m}{\mf{handle}(e :: \num{e})}
+}
+\end{mathpar}
+
+\begin{mathpar}
+\inferrule*[right=EC-Prog] {
+  \mc{D} \semi P \pstep P' \semi \mc{D}'
+} {
+  \trip{\mc{D}}{m}{P}
+  \hookrightarrow
+  \trip{\mc{D}'}{m}{P'}
+}
+\and
+\inferrule*[right=EC-Rho] {
+  m \semi \rho \pstep \rho' \semi m'
+} {
+  \trip{\mc{D}}{m}{\rho}
+  \hookrightarrow
+  \trip{\mc{D}}{m'}{\rho'}
+}
+\and
+\inferrule*[right=EC-Root] {
+  \rho\ \mf{value}
+} {
+  \trip{\mc{D}}{m}{\rho}
+  \hookrightarrow
+  \trip{\mc{D}}{m \mid m[p_0].\mf{tree} = \rho}{\mf{idle}}
+}
+\and
+\inferrule*[right=EC-HCong] {
+  m \semi e \mapsto e' \semi m'
+} {
+  \trip{\mc{D}}{m}{\mf{handle}(e :: \num{e})}
+  \hookrightarrow
+  \trip{\mc{D}}{m'}{\mf{handle}(e' :: \num{e})}
+}
+\and
+\inferrule*[right=EC-Search] {
+  m \semi \mf{id} \vdash \mf{handlers}(\rho) = \num{v}
+} {
+  \trip{\mc{D}}{m}{\mf{search\ id}}
+  \hookrightarrow
+  \trip{\mc{D}}{m'}{\mf{handle}(\num{v\ ()})}
+}
+\end{mathpar}
+
+\begin{align*}
+\trip{\mc{D}}{m}{\eret{v}}
+&\hookrightarrow \trip{\mc{D}}{m}{\mf{init}\ v}
+&&\textsc{EC-PRet}\\
+\trip{\mc{D}}{m}{\mf{idle}}
+&\hookrightarrow \trip{\mc{D}}{m}{\mf{search\ id}}
+&&\textsc{EC-Event}\\
+\trip{\mc{D}}{m}{\mf{handle}(\eret{()} :: \num{e})}
+&\hookrightarrow \trip{\mc{D}}{m}{\mf{handle}(\num{e})}
+&&\textsc{EC-HNext}\\
+\trip{\mc{D}}{m}{\mf{handle}([])}
+&\hookrightarrow \trip{\mc{D}}{m}{\mf{check}\ p_0}
+&&\textsc{EC-Check}\\
+\trip{\mc{D}}{m}{\mf{idle}}
+&\hookrightarrow \trip{\mc{D}}{m}{\mf{idle}}
+&&\textsc{EC-Idle}\\
+\end{align*}
+
+\subsection{Runtime-Level Soundness}
+
+\begin{lemma}[Progress of runtime expressions.]
+\label{thm:progrte}
+If \begin{enumerate}[(i)]
+\item $\Pi \vdval \rho$,
+\item $\Delta \vDash \mc{D}$,
+\item $\cdot \semi \Pi \vdm m$, and
+\item $\mc{D} \semi m \wf \rho$,
+\end{enumerate}
+then either:
+\begin{enumerate}[(i)]
+\item $\rho = \mf{done}$, or
+\item there exist some $\rho'$ and $m'$ such that
+$m \semi \rho \mapsto_\mc{D} \rho' \semi m'$.
+\end{enumerate}
+\end{lemma}
+
+\begin{lemma}[Preservation of runtime expressions.]
+\label{thm:prezrte}
+If \begin{enumerate}[(i)]
+\item $\Delta \vDash \mc{D}$, 
+\item $\Pi \vdval \rho$,
+\item $\cdot \semi \Pi \vdm m$,
+\item $\mc{D} \semi m \wf \rho$, and
+\item $m \semi \rho \mapsto_\mc{D} \rho' \semi m'$,
+\end{enumerate}
+then there exists some $\Pi'$ such that:
+\begin{enumerate}[(i)]
+\item $\Pi \po \Pi'$,
+\item $\Pi' \vdval \rho'$,
+\item $\cdot \semi \Pi' \vdm m'$, and
+\item $\mc{D} \semi m' \wf \rho'$.
+\end{enumerate}
+\end{lemma}
+
+\begin{lemma}[Progress of configurations.]
+\label{thm:progcfg}
+If $\Gamma \semi \Pi \vdcfg \trip{\mc{D}}{m}{\mu}$,
+then either:
+\begin{enumerate}[(i)]
+\item $\mu = \mf{idle}$, or
+\item there exists some $\trip{\mc{D}'}{m'}{\mu'}$ such that
+$\trip{\mc{D}}{m}{\mu} \hookrightarrow \trip{\mc{D}'}{m'}{\mu'}$.
+\end{enumerate}
+\end{lemma}
+
+\begin{lemma}[Preservation of configurations.]
+\label{thm:prezcfg}
+If \begin{enumerate}[(i)]
+\item $\Gamma \semi \Pi \vdcfg \trip{\mc{D}}{m}{\mu}$ and
+\item $\trip{\mc{D}}{m}{\mu} \hookrightarrow \trip{\mc{D}'}{m'}{\mu'}$,
+\end{enumerate}
+then there exists some $\Pi'$ such that:
+\begin{enumerate}[(i)]
+\item $\Pi \po \Pi'$ and
+\item $\Gamma \semi \Pi' \vdcfg \trip{\mc{D}'}{m'}{\mu'}$.
+\end{enumerate}
+\end{lemma}
+
+(The configuration lemmas or rules still likely need
+a well-formedness condition on $\rho$.)
+
+\subsection{(Old) Runtime Typing}
 
 \subsubsection{Trees}
 
@@ -498,11 +2187,11 @@ m \semi \elet{x}{\eret{v}}{e} &\mapsto e[v/x] \semi m
 m \semi (\lambda x.e) v &\mapsto e[v/x] \semi m
 &&\textsc{E-AppFun}\\
 m \semi \mc{C}\ v &\mapsto \eret{\pair{\mc{C}}{v}} \semi m
-&&\textsc{\hl{E-AppComp}}\\
+&&\textsc{\hl{E-AppC}}\\
 m \semi \vset{\ell}{p}\ v &\mapsto \eret{()} \semi m'
 &&\textsc{\hl{E-AppSet}}\\
-(m' &= m \mid m[p].\mf{st}[\ell] = v\\
-    &\mf{and}\ m[p].\mf{rerender} = \mf{tt})\\
+(m' = m \mid m[p].\mf{st}[\ell] &= v\ 
+    \mf{and}\ m[p].\mf{rerender} = \mf{tt})\\
 m \semi \eif{\mf{true}}{e_1}{e_2} &\mapsto e_1 \semi m
 &&\textsc{E-IfTrue}\\
 m \semi \eif{\mf{false}}{e_1}{e_2} &\mapsto e_2 \semi m
@@ -573,7 +2262,7 @@ P \semi \mc{D}[\mc{C} \mapsto x.\hat{e}]
 
 Say $m \semi \hat{e} \Topstep{\phi}{p} v \semi m'$ 
 if $m \semi \hat{e} \xmapsto{*}^{\phi}_{p} \eret{v} \semi m'$.
-
+\pagebreak
 \subsubsection{Initialization}
 
 Judgment: $\mc{D} \vdash v \bsinit{n} \pair{t}{m}$.
@@ -820,699 +2509,9 @@ Judgment: $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}'}{m'}{t}{\mu'}$
 }
 \end{mathpar}
 
-\subsection{Small-Step Event Loop?}
+\subsection{(Old) Runtime Type Soundness}
 
-\begin{align*}
-\iota 
-&::= \mf{return}_\iota\ t 
-\mid \mf{done} 
-\mid \mf{init}\ v 
-\mid \mf{check}\ t
-\mid \mf{inits}(v, \num{v}, \num{\iota}, \num{t})
-\mid \mf{checks}(\iota)\\
-&\quad \mid \mf{eval}^\phi_p\ \hat{e}
-\mid \mf{path}^\phi_p\ \iota\\
-\mc{E} &::= [\cdot] 
-\mid \mf{inits}(v, \num{v}, \mc{E} :: \num{\iota}, \num{t})
-\mid \mf{checks}(\mc{E} :: \num{\iota})
-\mid \mf{path}^\phi_p\ \mc{E}\\
-\mu
-&::= P \mid \iota \mid \mf{idle} \mid \mf{search\ id} \mid \mf{handle}(\num{e})
-\end{align*}
-
-Judgment: $m \semi \iota \mapsto_\mc{D} \iota \semi m$
-\begin{mathpar}
-\inferrule*[right=I-Ctx] {
-  m \semi \iota \mapsto_\mc{D} \iota' \semi m'
-} {
-  m \semi \mc{E}[\iota] \mapsto_\mc{D} \mc{E}[\iota'] \semi m'
-}
-\and
-\inferrule*[right=I-Eval] {
-  m \semi \hat{e} \topstep{\phi}{p} \hat{e}' \semi m'
-} {
-  m \semi \mf{eval}^\phi_p\ \hat{e} 
-  \mapsto_\mc{D}
-  \mf{eval}^\phi_p\ \hat{e}' \semi m'
-}
-\and
-\inferrule*[right=I-InitSpec] {
-  p\ \mf{fresh}
-  \and
-  \mc{D}[\mc{C}] = x.\hat{e}
-  \\
-  \pi_0 = \{
-    \mf{spec}: \pair{\mc{C}}{v}, 
-    \mf{st}: [], \mf{child}: \cdot, \mf{rerender}: \mf{ff}
-  \}
-} {
-  m \semi \mf{init}\ \pair{\mc{C}}{v}
-  \mapsto_\mc{D} 
-  \mf{eval}^\mf{Init}_p\ \hat{e}[v/x] \semi m[p \mapsto \pi_0]
-}
-\and
-\inferrule*[right=I-CheckPathT] {
-  m[p].\mf{spec} = \pair{\mc{C}}{v}
-  \and
-  \mc{D}[\mc{C}] = x.\hat{e}
-} {
-  m \semi \mf{check}\ p 
-  \mapsto_\mc{D} 
-  \mf{eval}^\mf{Succ}_p \hat{e}[v/x] \semi m \mid m[p].\mf{rerender} = \mf{ff}
-}
-\end{mathpar}
-\begin{align*}
-m \semi \mf{init}(\mf{text}\ v) 
-&\mapsto_\mc{D} \mf{return}_\iota(\mf{lit}\ v) \semi m
-&&\textsc{I-InitText}\\
-m \semi \mf{init}(\mf{tag}(v, \num{v_i}, \num{v_j})) 
-&\mapsto_\mc{D} \mf{inits}(v, \num{v_i}, \num{\mf{init}\ v_j}, []) \semi m
-&&\textsc{I-InitTag}\\
-m \semi \mf{inits}(v, \num{v_i}, \mf{return}_\iota\ t :: \num{\iota_j}, \num{t_k})
-&\mapsto_\mc{D} \mf{inits}(v, \num{v_i}, \num{\iota_j}, t :: \num{t_k}) \semi m
-&&\textsc{I-InitsNext}\\
-m \semi \mf{inits}(v, \num{v_i}, [], \num{t_k})
-&\mapsto_\mc{D} \mf{return}_\iota\ \mf{node}(\mf{id}, v, \num{v_i}, \num{t_k}) \semi m
-&&\textsc{I-InitsRet}\\
-&\qquad (\mf{id\ fresh})
-\end{align*}
-\begin{align*}
-m \semi \mf{check}(\mf{lit}\ v)
-&\mapsto_\mc{D} \mf{done} \semi m
-&&\textsc{I-CheckLit}\\
-m \semi \mf{check}(\mf{node}(\mf{id}, v, \num{v_i}, \num{t_j}))
-&\mapsto_\mc{D} \mf{checks}(\num{\mf{check}\ t_j}) \semi m
-&&\textsc{I-CheckNode}\\
-m \semi \mf{checks}(\mf{done} :: \num{t})
-&\mapsto_\mc{D} \mf{checks}(\num{t}) \semi m
-&&\textsc{I-ChecksNext}\\
-m \semi \mf{checks}([])
-&\mapsto_\mc{D} \mf{done} \semi m
-&&\textsc{I-ChecksDone}\\
-m \semi \mf{check}\ p
-&\mapsto_\mc{D} \mf{check}\ m[p].\mf{child} \semi m
-&&\textsc{I-CheckPathF}\\
-&\qquad (m[p].\mf{rerender} = \mf{ff})
-\end{align*}
-\begin{align*}
-m \semi \mf{eval}^\phi_p (\eret{v})
-&\mapsto_\mc{D} \mf{path}^\phi_p(\mf{init}\ v) \semi m
-&&\textsc{I-EvalRet}\\
-m \semi \mf{path}^\mf{Init}_p (return_\iota\ t)
-&\mapsto_\mc{D} \mf{return}_\iota\ p \semi m \mid m[p].\mf{child} = t
-&&\textsc{I-PathInit}\\
-m \semi \mf{path}^\mf{Succ}_p (return_\iota\ t)
-&\mapsto_\mc{D} \mf{done} \semi m \mid m[p].\mf{child} = t
-&&\textsc{I-PathSucc}\\
-\end{align*}
-
-Judgment: $\four{\mc{D}}{m}{t}{\mu} \hookrightarrow \four{\mc{D}}{m}{t}{\mu}$
-\begin{mathpar}
-\inferrule*[right=Loop-Start] {
-  \mc{D} \semi P \pstep P' \semi \mc{D}'
-} {
-  \four{\mc{D}}{m}{t}{P} 
-  \hookrightarrow 
-  \four{\mc{D}'}{m}{t}{P'}
-}
-\and
-\inferrule*[right=Loop-Iota] {
-  m \semi \iota \mapsto_\mc{D} \iota' \semi m'
-} {
-  \four{\mc{D}}{m}{t}{\iota} 
-  \hookrightarrow 
-  \four{\mc{D}}{m'}{t}{\iota'}
-}
-\and
-\inferrule*[right=Loop-HandleCong] {
-  m \semi e \mapsto e' \semi m'
-} {
-  \four{\mc{D}}{m}{t}{\mf{handle}(e :: es)}
-  \hookrightarrow
-  \four{\mc{D}}{m'}{t}{\mf{handle}(e' :: es)}
-}
-\and
-\inferrule*[right=Loop-Search] {
-  m \semi \mf{id} \vdash \mf{handlers}(t) = \num{v}
-} {
-  \four{\mc{D}}{m}{t}{\mf{search\ id}}
-  \hookrightarrow
-  \four{\mc{D}}{m}{t}{\mf{handle}(\num{v\ ()})}
-}
-\end{mathpar}
-\begin{align*}
-\four{\mc{D}}{m}{t}{\eret{v}}
-&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{init}(v)}
-&&\textsc{Loop-Init}\\
-\four{\mc{D}}{m}{\_}{\mf{return}_\iota\ t}
-&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{idle}}
-&&\textsc{Loop-InitRet}\\
-\four{\mc{D}}{m}{t}{\mf{idle}}
-&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{search}\ \mf{id}}
-&&\textsc{Loop-Event}\\
-\four{\mc{D}}{m}{t}{\mf{handle}(\eret{()} :: \num{e})}
-&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{handle}(\num{e})}
-&&\textsc{Loop-HandleNext}\\
-\four{\mc{D}}{m}{t}{\mf{handle}([])}
-&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{check}\ t}
-&&\textsc{Loop-Check}\\
-\four{\mc{D}}{m}{t}{\mf{done}}
-&\hookrightarrow \four{\mc{D}}{m}{t}{\mf{idle}}
-&&\textsc{Loop-CheckDone}\\
-\end{align*}
-
-\subsection{Type Soundness}
-
-Throughout, \emph{postulates} refer to (as-of-yet) unproved assumptions.
-
-\subsubsection{General Lemmas}
-
-We postulate weakening on $\Gamma$ for all typing judgments involving $\Gamma$.
-For instance, the statement for weaking $\Gamma$ on values is:
-\begin{postulate}[Weakening on $\Gamma$, values]
-If $\Gamma \semi \Pi \vdval v: \tau$ and $\Gamma \po \Gamma'$,
-then $\Gamma' \semi \Pi \vdval v: \tau$.
-\end{postulate}
-
-Similarly, we require weakening on $\Pi$ for all typing judgments involving $\Pi$:
-\begin{postulate}[Weakening on $\Pi$, values]
-If $\Gamma \semi \Pi \vdval v: \tau$ and $\Pi \po \Pi'$,
-then $\Gamma \semi \Pi' \vdval v: \tau$.
-\end{postulate}
-
-We elide statements of all other weakening lemmas.
-
-\begin{postulate}[Canonical Forms]
-If $\cdot \semi \Pi \vdval v: \tau$, then:
-\begin{itemize}
-\item if $\tau=\one$, then $v=()$.
-\item if $\tau=\mf{Bool}$, then either $v=\mf{true}$ or $v=\mf{false}$.
-\item if $\tau=\mf{String}$, then $v=s$.
-\item if $\tau=\tau_1 \xrightarrow{E} \tau_2$, then $v=\lambda x: \tau_1.e$.
-\item if $\tau=\mf{View}$, then either $v=\mf{text}\ v'$,
-    $v=\mf{tag}(v' \num{v_i}, \num{v_j})$, or $v=\pair{\mc{C}}{v'}$.
-\item if $\tau=\mf{Attr}$, then either $v=\mf{attr}(v_1, v_2)$ or $v=\mf{onClick}\ v'$.
-\item if $\tau=\mf{Component}\ \tau'$, then $v=\mc{C}$.
-\item if $\tau=\mf{Setter}\ \tau'$, then $v=\vset{\ell}{p}$.
-\end{itemize}
-\end{postulate}
-
-We postulate substitution lemmas on all typing judgments involving $\Gamma$.
-For instance:
-\begin{postulate}[Substitution lemma, expressions]
-If $\Gamma[x \mapsto \tau_v] \semi \Pi \vdexp e: \tau \mid E$
-and $\Gamma \semi \Pi \vdval v: \tau_v$,
-then $\Gamma \semi \Pi \vdexp e[v/x]: \tau \mid E$.
-\end{postulate}
-
-We elide the statement of analogous lemmas on values,
-top-level expressions, and programs.
-
-\begin{postulate}[Label Preservation over Substitution]
-For any $\hat{e}$, $v$, and $x$, we have $\mc{L}(\hat{e}) = \mc{L}(\hat{e}[v/x])$.
-\end{postulate}
-
-\begin{lemma}[Pure Progress]
-If $m \semi e \mapsto e' \semi m'$ 
-and $\Gamma \semi \Pi \vdexp e: \tau \mid \epsilon$,
-then $m' = m$.
-\end{lemma}
-\begin{proof}
-By induction over the derivation of the small-step judgment.
-
-\textbf{Case} \textsc{E-Let}:
-\begin{itemize}
-\item We have
-$m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2}$
-and $m \semi e_1 \mapsto e_1' \semi e_2$.
-\item By the typing premise, we get $\Gamma \semi \Pi \vdexp e_1: \tau_1 \mid \epsilon$.
-\item By inductive hypothesis, we get $m' = m$ and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{E-AppSet}: Impossible,
-since by \textsc{TExp-AppSet}, 
-$\Gamma \semi \Pi \vdexp \vset{\ell}{p}\ v: \one \mid \mf{Mut}$,
-i.e. the expression can never have an empty effect.
-
-\textbf{All other cases}: 
-The appropriate rule immediately gives $m'=m$ and we are done.
-\end{proof}
-
-\subsubsection{Expression Soundness}
-
-\begin{lemma}[Progress of expressions]
-If $\cdot \semi \Pi \vdexp e: \tau \mid E$, then either:
-\begin{enumerate}[(i)]
-\item $e = \eret{v}$, or
-\item for all $m$ such that $\cdot \semi \Pi \vdm m$, 
-there exist some $e'$ and $m'$ such that 
-$m \semi e \mapsto e' \semi m'$.
-\end{enumerate}
-\end{lemma}
-
-\begin{proof}
-By induction on the derivation of the typing judgment.
-
-\textbf{Case} \textsc{TExp-Ret}: \begin{itemize}
-\item We have 
-$\cdot \semi \Pi \vdexp \eret{v}: \tau \mid \epsilon$.
-\item The theorem holds trivially by case \emph{(i)}.
-\end{itemize}
-
-\textbf{Case} \textsc{TExp-Let}: \begin{itemize}
-\item We have 
-$\cdot \semi \Pi \vdexp \elet{x}{e_1}{e_2}: \tau_2 \mid E$.
-\item We also get $\cdot \semi \Pi \vdexp e_1: \tau_1 \mid E$.
-\item By inductive hypothesis on this statement, we have two subcases on $e_1$:
-either (a) $e_1 = \eret{v}$,
-or (b) for any $m$ with $\Pi \vDash^\mf{wk}_\Delta m$, we have
-$m \semi e_1 \mapsto e_1' \semi m'$.
-\item Subcase (a): \begin{itemize}
-\item We apply \textsc{E-Ret}
-to get $m \semi \elet{x}{\eret{v}}{e_2} \mapsto e_2[v/x] \semi m$
-for any $m$.
-\end{itemize}
-\item Subcase (b): 
-\begin{itemize}
-  \item We apply \textsc{E-Let} to get 
-  $m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi m'$.
-\end{itemize}
-\item Thus, in any subcase, $\elet{x}{e_1}{e_2}$ steps (with well-typed $m$),
-and we satisfy conclusion \emph{(ii)}.
-\end{itemize}
-
-
-\textbf{Case} \textsc{TExp-AppFun}: \begin{itemize}
-\item We have $\cdot \semi \Pi \vdexp v_1\ v_2: \tau_2 \mid E$.
-\item It follows that $\cdot \semi \Pi \vdval v_1 : \tau_1 \xrightarrow{E} \tau_2$.
-\item By canonical forms, $v_1=\lambda x.e$.
-\item We apply \textsc{E-AppFun} to get (for any $m$) that
-$m \semi (\lambda x.e) v_2 \mapsto e[v_2/x] \semi m$,
-satisfying conclusion \emph{(ii)}.
-\end{itemize}
-
-\textbf{Case} \textsc{TExp-AppComp}: \begin{itemize}
-\item We have $\cdot \semi \Pi \vdexp v_1\ v_2: \mf{View} \mid \epsilon$.
-\item Also, $\cdot \semi \Pi \vdval v_1: \mf{Component}\ \tau$.
-\item By canonical forms, $v_1 = \mc{C}$.
-\item We apply \textsc{E-AppComp} to get (for any $m$) that
-$m \semi \mc{C}\ v_2 \mapsto \pair{\mc{C}}{v_2} \semi m$,
-satisfying conclusion \emph{(ii)}.
-\end{itemize}
-
-\textbf{Case} \textsc{TExp-AppSet}: \begin{itemize}
-\item We have $\cdot \semi \Pi \vdexp v_1\ v_2: \one \mid \mf{Mut}$.
-\item It follows that $\cdot \semi \Pi \vdval v_1 : \mf{Setter}\ \tau$.
-\item By canonical forms, $v_1 = \vset{\ell}{p}$.
-\item We apply \textsc{E-AppSet} to get that
-$m \semi \vset{\ell}{p}\ v_2 \mapsto \eret{()} \semi m'$,
-where $m' = m \mid m[p].\mf{st}[\ell] = v_2$,
-and we thus satisfy conclusion \emph{(ii)}.
-\end{itemize}
-
-\textbf{Case} \textsc{TExp-If}: \begin{itemize}
-\item We have $\cdot \semi \Pi \vdexp \eif{v}{e_1}{e_2} : \tau \mid E$.
-\item It follows that $\cdot \semi \Pi \vdexp v: \mf{Bool}$.
-\item By canonical forms, either $v=\mf{true}$ or $v=\mf{false}$, giving two subcases.
-\begin{itemize}
-\item If $v=\mf{true}$, then \textsc{E-IfTrue} says 
-$m \semi \eif{v}{e_1}{e_2} \mapsto e_1 \semi m$.
-\item If $v=\mf{false}$, ththen \textsc{E-IfFalse} says
-$m \semi \eif{v}{e_1}{e_2} \mapsto e_2 \semi m$.
-\end{itemize}
-\item In either subcase, we satisfy conclusion \emph{(ii)}.
-\end{itemize}
-
-\textbf{Case} \textsc{TExp-Sub}: \begin{itemize}
-\item We have $\cdot \semi \Pi \vdexp e : \tau \mid \mf{Mut}$.
-\item It follows from the derivation that
-$\cdot \semi \Pi \vdexp e : \tau \mid \epsilon$.
-\item We apply the inductive hypothesis with the more conservative typing premise
-and we are done.
-\end{itemize}
-
-\end{proof}
-
-\begin{lemma}[Preservation of expressions]
-If
-\begin{enumerate}[(i)]
-\item $\Gamma \semi \Pi \vdexp e: \tau \mid E$,
-\item $\Gamma \semi \Pi \vdm m$, and
-\item $m \semi e \mapsto e' \semi m'$ for some $e'$ and $m'$,
-\end{enumerate}
-then
-\begin{enumerate}[(i)]
-\item $\Gamma \semi \Pi \vdexp e': \tau \mid E$ and
-\item $\Gamma \semi \Pi \vdm m'$.
-\end{enumerate}
-\end{lemma}
-
-\begin{proof}
-By induction on derivation of \emph{(iii)}.
-
-\textbf{Case} \textsc{E-Let}: \begin{itemize}
-\item We have
-$m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi m'$.
-\item Also, (a) $m \semi e_1 \mapsto e_1' \semi m'$.
-\item By \emph{(i)}, $\Gamma \semi \Pi \vdexp \elet{x}{e_1}{e_2} : \tau \mid E$;
-it follows by \textsc{TExp-Let} that \begin{enumerate}[(a)]
-  \setcounter{enumi}{1}
-  \item $\Gamma \semi \Pi \vdexp e_1: \tau_1 \mid E$, and
-  \item $\Gamma[x \mapsto \tau_1] \semi \Pi \vdexp e_1: \tau \mid E$.
-\end{enumerate}
-\item Applying the inductive hypothesis to (a) and (c) gives
-$\Gamma \semi \Pi \vDash^\mf{wk}_\Delta m'$, i.e. conlcusion \emph{(i)}.
-\item We also get via inductive hypothesis that 
-$\Gamma \semi \Pi \vdexp e_1': \tau_1 \mid E_1$.
-\item Reapplying \textsc{TExp-Let} alongside (b) gives 
-$\Gamma \semi \Pi \vdexp \elet{x}{e_1'}{e_2}: \tau \mid E$,
-i.e. conclusion \emph{(ii)}, and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{E-Ret}: \begin{itemize}
-\item We have $m \semi \elet{x}{\eret{v}}{e} \mapsto e[v/x] \semi m$.
-\item \emph{(i)} gives that 
-$\Gamma \semi \Pi \vdexp \elet{x}{\eret{v}}{e} : \tau \mid E$.
-\item By \textsc{TExp-Ret}, $\Gamma \semi \Pi \vdval v: \tau_1$ 
-and $\Gamma[x \mapsto \tau_1] \semi \Pi \vdexp e : \tau \mid E$.
-\item We apply the substitution lemma to get 
-$\Gamma \semi \Pi \vdexp e[v/x] : \tau \mid E$ and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{E-AppFun}: \begin{itemize}
-\item We have $m \semi (\lambda x.e) v \mapsto e[v/x] \semi m$.
-\item By \emph{(i)} and \textsc{TExp-AppFun} we get $\Gamma \semi \Pi \vdexp v: \tau_1$
-and $\Gamma[x \mapsto \tau_1] \semi \Pi \vdexp e : \tau \mid E$.
-\item By substitution lemma, we conclude that 
-$\Gamma \semi \Pi \vdexp e[v/x] : \tau \mid E$ and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{E-AppComp}: \begin{itemize}
-\item We have $m \semi \mc{C}\ v \mapsto \eret{\pair{\mc{C}}{v}} \semi m$.
-\item By \emph{(i)} and \textsc{TVal-Spec},
-$\Gamma \semi \Pi \vdexp \mc{C}\ v: \mf{View} \mid \epsilon$.
-\item It follows that $\Gamma \semi \Pi \vdval \mc{C}: \mf{Component}\ \tau$
-and $\Gamma \semi \Pi \vdval v: \tau$.
-\item We reapply \textsc{TVal-Spec} to get 
-$\Gamma \semi \Pi \vdval \pair{\mc{C}}{v}: \mf{View}$.
-\item Then, by \textsc{TExp-Ret}, 
-$\Gamma \semi \Pi \vdexp \eret{\pair{\mc{C}}{v}}: \mf{View} \mid \epsilon$
-and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{E-AppSet}: \begin{itemize}
-\item We have $m \semi \vset{\ell}{p}\ v \mapsto \eret{()} \semi m'$,
-where $m' = m \mid m[p].\mf{st}[\ell] = v$.
-\item By \emph{(i)} and \textsc{TVal-AppSet},
-$\Gamma \semi \Pi \vdexp \vset{\ell}{p}\ v: \one \mid \mf{Mut}$.
-\item It follows that 
-\begin{enumerate}[(a)]
-  \item $\Gamma \semi \Pi \vdval \vset{\ell}{p}: \mf{Setter}\ \tau$ and
-  \item $\Gamma \semi \Pi \vdval v: \tau$.
-\end{enumerate}
-\item Conclusion \emph{(i)} follows from the derivation:
-\begin{mathpar}
-\inferrule*[right=TExp-Sub] {
-  \inferrule*[right=TExp-Ret] {
-    \inferrule*[right=TVal-Unit] { } {
-      \Gamma \semi \Pi \vdval (): \one
-    }
-  } {
-    \Gamma \semi \Pi \vdexp \eret{()}: \one \mid \epsilon
-  }
-} {
-  \Gamma \semi \Pi \vdexp \eret{()}: \one \mid \mf{Mut}
-}
-\end{mathpar}
-\item To show conclusion \emph{(ii)}, 
-since $m'$ differs from $m$ only at $m[p].\mf{st}[\ell]$,
-it suffices to show that $\Gamma \semi \Pi \vdval m'[p].\mf{st}[\ell] : \Delta[\Pi[p]][\ell]$.
-\item By definition of $m'$, we want to show 
-$\Gamma \semi \Pi \vdval v : \Delta[\Pi[p]][\ell]$.
-\item It follows from (a) that $\Delta[\Pi[p]][\ell] = \tau_1$.
-\item Thus, the desired conclusion is given by (b), and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{E-IfTrue}: \begin{itemize}
-\item We have $m \semi \eif{\mf{true}}{e_1}{e_2} \mapsto e_1 \semi m$.
-\item By \emph{(i)}, $\Gamma \semi \Pi \vdexp \eif{v}{e_1}{e_2}: \tau \mid E$.
-\item By \textsc{TExp-If}, $\Gamma \semi \Pi \vdexp e_1: \tau \mid E$ and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{E-IfFalse}: Analogous to \textsc{E-IfTrue}; elided.
-\end{proof}
-
-\subsubsection{Top-Level Expressions, Initial Phase}
-
-\begin{lemma}[Progress of top-level expressions, initial phase]
-If $\cdot \semi \Pi \semi \mc{C} \vdtop \hat{e}$, then either:
-\begin{enumerate}[(i)]
-\item $\hat{e} = \eret{v}$, or
-\item for all $m$ such that $\cdot \semi \Pi \vdm m$
-and arbitrary $p \in \Pi$,
-there exist some $\hat{e}'$ and $m'$ such that
-$m \semi \hat{e} \topstep{\mf{Init}}{p} \hat{e}' \semi m'$.
-\end{enumerate}
-\end{lemma}
-
-\begin{proof}
-By induction on the derivation of the typing judgment.
-
-\textbf{Case} \textsc{THat-Lift}: \begin{itemize}
-\item We have $\cdot \semi \Pi \vdexp e: \mf{View} \mid \epsilon$.
-\item By progress of expressions, we have two subcases.
-\item Subcase (a): $e=\eret{v}$. 
-\begin{itemize}
-  \item We trivially satisfy conclusion \emph{(i)} and we are done.
-\end{itemize}
-\item Subcase (b): for all $m$ with $\cdot \semi \Pi \vDash^\mf{wk}_\Delta m$, 
-there exist some $e'$ and $m'$ such that
-$m \semi e \mapsto e' \semi m'$.
-\begin{itemize}
-  \item By definition of $\vdm$, $m=\cdot$.
-  \item By pure progress, $m' = \cdot$.
-  \item Apply \textsc{E-Lift} to get
-$m \semi \hat{e} \topstep{\mf{Init}}{p} \hat{e}' \semi m$,
-satisfying conclusion \emph{(ii)}.
-\end{itemize}
-\end{itemize}
-
-\textbf{Case} \textsc{THat-Let}: \begin{itemize}
-\item We have $\cdot \semi \Pi \vdexp e: \tau_1 \mid \epsilon$.
-\item Again by progress of expressions, we have two subcases.
-\item Subcase (a): $e = \eret{v}$. \begin{itemize}
-  \item Apply \textsc{E-RetTop} to get
-  $m \semi \elet{x}{\eret{v}}{\hat{e}} \topstep{\mf{Init}}{p} \hat{e}[v/x] \semi m$.
-\end{itemize}
-\item Subcase (b): for all $m$ with $\cdot \semi \Pi \vDash^\mf{wk}_\Delta m$, 
-there exist some $e'$ and $m'$ such that
-$m \semi e \mapsto e' \semi m'$.\begin{itemize}
-  \item By definition of $\vdm$, $m=\cdot$.
-  \item By pure progress, $m' = \cdot$.
-  \item Apply \textsc{E-LetTop} to get
-  $m \semi \elet{x}{e}{\hat{e}} \topstep{\mf{Init}}{p} \elet{x}{e'}{\hat{e}} \semi m$.
-\end{itemize}
-\item In any subcase, we satisfy conclusion \emph{(ii)} and we are done.
-\end{itemize}
-\textbf{Case} \textsc{THat-State}:
-We simply apply \textsc{E-StInit} and we are done.
-\end{proof}
-
-\begin{lemma}[Preservation of top-level expression, initial phase]
-If
-\begin{enumerate}[(i)]
-\item $\Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}$,
-\item $\Gamma \semi \Pi \vDash^\mf{wk}_\Delta m$,
-\item $m \semi \hat{e} \topstep{\mf{Init}}{p} \hat{e}' \semi m'$,
-\end{enumerate}
-then
-\begin{enumerate}[(i)]
-\item $\Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}'$ and
-\item $\Gamma \semi \Pi \vDash^\mf{wk}_\Delta m'$.
-\end{enumerate}
-\end{lemma}
-
-\begin{proof}
-By induction on derivation of \emph{(iii)}.
-
-\textbf{Case} \textsc{E-Lift}: \begin{itemize}
-\item We have $\cdot \semi e \mapsto e' \semi \cdot$.
-\item By premise \emph{(i)} and \textsc{THat-Lift},
-$\Gamma \semi \Pi \vdexp e: \mf{View} \mid \epsilon$.
-\item We apply preservation of expressions to get
-(a) $\Gamma \semi \Pi \vdexp e': \mf{View} \mid \epsilon$.
-\item We reapply \textsc{THat-Lift} to (a) to satisfy conclusion \emph{(i)} and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{E-LetTop}: \begin{itemize}
-\item We have
-$m \semi \elet{x}{e}{\hat{e}} \topstep{\mf{Init}}{p} \elet{x}{e'}{\hat{e}} \semi m'$.
-\item Also, (a) $\cdot \semi e \mapsto e' \semi \cdot$.
-\item By premise \emph{(i)} and \textsc{THat-Let},
-(b) $\Gamma \semi \Pi \semi \vdexp e: \tau \mid \epsilon$
-and (c) $\Gamma[x \mapsto \tau] \semi \Pi \semi \Pi[p] \vdtop \hat{e}$.
-\item Preservation of expressions on (a) and (b) gives that 
-(d) $\Gamma \semi \Pi \vdexp e': \tau \mid \epsilon$.
-\item We reapply \textsc{THat-Let} to (c) and (d) to satisfy conclusion \emph{(i)}
-and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{E-RetTop}:\begin{itemize}
-\item We have
-$m \semi \elet{x}{\eret{v}}{\hat{e}} \topstep{\mf{Init}}{p} \hat{e}[v/x] \semi m$.
-\item By premise \emph{(i)} and \textsc{THat-Let},
-we have $\Gamma \semi \Pi \vdval v: \tau_1$
-and $\Gamma[x \mapsto \tau_1] \semi \Pi \semi \Pi[p] \vdtop \hat{e}$.
-\item By substitution lemma,
-we get that $\Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}[v/x]$
-and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{E-StInit}: \begin{itemize}
-\item We have
-$m \semi \estate{x}{\ell}{v}{\hat{e}} \topstep{\mf{Init}}{p}
-\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}] \semi m'$
-where $m' = m \mid m[p].\mf{st}[\ell] = v$.
-\item By premise \emph{(i)} and \textsc{THat-State}, we get
-\begin{enumerate}[(a)]
-\item $\Delta[\Pi[p]][\ell] = \tau_1$,
-\item $\Gamma \semi \Pi \vdval v: \tau_1$, and
-\item $\Gamma[x \mapsto \tau_1, x_\mf{set} \mapsto \mf{Setter}\ \tau_1] 
-\semi \Pi \semi \Pi[p] \vdtop \hat{e}$.
-\end{enumerate}
-\item We apply \textsc{TVal-Setter} to (a) to get (d)
-$\Gamma \semi \Pi \vdval \vset{\ell}{p}: \mf{Setter}\ \tau_1$.
-\item Two applications of the substitution lemma to (c), using (b) and (d),
-yield $\Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}]$,
-satisfying conclusion \emph{(i)}.
-\item To show conclusion \emph{(ii)}, it suffices to show that
-$\Gamma \semi \Pi \vdval m'[p].\mf{st}[\ell] : \Delta[\Pi[p]][\ell]$.
-\item This is given by (a), (b), and definition of $m'$, and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{E-StSucc}: Impossible,
-since the judgment requires that $\phi=\mf{Succ}$.
-
-\end{proof}
-
-\subsubsection{Programs}
-
-\begin{lemma}[Progress of programs]
-If $\cdot \vdprog P$, then either:
-\begin{enumerate}[(i)]
-\item $P = \eret{v}$, or
-\item for all $\mc{D}$ with $\Delta \vDash \mc{D}$,
-there exist some $P'$ and $\mc{D}'$ such that
-$\mc{D} \semi P \pstep P' \semi \mc{D}'$.
-\end{enumerate}
-\end{lemma}
-
-\begin{proof}
-By induction over the derivation of the typing judgment.
-
-\textbf{Case} \textsc{TProg-Lift}: \begin{itemize}
-\item We have $\cdot \semi \cdot \vdexp e: \mf{View} \mid \epsilon$.
-\item By progress of expressions, we have two subcases.
-\item Subcase (a): $e=\eret{v}$.
-\begin{itemize}
-  \item Conclusion \emph{(i)} is trivially satisfied.
-\end{itemize}
-\item Subcase (b): for all $m$ with $\cdot \semi \cdot \vdm m$,
-there exist some $e'$ and $m'$ with $m \semi e \mapsto e' \semi m$.
-\begin{itemize}
-  \item By definition of $\vdm$, we must have $m=\cdot$.
-  \item By pure progress, $m' = \cdot$.
-  \item We can therefore apply \textsc{P-Lift} to get 
-$\mc{D} \semi e \pstep e' \semi \mc{D}$,
-thus satisfying conclusion \emph{(ii)}.
-\end{itemize}
-\end{itemize}
-
-\textbf{Case} \textsc{TProg-Let}: \begin{itemize}
-\item We have $\cdot \semi \cdot \vdexp e: \mf{\tau} \mid \epsilon$.
-\item By progress of expressions, we again have two subcases.
-\item Subcase (a): $e=\eret{v}$.
-\begin{itemize}
-  \item We apply \textsc{P-Ret} to get
-  $\mc{D} \semi \elet{x}{\eret{v}}{P} \pstep P[v/x] \semi \mc{D}$
-  and we are done.
-\end{itemize}
-\item Subcase (b): for all $m$ with $\cdot \semi \cdot \vdm m$,
-there exist some $e'$ and $m'$ with $m \semi e \mapsto e' \semi m$.
-\begin{itemize}
-  \item By definition of $\vdm$, we must have $m=\cdot$.
-  \item By pure progress, $m' = \cdot$.
-  \item We can therefore apply \textsc{P-Let} to get 
-$\mc{D} \semi \elet{x}{e}{P} \pstep \elet{x}{e'}{P} \semi \mc{D}$,
-thus satisfying conclusion \emph{(ii)}.
-\end{itemize}
-\end{itemize}
-
-\textbf{Case} \textsc{TProg-Comp}: We simply apply \textsc{P-Comp}
-and we are done.
-\end{proof}
-
-\begin{lemma}[Preservation of programs.]
-If
-\begin{enumerate}[(i)]
-\item $\Gamma \vdprog P$,
-\item $\Delta \vDash \mc{D}$, and
-\item $\mc{D} \semi P \pstep P' \semi \mc{D}'$,
-\end{enumerate}
-then
-\begin{enumerate}[(i)]
-\item $\Gamma \vdprog P'$ and
-\item $\Delta \vDash \mc{D}'$.
-\end{enumerate}
-\end{lemma}
-
-\begin{proof}
-By induction over the derivation of the small-step judgment.
-
-\textbf{Case} \textsc{P-Lift}: \begin{itemize}
-\item We have $\cdot \semi e \mapsto e' \semi \cdot$.
-\item By premise \emph{(i)} and \textsc{TProg-Lift},
-we have $\Gamma \semi \cdot \vdexp e : \mf{View} \mid \epsilon$.
-\item By preservation of expressions,
-$\Gamma \semi \cdot \vdexp e': \mf{View} \mid \epsilon$.
-\item Reapplication of \textsc{TProg-Lift} gives $\Gamma \vdprog e'$
-and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{P-Let}: \begin{itemize}
-\item We again have (a) $\cdot \semi e \mapsto e' \semi \cdot$.
-\item By premise \emph{(i)} and \textsc{TProg-Let},
-we have (b) $\Gamma \semi \cdot \vdexp e : \tau \mid \epsilon$
-and (c) $\Gamma[x \mapsto \tau] \vdprog P$.
-\item By preservation of expressions on (a) and (b), we get (d)
-$\Gamma \semi \cdot \vdexp e': \tau \mid \epsilon$.
-\item Reapplication of \textsc{TProg-Let} to (c) and (d) gives 
-$\Gamma \vdprog \elet{x}{e'}{P}$ and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{P-Ret}: \begin{itemize}
-\item We have $\mc{D} \semi \elet{x}{\eret{v}}{P} \pstep P[v/x] \semi \mc{D}$.
-\item Premise \emph{(i)}
-gives $\Gamma \semi \cdot \vdval v: \tau$
-and $\Gamma, x: \tau \vdprog P$.
-\item By substitution lemma,
-$\Gamma \vdprog P[v/x]$ and we are done.
-\end{itemize}
-
-\textbf{Case} \textsc{P-Comp}: \begin{itemize}
-\item We immediately get from premise \emph{(i)}
-that $\Gamma \vdprog P$, satisfying conclusion \emph{(i)}.
-\item We also need to show that $\Delta \vDash \mc{D}'$.
-\item By premise \emph{(ii)},
-it suffices to show that 
-$[x \mapsto \Delta[\mc{C}]] \semi \cdot \semi \mc{C} \vdtop \hat{e}$.
-\item This is also given by premise \emph{(i)}:
-we get that $x: \tau \semi \cdot \semi \mc{C} \vdtop \hat{e}$
-and $\Delta[\mc{C}] = \tau$.
-\end{itemize}
-\end{proof}
-
-\subsubsection{Initialization (New)}
+\subsubsection{Initialization}
 
 \begin{lemma}[Progress of initialization]
 If $\Delta \vDash \mc{D}$ and $\cdot \semi \Pi \vdval v: \mf{View}$,
@@ -1530,7 +2529,7 @@ In the inductive case, we have $n>0$ by assumption.
 We apply the canonical forms lemma to the typing premise
 and case-analyze the result.
 
-\textbf{Case} $v = \mf{text} v'$: 
+\textbf{Case} $v = \mf{text}\ v'$: 
 We simply apply $\textsc{Init-Lit}$ to get 
 $\mc{D} \vdash \mf{text}\ v' \bsinit{n} \pair{\mf{lit}\ v'}{\cdot}$
 and we are done.
@@ -1540,7 +2539,6 @@ and we are done.
 \textbf{Case} $v = \pair{\mc{C}}{v}$: unfinished
 
 \end{proof}
-
 
 \begin{lemma}[Preservation of initialization]
 If \begin{enumerate}[(i)]
@@ -1561,7 +2559,7 @@ By induction on the derivation of the big-step judgment.
 \end{proof}
 
 \begin{theorem}[Progress of configurations]
-If $\Pi \vdcfg \four{\mc{D}}{m}{t}{\mu}$, then either:
+If $\Pi \vdcfg \four{\mc{D}}{m}{t}{\mu}$, either:
 \begin{enumerate}[(i)]
 \item $\mu = \mf{idle}$,
 \item $\mu = \mf{start}(\eret{v})$ and $\mc{D} \vdash v \divinit{ }$,
@@ -1578,7 +2576,7 @@ and $\Pi' \vdcfg \four{\mc{D}'}{m'}{t'}{\mu'}$.
     
 \end{theorem}
 
-\subsubsection{Initialization (Old)}
+\subsubsection{Initialization (Even Older)}
 
 We first prove a number of lemmas which are necessary in our critical property.
 
@@ -1667,7 +2665,7 @@ the conclusion holds trivially.
 
 \textbf{Case} \textsc{E-Lift}: \begin{itemize}
 \item We have $\cdot \semi e \mapsto e' \semi \cdot$.
-\item By definition, $\mc{L}(e)=\mc{L}(e')=\emptyset$.
+\item By definition, $\mc{L}(e)=\emptyset=\mc{L}(e')$.
 \item Clearly then $\mc{L}(e) \setminus \mc{L}(e')=\emptyset$ and we are done.
 \end{itemize}
 
@@ -1760,7 +2758,7 @@ By induction on derivation of \emph{(i)}.
 \textbf{Case} \textsc{Init-Lit}: \begin{itemize}
 \item We have $\mc{D} \vdash \mf{text}\ v \bsinit{n} \pair{\mf{lit}\ v}{\cdot}$.
 \item Choose $\Pi'=\Pi$; conclusions \emph{(i)} and \emph{(iii)} are trivial.
-\item By premise \emph{(iii)} and \textsc{TVal-Text},
+\item By premise \emph{(iii)} and \textsc{TV-Text},\\
 we have $\cdot \semi \Pi \vdval v: \tau$ with $\tau \in \lits$.
 \item We conclude via \textsc{TTree-Lit} that $\Pi \vdtree \mf{lit}\ v$
 and we are done. 
@@ -1771,7 +2769,7 @@ and we are done.
   \bsinit{n}
   \pair{\mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})}{\bigcup_j m_j}$.
 \item Furthermore, for all $j$, we have (a) that $\mc{D} \vdash v_j \bsinit{n} \pair{t_j}{m_j}$.
-\item By \emph{(iii)} and \textsc{TVal-Tag}, we have \begin{enumerate}[(a)]
+\item By \emph{(iii)} and \textsc{TV-Tag}, we have \begin{enumerate}[(a)]
   \stepcounter{enumi}
   \item $\cdot \semi \Pi \vdval v: \mf{String}$,
   \item $\cdot \semi \Pi \vdval v_i: \mf{Attr}$ for all $i$, and
@@ -1833,8 +2831,8 @@ Note that $\cdot \semi \Pi_0 \vdm m_0$ (S2) by definition.
 $[x \mapsto \Delta[\mc{C}]] \semi \cdot \semi \mc{C} \vdtop \hat{e}$.
 \item Premise \emph{(iii)} gives the following derivation (bottom-up):
 \begin{mathpar}
-\inferrule*[right=TVal-Spec] {
-  \inferrule*[right=TVal-Comp] {
+\inferrule*[right=TV-Spec] {
+  \inferrule*[right=TV-Comp] {
     \inferrule*{(d)} {\Delta[\mc{C}] = \tau}
   } {
     \cdot \semi \Pi \vdval \mc{C}: \mf{Component}\ \tau
@@ -1895,6 +2893,682 @@ i.e. sub-conclusion (\emph{iii}-c), and we are done.
 \end{proof}
 
 
+\section{$\lambda_{RTC}$-List}
+
+Adds first-class list manipulation to React-tRace Core.
+
+\subsection{Syntax}
+
+Program-level language:
+\begin{align*}
+\text{Value } v &::= x \mid () \mid [] \mid s \mid \lambda x: \tau.e\\
+&\mid \mc{C} \mid \mf{text}\ v \mid \mf{tag}(v, v)
+\mid \mf{attr}(v, v) \mid \mf{onClick}\ v\\
+&\mid \mathgrey{\pair{\mc{C}}{v}} \mid \mathgrey{\vset{\ell}{p}}
+\mid \mathgrey{v :: v}\\
+\text{Expression } e &::= \eret{v} \mid \elet{x}{e}{e} \mid v\ v \mid v :: v\\
+&\mid \ecase{x}{[]}{e}{x_\mf{hd} :: x_\mf{tl}}{e}\\
+\text{Top-level expr }\hat{e} &::= e \mid \estate{x}{\ell}{v}{\hat{e}} \mid \elet{x}{e}{\hat{e}}\\
+\text{Program } P &::= \mf{end} \mid \elet{x}{e}{P} \mid \elet{\mc{C}(x)}{\hat{e}}{P}\\
+\text{Type } \tau &::= \one \mid \mf{String} \mid \tau \xrightarrow{E} \tau
+\mid [\tau]\\
+&\mid\mf{View} \mid \mf{Attr}
+\mid \mf{Component}\ \tau \mid \mf{Setter}\ \tau\\
+\text{Effect } E &::= \epsilon \mid \mf{Mut}
+\end{align*}
+
+Runtime-level language:
+\begin{align*}
+\text{Constants } k 
+&::= \mf{done} \mid []_\rho \mid \mf{check} \mid \mf{new}^\phi_p
+\mid \mf{search}_\mf{id} \mid \mf{fold}\\
+\text{Runtime values } \rho_v 
+&::= k \mid \rho_v ::_\rho \rho_v
+\mid \mf{lit}\ v \mid \mf{node}(\mf{id}, v, \rho_v)
+\mid p\\
+\text{Runtime expressions } \rho
+&::= k \mid \rho ::_\rho \rho
+\mid \rho\ \rho \mid \rho \semi \rho\\
+&\quad\mid \mf{lit}\ v \mid \mf{node}(\mf{id}, v, \rho)
+\mid p \\
+&\quad\mid \mf{init}\ v \mid \mf{inits}\ v \mid \mf{scan}\ v \mid \mf{scans}\ v\\
+&\quad\mid \mf{eval}^\phi_p\ \hat{e}
+\mid \mf{handle}\ e \mid \mf{prog}\ P\\
+\text{Evaluation contexts } \mc{E}
+&::= [\cdot] \mid \mf{node}(\mf{id}, v, \mc{E}) \mid \mc{E} ::_\rho \rho
+\mid \rho_v ::_\rho \mc{E}\\
+&\mid \mc{E} \semi \rho\ \mid \mc{E}\ \rho \mid \rho_v\ \mc{E}\\
+\text{Runtime type } \alpha &::= \one_\rho \mid \mf{Tree} 
+\mid \alpha \rightarrow \alpha
+\mid [\alpha]_\rho
+\end{align*}
+\[
+\alpha(\phi) = \begin{cases}
+    \mf{Tree} & \phi=\mf{Init}\\
+    \one_\rho & \phi=\mf{Succ}
+\end{cases}
+\]
+
+\subsection{Program-Level Typing}
+
+\subsubsection{Value Typing}
+
+Judgment: $\Gamma \semi \Pi \vdval v: \tau$
+
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  \Gamma[x] = \tau
+} {
+  \Gamma \semi \Pi \vdval x: \tau
+}
+\and
+\inferrule*[right=TV-Unit] { } {
+  \Gamma \semi \Pi \vdval () : \one
+}
+\and
+\inferrule*[right=TV-Nil] { } {
+  \Gamma \semi \Pi \vdval [] : [\tau]
+}
+\and
+\inferrule*[right=TV-Str] { } {
+  \Gamma \semi \Pi \vdval s : \mf{String}
+}
+\and
+\inferrule*[right=TV-Lam] {
+  \Gamma[x \mapsto \tau_1] \semi \Pi \vdexp e : \tau_2 \mid E
+} {
+  \Gamma \semi \Pi 
+  \vdval
+  \lambda x: \tau_1.e: \tau_1 \xrightarrow{E} \tau_2
+}
+\and
+\inferrule*[right=TV-Comp] {
+  \Delta[\mc{C}] = \tau
+} {
+  \Gamma \semi \Pi \vdval \mc{C} : \mf{Component}\ \tau
+}
+\and
+\inferrule*[right=TV-Text] {
+  \Gamma \semi \Pi \vdval v: \mf{String}
+} {
+  \Gamma \semi \Pi \vdval \mf{text}\ v: \mf{View}
+}
+\and
+\inferrule*[right=TV-Tag] {
+  \Gamma \semi \Pi \vdval v_1: [\mf{Attr}]
+  \and
+  \Gamma \semi \Pi \vdval v_2: [\mf{View}]
+} {
+  \Gamma \semi \Pi \vdval \mf{tag}(v_1, v_2): \mf{View}
+}
+\and
+\inferrule*[right=TV-Attr] {
+  \Gamma \semi \Pi \vdval v_k: \mf{String}
+  \and
+  \Gamma \semi \Pi \vdval v_v: \mf{String}
+} {
+  \Gamma \semi \Pi \vdval \mf{attr}(v_k, v_v): \mf{Attr}
+}
+\and
+\inferrule*[right=TV-OnClick] {
+  \Gamma \vdval v: \one \xrightarrow{E} \one
+} {
+  \Gamma \vdval \mf{onClick}\ v: \mf{Attr}
+}
+\and
+\inferrule*[right=\grey{TV-Spec}] {
+  \Gamma \semi \Pi \vdval \mc{C}: \mf{Component}\ \tau
+  \and
+  \Gamma \semi \Pi \vdval v: \tau
+} {
+  \Gamma \semi \Pi \vdval \pair{\mc{C}}{v}: \mf{View}
+}
+\and
+\inferrule*[right=\grey{TV-Set}] {
+  \Delta[\Pi[p]][\ell] = \tau
+} {
+  \Gamma \semi \Pi \vdval \vset{\ell}{p} : \mf{Setter}\ \tau
+}
+\end{mathpar}
+
+\subsubsection{Expression Typing}
+
+Judgment: $\Gamma \semi \Pi \vdexp e : \tau \mid E$
+
+\begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \Gamma \semi \Pi \vdval v: \tau
+} {
+  \Gamma \semi \Pi \vdexp \eret{v}: \tau \mid \epsilon
+}
+\and
+\inferrule*[right=TE-Let] {
+  \Gamma \semi \Pi \vdexp e_1 : \tau_1 \mid E
+  \and
+  \Gamma[x \mapsto \tau_1] \semi \Pi \vdexp e_2 : \tau_2 \mid E
+} {
+  \Gamma \semi \Pi \vdexp \elet{x}{e_1}{e_2}: \tau_2 \mid E
+}
+\and
+\inferrule*[right=TE-AppL] {
+  \Gamma \semi \Pi \vdval v_1 : \tau_1 \xrightarrow{E} \tau_2
+  \and
+  \Gamma \semi \Pi \vdval v_2 : \tau_1
+} {
+  \Gamma \semi \Pi \vdexp v_1\ v_2: \tau_2 \mid E
+}
+\and
+\inferrule*[right=TE-AppC] {
+  \Gamma \semi \Pi \vdval v_1 : \mf{Component}\ \tau
+  \and
+  \Gamma \semi \Pi \vdval v_2 : \tau
+} {
+  \Gamma \semi \Pi \vdexp v_1\ v_2: \mf{View} \mid \epsilon
+}
+\and
+\inferrule*[right=TE-AppS] {
+  \Gamma \semi \Pi \vdval v_1 : \mf{Setter}\ \tau
+  \and
+  \Gamma \semi \Pi \vdval v_2 : \tau
+} {
+  \Gamma \semi \Pi \vdexp v_1\ v_2: \one \mid \mf{Mut}
+}
+\and
+\inferrule*[right=TE-Cons] {
+  \Gamma \semi \Pi \vdval x : \tau
+  \and
+  \Gamma \semi \Pi \vdval xs : [\tau]
+} {
+  \Gamma \semi \Pi \vdexp x :: xs: [\tau] \mid \epsilon
+}
+\and
+\inferrule*[right=TE-Case] {
+  \Gamma \semi \Pi \vdval v : [\tau']
+  \and
+  \Gamma \semi \Pi \vdexp e_1 : \tau \mid E
+  \\
+  \Gamma[x_\mf{hd} \mapsto \tau', x_\mf{tl} \mapsto [\tau']]
+  \semi \Pi \vdexp e_2 : \tau \mid E
+} {
+  \Gamma \semi \Pi \vdexp \ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2} : \tau \mid E
+}
+\and
+\inferrule*[right=TE-Sub] {
+  \Gamma \semi \Pi \vdexp e: \tau \mid \epsilon
+} {
+  \Gamma \semi \Pi \vdexp e: \tau \mid \mf{Mut}
+}
+\end{mathpar}
+
+\subsubsection{Top-Level Expression Typing}
+
+Judgment: $\Gamma \semi \Pi \semi \mc{C} \vdtop \hat{e}$
+
+\begin{mathpar}
+\inferrule*[right=TH-Done] {
+  \Gamma \semi \Pi \vdexp e: \mf{View} \mid \epsilon
+} {
+  \Gamma \semi \Pi \semi \mc{C} \vdtop e
+}
+\and
+\inferrule*[right=TH-Let] {
+  \Gamma \semi \Pi \vdexp e: \tau_1 \mid \epsilon
+  \and
+  \Gamma[x \mapsto \tau_1] \semi \Pi \semi \mc{C} \vdtop \hat{e}
+} {
+  \Gamma \semi \Pi \semi \mc{C} \vdtop \elet{x}{e}{\hat{e}}
+}
+\and
+\inferrule*[right=TH-State] {
+  \Delta[\mc{C}][\ell] = \tau_1
+  \and
+  \Gamma \semi \Pi \vdval v: \tau_1
+  \\
+  \Gamma[x \mapsto \tau_1, x_\mf{set} \mapsto \mf{Setter}\ \tau_1]
+  \semi \Pi \semi \mc{C} \vdtop \hat{e}
+} {
+  \Gamma \semi \Pi \semi \mc{C} \vdtop \estate{x}{\ell}{v}{\hat{e}}
+}
+\end{mathpar}
+
+\subsubsection{Program Typing}
+
+Judgment: $\Gamma \vdprog P$
+
+\begin{mathpar}
+\inferrule*[right=TP-End] { } {
+  \Gamma \vdprog \mf{end}
+}
+\and
+\inferrule*[right=TP-Let] {
+  \Gamma \semi \cdot \vdexp e: \tau \mid \epsilon
+  \and 
+  \Gamma[x \mapsto \tau] \vdprog P
+} {
+  \Gamma \vdprog \elet{x}{e}{P}
+}
+\and
+\inferrule*[right=TP-Def] {
+  \Gamma[x \mapsto \Delta[\mc{C}]] \semi \cdot \semi \mc{C} \vdtop \hat{e}
+  \and
+  \Gamma \vdprog P
+} {
+  \Gamma \vdprog \elet{\mc{C}(x)}{\hat{e}}{P}
+}
+\end{mathpar}
+
+\subsection{Program-Level Semantics}
+
+\subsubsection{Expression Semantics}
+
+Judgment: $m \semi e \mapsto e' \semi m'$
+\begin{mathpar}
+\inferrule*[right=E-Let] {
+  m \semi e_1 \mapsto e_1' \semi m'
+} {
+  m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \elet{x}{\eret{v}}{e} &\mapsto e[v/x] \semi m
+&&\textsc{E-Ret}\\
+m \semi (\lambda x.e) v &\mapsto e[v/x] \semi m
+&&\textsc{E-AppL}\\
+m \semi \mc{C}\ v &\mapsto \eret{\pair{\mc{C}}{v}} \semi m
+&&\textsc{E-AppC}\\
+m \semi \vset{\ell}{p}\ v &\mapsto \eret{()} \semi m'
+&&\textsc{E-AppS}\\
+(m' = m \mid m[p].\mf{st}[\ell] = v\ 
+    \mf{and}\ &m[p].\mf{rerender} = \mf{tt})\\
+m \semi \ecase{[]}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2} 
+&\mapsto e_1 \semi m
+&&\textsc{E-CaseN}\\
+m \semi x :: xs &\mapsto \eret{x :: xs} \semi m
+&&\textsc{E-Cons}\\
+m \semi \ecase{(hd :: tl)}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}
+&\mapsto e_2[hd/x_\mf{hd}, tl/x_\mf{tl}] \semi m
+&&\textsc{E-CaseC}
+\end{align*}
+
+\subsubsection{Top-Level Expression Semantics}
+
+Judgment: $m \semi \hat{e} \topstep{\phi}{p} \hat{e}' \semi m'$
+\begin{mathpar}
+\inferrule*[right=EH-Lift] {
+  m \semi e \mapsto e' \semi m
+} {
+  m \semi e \topstep{\phi}{p} e' \semi m
+}
+\and
+\inferrule*[right=EH-Let] {
+  m \semi e \mapsto e' \semi m
+} {
+  m \semi \elet{x}{e}{\hat{e}} \topstep{\phi}{p} \elet{x}{e'}{\hat{e}} \semi m
+}
+\end{mathpar}
+\begin{align*}
+m \semi \elet{x}{\eret{v}}{\hat{e}} &\topstep{\phi}{p} \hat{e}[v/x] \semi m
+&&\textsc{EH-Ret}\\
+m \semi \estate{x}{\ell}{v}{\hat{e}}
+&\topstep{\mf{Init}}{p}
+\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}] \semi m'
+&&\textsc{EH-StI}\\
+(m' &= m \mid m[p].\mf{st}[\ell] = v)\\
+m \semi \estate{x}{\ell}{v}{\hat{e}}
+&\topstep{\mf{Succ}}{p}
+\hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}] \semi m
+&&\textsc{EH-StS}\\
+(v' &= m[p].\mf{st}[\ell])
+\end{align*}
+
+\subsubsection{Program Expression Semantics}
+
+Judgment: $\mc{D} \semi P \pstep P' \semi \mc{D}'$
+\begin{mathpar}
+\inferrule*[right=EP-Let] {
+  \cdot \semi e \mapsto e' \semi \cdot
+} {
+  \mc{D} \semi \elet{x}{e}{P}
+  \pstep
+  \elet{x}{e'}{P} \semi \mc{D}
+}
+\end{mathpar}
+\begin{align*}
+\mc{D} \semi \elet{x}{\eret{v}}{P}
+&\pstep
+P[v/x] \semi \mc{D}
+&&\textsc{EP-Ret}\\
+\mc{D} \semi \elet{\mc{C}(x)}{\hat{e}}{P}
+&\pstep
+P \semi \mc{D}[\mc{C} \mapsto x.\hat{e}]
+&&\textsc{EP-Def}
+\end{align*}
+
+\subsection{Runtime-Level Typing}
+
+Judgment: $\Gamma \semi \Pi \Vdash_\Delta \rho: \alpha$
+\begin{align*}
+\Gamma \semi \Pi &\Vdash_\Delta \mf{done}: \one_\rho
+&&\textsc{TR-Done}\\
+\Gamma \semi \Pi &\Vdash_\Delta []_\rho: [\alpha]
+&&\textsc{TR-Nil}\\
+\Gamma \semi \Pi &\Vdash_\Delta \mf{check}: \mf{Tree} \rightarrow \one_\rho
+&&\textsc{TR-Check}\\
+\Gamma \semi \Pi &\Vdash_\Delta \mf{new}^\phi_p: \mf{Tree} \rightarrow \alpha(\phi)
+&&\textsc{TR-New}\\
+\Gamma \semi \Pi &\Vdash_\Delta \mf{search}_\mf{id}: \mf{Tree} \rightarrow \one_\rho
+&&\textsc{TR-Search}\\
+\Gamma \semi \Pi &\Vdash_\Delta \mf{fold}:
+(\mf{Tree} \rightarrow \one_\rho) \rightarrow [\mf{Tree}]_\rho \rightarrow \one_\rho
+&&\textsc{TR-Fold}\\
+\end{align*}
+\begin{mathpar}
+\inferrule*[right=TR-Cons] {
+  \Gamma \semi \Pi \Vdash_\Delta x : \alpha
+  \and
+  \Gamma \semi \Pi \Vdash_\Delta xs : [\alpha]
+} {
+  \Gamma \semi \Pi \Vdash_\Delta x :: xs : [\alpha]
+}
+\and
+\inferrule*[right=TR-App] {
+  \Gamma \semi \Pi \Vdash_\Delta \rho_1: \alpha \rightarrow \alpha'
+  \and
+  \Gamma \semi \Pi \Vdash_\Delta \rho_2: \alpha
+} {
+  \Gamma \semi \Pi \Vdash_\Delta \rho_1\ \rho_2: \alpha'
+}
+\and
+\inferrule*[right=TR-Seq] {
+  \Gamma \semi \Pi \Vdash_\Delta \rho_1: \one_\rho
+  \and
+  \Gamma \semi \Pi \Vdash_\Delta \rho_2: \alpha
+} {
+  \Gamma \semi \Pi \Vdash_\Delta \rho_1 \semi \rho_2: \alpha
+}
+\and
+\inferrule*[right=TR-Lit] {
+  \Gamma \semi \Pi \vdval v: \mf{String}
+} {
+  \Gamma \semi \Pi \Vdash_\Delta \mf{lit}\ v: \mf{Tree}
+}
+\and
+\inferrule*[right=TR-Node] {
+  \Gamma \semi \Pi \vdval v: [\mf{Attr}]
+  \and
+  \Gamma \semi \Pi \Vdash_\Delta \rho: [\mf{Tree}]_\rho
+} {
+  \Gamma \semi \Pi \Vdash_\Delta \mf{node}(\mf{id}, v, \rho): \mf{Tree}
+}
+\and
+\inferrule*[right=TR-Path] {
+  p \in \Pi \and \Pi[p] \in \Delta
+} {
+  \Gamma \semi \Pi \Vdash_\Delta p: \mf{Tree}
+}
+\and
+\inferrule*[right=TR-Init] {
+  \Gamma \semi \Pi \vdval v: \mf{View}
+} {
+  \Gamma \semi \Pi \Vdash_\Delta \mf{init}\ v: \mf{Tree}
+}
+\and
+\inferrule*[right=TR-Inits] {
+  \Gamma \semi \Pi \vdval v: [\mf{View}]
+} {
+  \Gamma \semi \Pi \Vdash_\Delta \mf{inits}\ v: [\mf{Tree}]_\rho
+}
+\and
+\inferrule*[right=TR-Scan] {
+  \Gamma \semi \Pi \vdval v: \mf{Attr}
+} {
+  \Gamma \semi \Pi \Vdash_\Delta \mf{scan}\ v: \one_\rho
+}
+\and
+\inferrule*[right=TR-Scans] {
+  \Gamma \semi \Pi \vdval v: [\mf{Attr}]
+} {
+  \Gamma \semi \Pi \Vdash_\Delta \mf{scans}\ v: \one_\rho
+}
+\and
+\inferrule*[right=TR-Eval] {
+  \Gamma \semi \Pi \semi \Pi[p] \vdtop \hat{e}
+} {
+  \Gamma \semi \Pi \Vdash_\Delta \mf{eval}^\phi_p\ \hat{e}: \alpha(\phi)
+}
+\and
+\inferrule*[right=TR-Hdl] {
+  \Gamma \semi \Pi \vdexp e: \one \mid E
+} {
+  \Gamma \semi \Pi \Vdash_\Delta \mf{handle}\ e: \one_\rho
+}
+\and
+\inferrule*[right=TR-Prog] {
+  \Gamma \semi \Pi \vdprog P
+} {
+  \Gamma \semi \Pi \Vdash_\Delta \mf{prog}\ P: \one_\rho
+}
+\end{mathpar}
+
+\subsection{Runtime-Level Semantics}
+
+Judgment: $\trip{\mc{D}}{m}{\rho} \hookrightarrow \trip{\mc{D}}{m}{\rho}$
+
+The initial configuration is $\trip{\cdot}{\cdot}{\mf{prog}\ P}$.
+\subsubsection{General Rules}
+
+\begin{mathpar}
+\inferrule*[right=ER-Ctx] {
+  \trip{\mc{D}}{m}{\rho} \hookrightarrow \trip{\mc{D}'}{m'}{\rho'}
+} {
+  \trip{\mc{D}}{m}{\mc{E}[\rho]}
+  \hookrightarrow 
+  \trip{\mc{D}'}{m'}{\mc{E}[\rho']}
+}
+\end{mathpar}
+\begin{align*}
+\trip{\mc{D}}{m}{\mf{done} \semi \rho}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\rho}
+&&\textsc{ER-Seq}\\
+\trip{\mc{D}}{m}{\mf{fold}\ \rho_f\ []_\rho}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{done}}
+&&\textsc{ER-FoldNil}\\
+\trip{\mc{D}}{m}{\mf{fold}\ \rho_f\ (\rho ::_\rho \rho s)}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\rho_f\ \rho \semi \mf{fold}\ \rho_f\ \rho s}
+&&\textsc{ER-FoldCons}\\
+\end{align*}
+
+\subsubsection{Program Evaluation}
+
+\begin{mathpar}
+\inferrule*[right=ER-Prog] {
+  \mc{D} \semi P \pstep P' \semi \mc{D}'
+} {
+  \trip{\mc{D}}{m}{\mf{prog}\ P}
+  \hookrightarrow
+  \trip{\mc{D}'}{m}{\mf{prog}\ P'}
+}
+\end{mathpar}
+\begin{align*}
+\trip{\mc{D}}{m}{\mf{prog\ end}}
+&\hookrightarrow
+\trip{\mc{D}'}{m}{\mf{new}^\mf{Succ}_{p_0}(\mf{init} \pair{\mc{C}_0}{()})}
+&&\textsc{ER-PDone}
+\end{align*}
+
+\subsubsection{Initialization}
+\begin{mathpar}
+\inferrule*[right=ER-ISpec] {
+  p\ \mf{fresh}
+  \and 
+  \mc{D}[\mc{C}]=x.\hat{e}
+  \\
+  \pi_0=\{
+    \mf{spec}=\pair{\mc{C}}{v}, 
+    \mf{st}: \cdot, 
+    \mf{tree}: \cdot, 
+    \mf{rerender}: \mf{ff}
+  \}
+} {
+  \trip{\mc{D}}{m}{\mf{init}\ \pair{\mc{C}}{v}}
+  \hookrightarrow
+  \trip{\mc{D}}{m[p \mapsto \pi_0]}{\mf{eval}^\mf{Init}_p\ \hat{e}[v/x]}
+}
+\end{mathpar}
+\begin{align*}
+\trip{\mc{D}}{m}{\mf{init\ text}\ v}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{lit}\ v}
+&&\textsc{ER-IText}\\
+\trip{\mc{D}}{m}{\mf{init\ tag}(v_1, v_2)}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{node}(\mf{id}, v_1, \mf{inits}\ v_2)}
+&&\textsc{ER-ITag}\\
+&(\mf{id\ fresh})\\
+\trip{\mc{D}}{m}{\mf{inits}\ []}
+&\hookrightarrow
+\trip{\mc{D}}{m}{[]_\rho}
+&&\textsc{ER-INil}\\
+\trip{\mc{D}}{m}{\mf{inits}\ (x :: xs)}
+&\hookrightarrow
+\trip{\mc{D}}{m}{(\mf{init}\ x) ::_\rho (\mf{inits}\ xs)}
+&&\textsc{ER-ICons}\\
+\end{align*}
+
+\subsubsection{Component Evaluation}
+\begin{mathpar}
+\inferrule*[right=ER-Eval] {
+  m \semi \hat{e} \topstep{\phi}{p} \hat{e}' \semi m'
+} {
+  \trip{\mc{D}}{m}{\mf{eval}^\phi_p\ \hat{e}}
+  \hookrightarrow
+  \trip{\mc{D}}{m'}{\mf{eval}^\phi_p\ \hat{e}'}
+}
+\end{mathpar}
+\begin{align*}
+\trip{\mc{D}}{m}{\mf{eval}^\phi_p\ \eret{v}}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{new}^\phi_p\ (\mf{init}\ v)}
+&&\textsc{ER-New}\\
+\trip{\mc{D}}{m}{\mf{new}^\mf{Init}_p\ \rho_v}
+&\hookrightarrow
+\trip{\mc{D}}{m \mid m[p].\mf{tree} = \rho_v}{p}
+&&\textsc{ER-NewI}\\
+\trip{\mc{D}}{m}{\mf{new}^\mf{Succ}_p\ \rho_v}
+&\hookrightarrow
+\trip{\mc{D}}{m \mid m[p].\mf{tree} = \rho_v}{\mf{done}}
+&&\textsc{ER-NewS}\\
+\end{align*}
+
+\subsubsection{Handler Search/Evaluation}
+\begin{align*}
+\trip{\mc{D}}{m}{\mf{search}_\mf{id}\ \mf{lit}\ v}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{done}}
+&&\textsc{ER-SLit}\\
+\trip{\mc{D}}{m}{\mf{search}_\mf{id}\ p}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{search}_\mf{id}\ m[p].\mf{tree}}
+&&\textsc{ER-SPath}\\
+\trip{\mc{D}}{m}{\mf{search}_\mf{id}\ \mf{node}(\mf{id}', v, \rho)}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{fold}\ \mf{search}_\mf{id}\ \rho}
+&&\textsc{ER-SNodeF}\\
+\trip{\mc{D}}{m}{\mf{search}_\mf{id}\ \mf{node}(\mf{id}, v, \rho)}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{scans}\ v \semi \mf{fold}\ \mf{search}_\mf{id}\ \rho}
+&&\textsc{ER-SNodeT}\\
+\end{align*}
+\begin{align*}
+\trip{\mc{D}}{m}{\mf{scan\ attr}(v, v)}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{done}}
+&&\textsc{ER-ScAttr}\\
+\trip{\mc{D}}{m}{\mf{scan\ onClick}(v)}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{handle}(v\ ())}
+&&\textsc{ER-ScClick}\\
+\trip{\mc{D}}{m}{\mf{scans}\ []}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{done}}
+&&\textsc{ER-ScsNil}\\
+\trip{\mc{D}}{m}{\mf{scans}\ (v :: vs)}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{scan}\ v \semi \mf{scans}\ vs}
+&&\textsc{ER-ScsCons}\\
+\end{align*}
+\begin{mathpar}
+\inferrule*[right=ER-Hdl] {
+  m \semi e \mapsto e' \semi m'
+} {
+  \trip{\mc{D}}{m}{\mf{handle}\ e}
+  \hookrightarrow
+  \trip{\mc{D}}{m'}{\mf{handle}\ e'}
+}
+\end{mathpar}
+\begin{align*}
+\trip{\mc{D}}{m}{\mf{handle}\ \eret{()}}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{done}}
+&&\textsc{ER-HdlDone}\\
+\end{align*}
+
+\subsubsection{Checking}
+
+\begin{mathpar}
+\inferrule*[right=ER-ChkPF] {
+  m[p].\mf{rerender} = \mf{ff}
+} {
+  \trip{\mc{D}}{m}{\mf{check}\ p}
+  \hookrightarrow
+  \trip{\mc{D}}{m}{\mf{check}\ m[p].\mf{tree}}
+}
+\and
+\inferrule*[right=ER-ChkPT] {
+  m[p].\mf{rerender} = \mf{tt}
+  \and
+  m[p].\mf{spec}=\pair{\mc{C}}{v}
+  \and
+  \mc{D}[\mc{C}] = x.\hat{e}
+} {
+  \trip{\mc{D}}{m}{\mf{check}\ p}
+  \hookrightarrow
+  \trip{\mc{D}}{m \mid m[p].\mf{rerender} = \mf{ff}}{\mf{eval}^\mf{Succ}_p\ \hat{e}[v/x]}
+}
+\end{mathpar}
+\begin{align*}
+\trip{\mc{D}}{m}{\mf{check\ lit}\ v}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{done}}
+&&\textsc{ER-ChkLit}\\
+\trip{\mc{D}}{m}{\mf{check\ node}(\mf{id}, v, \rho)}
+&\hookrightarrow
+\trip{\mc{D}}{m}{\mf{fold\ check}\ \rho}
+&&\textsc{ER-ChkNode}
+\end{align*}
+
+\subsubsection{Events}
+
+We have a new step judgment $\hookrightarrow_0$
+which subsumes $\hookrightarrow$ and allows for nondeterministic
+event occurrence at idle state.
+(We distinguish $\hookrightarrow_0$ to prevent events from occuring inside nested terms.)
+\begin{mathpar}
+\inferrule*[right=ER-Top] {
+  \trip{\mc{D}}{m}{\rho} \hookrightarrow \trip{\mc{D}'}{m'}{\rho'}
+} {
+  \trip{\mc{D}}{m}{\rho} \hookrightarrow_0 \trip{\mc{D}'}{m'}{\rho'}
+}
+\end{mathpar}
+\begin{align*}
+\trip{\mc{D}}{m}{\mf{done}}
+&\hookrightarrow_0
+\trip{\mc{D}}{m}{\mf{search}_\mf{id}\ p_0 \semi \mf{check}\ p_0}
+&&\textsc{ER-Event}\\
+\end{align*}
 
 \section{$\lambda_{CC}$}
 
@@ -2361,7 +4035,6 @@ If $\cdot \semi \Sigma \vdashv v: \tau$, then
 \subsubsection{Substitution}
 
 \begin{lemma}[Type preservation under substitution]
-\label{sub-val}
 If $\Gamma \semi \Sigma \vdashv v: \tau$, then the following two conditionals hold:
 \begin{enumerate}[(i)]
 \item If $\Gamma, x: \tau \semi \Sigma \vdashv v': \tau'$, 
@@ -2937,13 +4610,13 @@ Judgment: $\Gamma \vdash e : x \mid E$
 Judgment: $\Gamma \Vdash \hat{e}: \tau$
 
 \begin{mathpar}
-\inferrule*[right=THat-Lift] {
+\inferrule*[right=TH-Lift] {
   \Gamma \vdash e: \tau \mid \epsilon
 } {
   \Gamma \Vdash \hat{e} : \tau
 }
 \and
-\inferrule*[right=THat-Let] {
+\inferrule*[right=TH-Let] {
   \Gamma \vdash e: \tau_1 \mid \epsilon
   \and
   \Gamma, x: \tau_1 \Vdash \hat{e}: \tau_2
@@ -2951,7 +4624,7 @@ Judgment: $\Gamma \Vdash \hat{e}: \tau$
   \Gamma \vdash \elet{x}{e}{\hat{e}}: \tau_2
 }
 \and
-\inferrule*[right=THat-State] {
+\inferrule*[right=TH-State] {
   \Gamma \vdash v: \tau_1
   \and
   \Gamma, x: \tau_1, x_\mf{set}: \mf{Setter}\ \tau_1
