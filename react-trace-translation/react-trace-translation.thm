@@ -1,61 +1,64 @@
 \contentsline {proposition}{{Proposition}{1}{Type context weakening, values}}{6}{}%
 \contentsline {proposition}{{Proposition}{2}{Path context weakening, values}}{6}{}%
-\contentsline {proposition}{{Proposition}{3}{Canonical Forms}}{7}{}%
-\contentsline {proposition}{{Proposition}{4}{Substitution lemma, expressions.}}{7}{}%
-\contentsline {proposition}{{Proposition}{5}{Substitution lemma, top-level expressions.}}{7}{}%
-\contentsline {proposition}{{Proposition}{6}{Substitution lemma, programs.}}{7}{}%
-\contentsline {proposition}{{Proposition}{7}{Label-set substitution}}{7}{}%
+\contentsline {proposition}{{Proposition}{3}{Path context weakening, top-level expressions}}{6}{}%
+\contentsline {proposition}{{Proposition}{4}{Path context weakening, memory}}{7}{}%
+\contentsline {proposition}{{Proposition}{5}{Canonical Forms}}{7}{}%
+\contentsline {proposition}{{Proposition}{6}{Substitution lemma, expressions.}}{7}{}%
+\contentsline {proposition}{{Proposition}{7}{Substitution lemma, top-level expressions.}}{7}{}%
+\contentsline {proposition}{{Proposition}{8}{Substitution lemma, programs.}}{7}{}%
+\contentsline {proposition}{{Proposition}{9}{Label-set substitution}}{7}{}%
+\contentsline {proposition}{{Proposition}{10}{Component-name substitution}}{7}{}%
 \contentsline {lemma}{{Lemma}{1}{Progress of expressions.}}{7}{}%
-\contentsline {Proof}{{Proof}{1}{}}{7}{}%
+\contentsline {Proof}{{Proof}{1}{}}{8}{}%
 \contentsline {lemma}{{Lemma}{2}{Preservation of expressions.}}{9}{}%
 \contentsline {Proof}{{Proof}{2}{}}{9}{}%
-\contentsline {lemma}{{Lemma}{3}{Purity of expressions.}}{11}{}%
-\contentsline {Proof}{{Proof}{3}{}}{11}{}%
-\contentsline {lemma}{{Lemma}{4}{Progress of top-level expressions, initial phase.}}{12}{}%
-\contentsline {Proof}{{Proof}{4}{}}{12}{}%
-\contentsline {lemma}{{Lemma}{5}{Preservation of top-level expressions, initial phase.}}{13}{}%
+\contentsline {lemma}{{Lemma}{3}{Purity of expressions.}}{12}{}%
+\contentsline {Proof}{{Proof}{3}{}}{12}{}%
+\contentsline {lemma}{{Lemma}{4}{Progress of top-level expressions, initial phase.}}{13}{}%
+\contentsline {Proof}{{Proof}{4}{}}{13}{}%
+\contentsline {lemma}{{Lemma}{5}{Preservation of top-level expressions, initial phase.}}{14}{}%
 \contentsline {Proof}{{Proof}{5}{}}{14}{}%
 \contentsline {lemma}{{Lemma}{6}{Progress of top-level expressions, successor phase.}}{16}{}%
-\contentsline {Proof}{{Proof}{6}{}}{16}{}%
-\contentsline {lemma}{{Lemma}{7}{Preservation of top-level expressions, successor phase.}}{16}{}%
-\contentsline {Proof}{{Proof}{7}{}}{16}{}%
-\contentsline {lemma}{{Lemma}{8}{Progress of programs.}}{18}{}%
-\contentsline {Proof}{{Proof}{8}{}}{18}{}%
-\contentsline {lemma}{{Lemma}{9}{Preservation of programs.}}{19}{}%
+\contentsline {Proof}{{Proof}{6}{}}{17}{}%
+\contentsline {lemma}{{Lemma}{7}{Preservation of top-level expressions, successor phase.}}{17}{}%
+\contentsline {Proof}{{Proof}{7}{}}{17}{}%
+\contentsline {lemma}{{Lemma}{8}{Top-level preservation of specifications.}}{19}{}%
+\contentsline {Proof}{{Proof}{8}{}}{19}{}%
+\contentsline {lemma}{{Lemma}{9}{Progress of programs.}}{19}{}%
 \contentsline {Proof}{{Proof}{9}{}}{19}{}%
-\contentsline {lemma}{{Lemma}{10}{Progress of runtime expressions.}}{25}{}%
-\contentsline {lemma}{{Lemma}{11}{Preservation of runtime expressions.}}{25}{}%
-\contentsline {lemma}{{Lemma}{12}{Progress of configurations.}}{25}{}%
-\contentsline {lemma}{{Lemma}{13}{Preservation of configurations.}}{26}{}%
-\contentsline {lemma}{{Lemma}{14}{Progress of initialization}}{31}{}%
-\contentsline {proof}{{Proof}{1}{}}{31}{}%
-\contentsline {lemma}{{Lemma}{15}{Preservation of initialization}}{31}{}%
-\contentsline {proof}{{Proof}{2}{}}{32}{}%
-\contentsline {theorem}{{Theorem}{1}{Progress of configurations}}{32}{}%
-\contentsline {theorem}{{Theorem}{2}{Preservation of configurations}}{32}{}%
-\contentsline {lemma}{{Lemma}{16}{Path Preservation}}{32}{}%
-\contentsline {proof}{{Proof}{3}{}}{32}{}%
-\contentsline {corollary}{{Corollary}{1}{}}{32}{}%
-\contentsline {proof}{{Proof}{4}{}}{32}{}%
-\contentsline {lemma}{{Lemma}{17}{Memory Freshness}}{33}{}%
-\contentsline {proof}{{Proof}{5}{}}{33}{}%
-\contentsline {lemma}{{Lemma}{18}{Label Initialization}}{33}{}%
-\contentsline {proof}{{Proof}{6}{}}{33}{}%
-\contentsline {corollary}{{Corollary}{2}{}}{34}{}%
-\contentsline {proof}{{Proof}{7}{}}{34}{}%
-\contentsline {lemma}{{Lemma}{19}{Strong Disjoint Memory}}{34}{}%
-\contentsline {proof}{{Proof}{8}{}}{35}{}%
-\contentsline {theorem}{{Theorem}{3}{Critical Property of Initialization}}{35}{}%
-\contentsline {proof}{{Proof}{9}{}}{35}{}%
-\contentsline {lemma}{{Lemma}{20}{Weakening $\Gamma $ in $\vdashv $}}{51}{}%
-\contentsline {proof}{{Proof}{10}{}}{51}{}%
-\contentsline {lemma}{{Lemma}{21}{Canonical Forms}}{51}{}%
-\contentsline {lemma}{{Lemma}{22}{Type preservation under substitution}}{52}{}%
-\contentsline {proof}{{Proof}{11}{}}{52}{}%
-\contentsline {theorem}{{Theorem}{4}{Progress of expressions}}{53}{}%
-\contentsline {proof}{{Proof}{12}{}}{53}{}%
-\contentsline {theorem}{{Theorem}{5}{Preservation of expressions}}{54}{}%
-\contentsline {proof}{{Proof}{13}{}}{54}{}%
-\contentsline {theorem}{{Theorem}{6}{Type soundness for expressions}}{55}{}%
-\contentsline {proof}{{Proof}{14}{}}{55}{}%
-\contentsline {corollary}{{Corollary}{3}{}}{55}{}%
+\contentsline {lemma}{{Lemma}{10}{Preservation of programs.}}{20}{}%
+\contentsline {Proof}{{Proof}{10}{}}{20}{}%
+\contentsline {lemma}{{Lemma}{11}{Preservation of configurations.}}{27}{}%
+\contentsline {Proof}{{Proof}{11}{}}{27}{}%
+\contentsline {lemma}{{Lemma}{12}{Progress of initialization}}{47}{}%
+\contentsline {proof}{{Proof}{1}{}}{47}{}%
+\contentsline {lemma}{{Lemma}{13}{Preservation of initialization}}{47}{}%
+\contentsline {proof}{{Proof}{2}{}}{48}{}%
+\contentsline {theorem}{{Theorem}{1}{Progress of configurations}}{48}{}%
+\contentsline {theorem}{{Theorem}{2}{Preservation of configurations}}{48}{}%
+\contentsline {lemma}{{Lemma}{14}{Path Preservation}}{48}{}%
+\contentsline {proof}{{Proof}{3}{}}{48}{}%
+\contentsline {corollary}{{Corollary}{1}{}}{48}{}%
+\contentsline {proof}{{Proof}{4}{}}{48}{}%
+\contentsline {lemma}{{Lemma}{15}{Memory Freshness}}{48}{}%
+\contentsline {proof}{{Proof}{5}{}}{49}{}%
+\contentsline {lemma}{{Lemma}{16}{Label Initialization}}{49}{}%
+\contentsline {proof}{{Proof}{6}{}}{49}{}%
+\contentsline {corollary}{{Corollary}{2}{}}{50}{}%
+\contentsline {proof}{{Proof}{7}{}}{50}{}%
+\contentsline {lemma}{{Lemma}{17}{Strong Disjoint Memory}}{50}{}%
+\contentsline {proof}{{Proof}{8}{}}{50}{}%
+\contentsline {theorem}{{Theorem}{3}{Critical Property of Initialization}}{50}{}%
+\contentsline {proof}{{Proof}{9}{}}{51}{}%
+\contentsline {lemma}{{Lemma}{18}{Weakening $\Gamma $ in $\vdashv $}}{59}{}%
+\contentsline {proof}{{Proof}{10}{}}{59}{}%
+\contentsline {lemma}{{Lemma}{19}{Canonical Forms}}{59}{}%
+\contentsline {lemma}{{Lemma}{20}{Type preservation under substitution}}{60}{}%
+\contentsline {proof}{{Proof}{11}{}}{60}{}%
+\contentsline {theorem}{{Theorem}{4}{Progress of expressions}}{61}{}%
+\contentsline {proof}{{Proof}{12}{}}{61}{}%
+\contentsline {theorem}{{Theorem}{5}{Preservation of expressions}}{62}{}%
+\contentsline {proof}{{Proof}{13}{}}{62}{}%
+\contentsline {theorem}{{Theorem}{6}{Type soundness for expressions}}{63}{}%
+\contentsline {proof}{{Proof}{14}{}}{63}{}%
+\contentsline {corollary}{{Corollary}{3}{}}{63}{}%
