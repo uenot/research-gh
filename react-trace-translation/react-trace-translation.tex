@@ -60,6 +60,9 @@
 \newcommand{\ttgt}[5]{#1 \semi #2 \semi #3 \vdash #4: #5}
 \newcommand{\ttp}[2]{#1 \vdash #2}
 
+\newcommand{\podl}{\sqsubseteq_\Delta}
+\newcommand{\rpodl}{\sqsupseteq_\Delta}
+
 \newcommand{\vdval}{\vdash_\Delta}
 \newcommand{\vdexp}{\vdash_\Delta}
 \newcommand{\vdtop}{\vdash^{\mf{Top}}_\Delta}
@@ -219,12 +222,16 @@ state field of $m$ at path $p$ and location $\ell$ to value $v$.
 
 \emph{\tb{Ordering}}.
 
-We define $\Pi \po \Pi'$ to hold when $\dom(\Pi) \subseteq \dom(\Pi')$
+We define $\Pi \podl \Pi'$ to hold (with respect to a fixed $\Delta$)
+when $\dom(\Pi) \subseteq \dom(\Pi')$
 and, for all $p \in \mf{dom}(\Pi)$: \begin{itemize}
 \item $\Pi[p] = \Pi'[p]$,
-\item $\Pi[p].\mf{labs} \subseteq \Pi'[p].\mf{labs}$, and
+\item $\Pi[p].\mf{labs} \subseteq \Pi'[p].\mf{labs} \subseteq \dom(\Delta[\Pi[p]])$, and
 \item if $\Pi[p].\mf{tree} = \mf{tt}$, then $\Pi'[p].\mf{tree} = \mf{tt}$.
 \end{itemize}
+
+We define $\Omega \podl \Omega'$ to hold
+when $\Omega \subseteq \Omega' \subseteq \dom(\Delta)$.
 
 $\po$ on all other contexts is given by standard subset inclusion.
 
@@ -583,13 +590,13 @@ then $\tval{\Gamma'}{\Pi}{v}{\ptp}$.
 
 \begin{proposition}[Path context weakening, values.]
 \label{thm:wkpiv}
-If $\tval{\Gamma}{\Pi}{v}{\ptp}$ and $\Pi \po \Pi'$,
+If $\tval{\Gamma}{\Pi}{v}{\ptp}$ and $\Pi \podl \Pi'$,
 then $\tval{\Gamma}{\Pi'}{v}{\ptp}$.
 \end{proposition}
 
 \begin{proposition}[Path context weakening, bodies.]
 \label{thm:wkpib}
-If $\tbod{\Gamma}{\Pi}{\hat{e}}{\C}{\Sigma}$ and $\Pi \po \Pi'$,
+If $\tbod{\Gamma}{\Pi}{\hat{e}}{\C}{\Sigma}$ and $\Pi \podl \Pi'$,
 then $\tbod{\Gamma}{\Pi'}{\hat{e}}{\C}{\Sigma}$.
 \end{proposition}
 
@@ -1164,7 +1171,7 @@ If
 \item $\bstep{m}{\hat{e}}{\mf{Init}}{p}{\hat{e}'}{m'}$,
 \end{enumerate}
 for $\C=\Pi[p]$,
-then there exist some $\Pi' \rpo \Pi$ and $\Sigma' \subseteq \Sigma$ such that:
+then there exist some $\Pi' \rpodl \Pi$ and $\Sigma' \subseteq \Sigma$ such that:
 \begin{enumerate}[label=(\roman*)]
 \item $\tbod{\Gamma}{\Pi'}{\hat{e}'}{\C}{\Sigma'}$,
 \item $\tmem{\Gamma}{\Pi'}{m'}$, and
@@ -1275,7 +1282,7 @@ where $m' = m \mid m[p].\mf{st}[\ell] = v$, and:
 \begin{itemize}
 \item Choose $\Pi' = \Pi \mid \Pi[p].\mf{labs} = \Pi[p].\mf{labs} \cup \{\ell\}$
 and $\Sigma' = \hat{\Sigma}$ (such that $\Sigma = \Sigma' \cup \{\ell\}$).
-Clearly both $\Pi \po \Pi'$ and $\Sigma' \subseteq \Sigma$.
+Clearly both $\Pi \podl \Pi'$ and $\Sigma' \subseteq \Sigma$.
 \item We derive the setter type as follows 
 (recalling that we defined $\C=\Pi[p]$):
 \begin{mathpar}
@@ -1646,8 +1653,8 @@ If
 \item $\tdef{\Gamma}{\Omega_D}{\D}$, and
 \item $\pstep{\D}{P}{P'}{\D'}$,
 \end{enumerate}
-then there exist some $\Omega' \subseteq \Omega$
-and $\Omega_D' \supseteq \Omega_D$ such that:
+then there exist some $\Omega' \podl \Omega$
+and $\Omega_D' \rpodl \Omega_D$ such that:
 \begin{enumerate}[label=(\roman*)]
 \item $\tprog{\Gamma}{P'}{\Omega'}$,
 \item $\tdef{\Gamma}{\Omega_D'}{\D'}$, and
@@ -1760,7 +1767,7 @@ and
 \begin{itemize}
 \item Choose $\Omega' = \hat{\Omega}$ , 
 such that $\Omega = \Omega' \cup \{\C\}$.
-Clearly $\Omega' \subseteq \Omega$, and furthermore,
+Clearly $\Omega' \podl \Omega$, and furthermore,
 conclusion \emph{(i)} is immediate from (3).
 \item Also choose $\Omega_D' = \Omega_D \cup \{C\}$.
 Now in order to show conclusion \emph{(ii)} given premise \emph{(ii)},
@@ -1867,7 +1874,7 @@ and add the additional rule:
   \and
   \dom(\Delta) = \Omega
 } {
-  \trho{\Gamma}{\Pi}{\Omega}{\rho}{\tone}
+  \trho{\Gamma}{\Pi}{\Omega}{\rho}{\rtp}
 }
 \end{mathpar}
 
@@ -2029,7 +2036,7 @@ Judgment: $\cstep{\D}{m}{\rho}{\D}{m}{\rho}$
 \inferrule*[right=ER-Ctx] {
   \cstep{\D}{m}{\rho}{\D'}{m'}{\rho'}
 } {
-  \cstep{\D}{m}{\E[\rho]}{\D'}{m'}{\E'[\rho]}
+  \cstep{\D}{m}{\E[\rho]}{\D'}{m'}{\E[\rho']}
 }
 \end{mathpar}
 \begin{align*}
@@ -2214,6 +2221,531 @@ $u = \enode{id}{v}{u}$, or $u = p$.
 \item if $\rtp=[\rtp']$, then either $u=[]$ or $u = u :: us$.
 \end{itemize}
 \end{proposition}
+
+\begin{proposition}[Path context weakening, runtime sub-judgment.]
+\label{thm:wkpirs}
+If\\$\trhos{\Gamma}{\Pi}{\rho}{\rtp}$ and $\Pi \podl \Pi'$,
+then $\trhos{\Gamma}{\Pi'}{\rho}{\rtp}$.
+\end{proposition}
+
+\begin{proposition}[Uniqueness of typing.]
+\label{thm:tpunique}
+If $\trho{\Gamma}{\Pi}{\Omega}{\rho}{\rtp_1}$
+and also $\trho{\Gamma}{\Pi}{\Omega}{\rho}{\rtp_2}$,
+then $\rtp_1 = \rtp_2$.
+\end{proposition}
+
+\begin{lemma}[Hole typing, runtime sub-judgment.]
+\label{thm:holerhos}
+If $\trhos{\Gamma}{\Pi}{\E[\rho]}{\rtp_1}$,
+then $\trhos{\Gamma}{\Pi}{\rho}{\rtp_2}$
+(for some $\rtp_2$.)
+\begin{Proof}
+By induction on the typing judgment.
+
+In each case, we subcase on whether $\E=[\cdot]$ or not.
+If so, we choose $\rtp=\rtp'$,
+such that the conclusion follows directly from the premise.
+
+Thus, in the following case-analysis, we assume $\E \neq [\cdot]$,
+and it suffices to show (1) the typing of some smaller evaluation context
+to which we can apply our inductive hypothesis.
+We only mention those cases which are possible by the grammar of $\E$.
+
+\tb{Case} $\enode{id}{v}{\E}$:
+\begin{mathpar}
+\inferrule*[right=TR-Node] {
+  \tval{\Gamma}{\Pi}{v}{[\tattr]}
+  \and
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{[\ttree]}}
+} {
+  \trhos{\Gamma}{\Pi}{\enode{id}{v}{\E[\rho]}}{\ttree}
+}
+\end{mathpar}
+
+\tb{Case} $\E :: \rho_\mf{tl}$:
+\begin{mathpar}
+\inferrule*[right=TR-Cons] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\rtp}}
+  \and
+  \trhos{\Gamma}{\Pi}{\rho_\mf{tl}}{[\rtp]}
+} {
+  \trhos{\Gamma}{\Pi}{\E[\rho] :: \rho_\mf{tl}}{[\rtp]}
+}
+\end{mathpar}
+
+\tb{Case} $u :: \E$:
+\begin{mathpar}
+\inferrule*[right=TR-Cons] {
+  \trhos{\Gamma}{\Pi}{u}{\rtp}
+  \and
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{[\rtp]}}
+} {
+  \trhos{\Gamma}{\Pi}{u :: \E[\rho]}{[\rtp]}
+}
+\end{mathpar}
+
+\tb{Case} $\E \semi \rho$:
+\begin{mathpar}
+\inferrule*[right=TR-Seq] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\tone}}
+  \and
+  \trhos{\Gamma}{\Pi}{\rho_2}{\rtp}
+} {
+  \trhos{\Gamma}{\Pi}{E[\rho] \semi \rho_2}{\rtp}
+}
+\end{mathpar}
+
+\tb{Case} $\enew{\phi}{p}{\E}$:
+\begin{mathpar}
+\inferrule*[right=TR-New] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\ttree}}
+  \and
+  \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
+} {
+  \trhos{\Gamma}{\Pi}{\enew{\phi}{p}{\E[\rho]}}{\rtp(\phi)}
+}
+\end{mathpar}
+
+\tb{Case} $\echk{\E}$:
+\begin{mathpar}
+\inferrule*[right=TR-Chk] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\ttree}}
+} {
+  \trhos{\Gamma}{\Pi}{\echk{\E[\rho]}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} $\echks{\E}$:
+\begin{mathpar}
+\inferrule*[right=TR-Chks] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{[\ttree]}}
+} {
+  \trhos{\Gamma}{\Pi}{\echk{\E[\rho]}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} $\esearch{id}{\E}$:
+\begin{mathpar}
+\inferrule*[right=TR-Sr] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\ttree}}
+} {
+  \trhos{\Gamma}{\Pi}{\esearch{id}{\E[\rho]}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} $\esearches{id}{\E}$:
+\begin{mathpar}
+\inferrule*[right=TR-Srs] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{[\ttree]}}
+} {
+  \trhos{\Gamma}{\Pi}{\esearches{id}{\E[\rho]}}{\tone}
+}
+\end{mathpar}
+
+In any of these cases, we simply apply our inductive hypothesis
+to (1) to arrive at the desired conclusion.
+
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Hole typing, runtime.]
+\label{thm:holerho}
+If $\trho{\Gamma}{\Pi}{\Omega}{\E[\rho]}{\rtp_1}$,
+then we get $\trho{\Gamma}{\Pi}{\Omega}{\rho}{\rtp_2}$
+(for some $\rtp_2$).
+
+\begin{Proof}
+By case-analysis on the derivation of the typing judgment.
+
+\tb{Case} \ts{TR-Prog}: We have
+\begin{mathpar}
+\inferrule*[right=TR-Prog] {
+  \tprog{\Gamma}{P}{\Omega'}
+  \and
+  \Delta[\C_0] = \pair{\tone}{\emptyset}
+  \and
+  \dom(\Delta) = \Omega \cup \Omega' \cup \{\C_0\}
+} {
+  \trho{\Gamma}{\Pi}{\Omega}{\eprog{P}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We must have $\E=[\cdot]$ and $\rho=\eprog{P}$.
+\item The conclusion is thus given by the premise with $\rtp_2=\rtp_1=\tone$.
+\end{itemize}
+
+\tb{Case} \ts{TR-Lift}: We have
+\begin{mathpar}
+\inferrule*[right=TR-Lift] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\rtp}}
+  \and
+  \inferrule* {(2)} {\dom(\Delta) = \Omega}
+} {
+  \trho{\Gamma}{\Pi}{\Omega}{\E[\rho]}{\rtp}
+}
+\end{mathpar}
+\begin{itemize}
+\item \thref{thm:holerhos} applied to (1) gives (3) that 
+$\trhos{\Gamma}{\Pi}{\rho}{\rtp_2}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Lift] {
+  \inferrule*[right=(3)] { } {\trhos{\Gamma}{\Pi}{\rho}{\rtp_2}}
+  \and
+  \inferrule*[right=(2)] { } {\dom(\Delta) = \Omega}
+} {
+  \trho{\Gamma}{\Pi}{\Omega}{\rho}{\rtp_2}
+}
+\end{mathpar}
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Hole typing, configurations.]
+\label{thm:holecfg}
+If\\$\tcfg{\Gamma}{\Pi}{\Omega}{\D}{m}{\E[\rho]}{\rtp_1}$,
+then $\tcfg{\Gamma}{\Pi}{\Omega}{\D}{m}{\rho}{\rtp_2}$
+(for some $\rtp_2$).
+
+\begin{Proof}
+Since $\D$ and $m$ are unchanged,
+it suffices to show that $\trho{\Gamma}{\Pi}{\Omega}{\rho}{\rtp_2}$.
+The typing premise gives us that $\trho{\Gamma}{\Pi}{\Omega}{\E[\rho]}{\rtp_1}$.
+The desired conclusion follows from \thref{thm:holerho}.
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Context replacement, runtime sub-judgment.]
+\label{thm:replrhos}
+If \begin{enumerate}[label=(\roman*)]
+\item $\trhos{\Gamma}{\Pi}{\E[\rho]}{\rtp_1}$,
+\item $\trhos{\Gamma}{\Pi}{\rho}{\rtp_2}$, and
+\item we have some $\Pi' \rpodl \Pi$
+such that $\trhos{\Gamma}{\Pi'}{\rho'}{\rtp_2}$,
+\end{enumerate}
+then $\trhos{\Gamma}{\Pi'}{\E[\rho']}{\rtp_1}$.
+
+\begin{Proof}
+By induction on the structure of $\E$.
+
+\tb{Case} $[\cdot]$: By \thref{thm:tpunique} (uniqueness of typing)
+on premises \emph{(i)} and \emph{(ii)},
+we have $\rtp_1 = \rtp_2$.
+The conclusion is then immediate from premise \emph{(iii)}.
+
+\tb{Case} $\enode{id}{v}{\E}$: By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TR-Node] {
+  \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v}{[\tattr]}}
+  \
+  \inferrule* {(2)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{[\ttree]}}
+} {
+  \trhos{\Gamma}{\Pi}{\enode{id}{v}{\E[\rho]}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (2) and premises \emph{(ii)} and \emph{(iii)},
+we get (3) $\trhos{\Gamma}{\Pi'}{\E[\rho']}{[\ttree]}$.
+\item By \thref{thm:wkpiv} (weakening) on (1), we have (4) that
+$\tval{\Gamma}{\Pi'}{v}{[\tattr]}$. We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Node] {
+  \inferrule*[right=(4)] { } {\tval{\Gamma}{\Pi'}{v}{[\tattr]}}
+  \and
+  \inferrule*[right=(3)] { } {\trhos{\Gamma}{\Pi'}{\E[\rho']}{[\ttree]}}
+} {
+  \trhos{\Gamma}{\Pi}{\enode{id}{v}{\E[\rho']}}{\ttree}
+}
+\end{mathpar}
+
+\tb{Case} $\E :: \rho_\mf{tl}$: By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TR-Cons] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\rtp}}
+  \and
+  \inferrule* {(2)} {\trhos{\Gamma}{\Pi}{\rho_\mf{tl}}{[\rtp]}}
+} {
+  \trhos{\Gamma}{\Pi}{\E[\rho] :: \rho_\mf{tl}}{[\rtp]}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premises \emph{(ii)} and \emph{(iii)},
+we get (3) $\trhos{\Gamma}{\Pi'}{\E[\rho']}{[\rtp]}$.
+\item By \thref{thm:wkpirs} (weakening) on (2), we have (4) that
+$\trhos{\Gamma}{\Pi'}{\rho_\mf{tl}}{[\rtp]}$. We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Cons] {
+  \inferrule*[right=(3)] { } {\trhos{\Gamma}{\Pi'}{\E[\rho']}{[\rtp]}}
+  \and
+  \inferrule*[right=(4)] { } {\trhos{\Gamma}{\Pi'}{\rho_\mf{tl}}{[\rtp]}}
+} {
+  \trhos{\Gamma}{\Pi'}{\E[\rho'] :: \rho_\mf{tl}}{[\rtp]}
+}
+\end{mathpar}
+
+\tb{Case} $u :: \E$: By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TR-Cons] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{u}{\rtp}}
+  \and
+  \inferrule* {(2)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{[\rtp]}}
+} {
+  \trhos{\Gamma}{\Pi}{u :: \E[\rho]}{[\rtp]}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (2) and premises \emph{(ii)} and \emph{(iii)},
+we get (3) $\trhos{\Gamma}{\Pi'}{\E[\rho']}{[\rtp]}$.
+\item By \thref{thm:wkpirs} (weakening) on (1), we have (4) that
+$\trhos{\Gamma}{\Pi'}{u}{\rtp}$. We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Cons] {
+  \inferrule*[right=(4)] { } {\trhos{\Gamma}{\Pi'}{u}{\rtp}}
+  \and
+  \inferrule*[right=(3)] { } {\trhos{\Gamma}{\Pi'}{\E[\rho']}{[\rtp]}}
+} {
+  \trhos{\Gamma}{\Pi'}{\E[\rho'] :: \rho_\mf{tl}}{[\rtp]}
+}
+\end{mathpar}
+
+\tb{Case} $\E \semi \rho_2$: By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TR-Seq] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\tone}}
+  \and
+  \inferrule* {(2)} {\trhos{\Gamma}{\Pi}{\rho_2}{\rtp}}
+} {
+  \trhos{\Gamma}{\Pi}{E[\rho] \semi \rho_2}{\rtp}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premises \emph{(ii)} and \emph{(iii)},
+we get (3) $\trhos{\Gamma}{\Pi'}{\E[\rho']}{\tone}$.
+\item By \thref{thm:wkpirs} (weakening) on (2), we have (4) that
+$\trhos{\Gamma}{\Pi'}{\rho_2}{\rtp}$. We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Seq] {
+  \inferrule*[right=(3)] { } {\trhos{\Gamma}{\Pi}{\E[\rho']}{\tone}}
+  \and
+  \inferrule*[right=(4)] { } {\trhos{\Gamma}{\Pi}{\rho_2}{\rtp}}
+} {
+  \trhos{\Gamma}{\Pi}{\E[\rho'] \semi \rho_2}{\rtp}
+}
+\end{mathpar}
+
+\tb{Case} $\enew{\phi}{p}{\E}$: By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TR-New] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\ttree}}
+  \and
+  \inferrule* {(2)} {\Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])}
+} {
+  \trhos{\Gamma}{\Pi}{\enew{\phi}{p}{\E[\rho]}}{\rtp(\phi)}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premises \emph{(ii)} and \emph{(iii)},
+we get (3) $\trhos{\Gamma}{\Pi'}{\E[\rho']}{\ttree}$.
+\item By definition of $\podl$, 
+$\Pi[p].\mf{labs} \subseteq \Pi'[p].\mf{labs} \subseteq \dom(\Delta[\Pi[p]])$,
+so it follows from (2) that (4)
+$\Pi'[p].\mf{labs} = \dom(\Delta[\Pi'[p]])$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-New] {
+  \inferrule*[right=(3)] { } {\trhos{\Gamma}{\Pi}{\E[\rho']}{\ttree}}
+  \and
+  \inferrule*[right=(4)] { } {\Pi'[p].\mf{labs} = \dom(\Delta[\Pi'[p]])}
+} {
+  \trhos{\Gamma}{\Pi'}{\enew{\phi}{p}{\E[\rho']}}{\rtp(\phi)}
+}
+\end{mathpar}
+
+\tb{Case} $\echk{\E}$: By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TR-Chk] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\ttree}}
+} {
+  \trhos{\Gamma}{\Pi}{\echk{\E[\rho]}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premises \emph{(ii)} and \emph{(iii)},
+we get (2) $\trhos{\Gamma}{\Pi'}{\E[\rho']}{\ttree}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Chk] {
+  \inferrule*[right=(2)] { } {\trhos{\Gamma}{\Pi}{\E[\rho']}{\ttree}}
+} {
+  \trhos{\Gamma}{\Pi}{\echk{\E[\rho']}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} $\echks{\E}$: By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TR-Chks] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{[\ttree]}}
+} {
+  \trhos{\Gamma}{\Pi}{\echk{\E[\rho]}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premises \emph{(ii)} and \emph{(iii)},
+we get (2) $\trhos{\Gamma}{\Pi'}{\E[\rho']}{[\ttree]}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Chks] {
+  \inferrule*[right=(2)] { } {\trhos{\Gamma}{\Pi}{\E[\rho']}{[\ttree]}}
+} {
+  \trhos{\Gamma}{\Pi}{\echk{\E[\rho']}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} $\esearch{id}{\E}$: By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TR-Sr] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\ttree}}
+} {
+  \trhos{\Gamma}{\Pi}{\esearch{id}{\E[\rho]}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premises \emph{(ii)} and \emph{(iii)},
+we get (2) $\trhos{\Gamma}{\Pi'}{\E[\rho']}{\ttree}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Sr] {
+  \inferrule*[right=(2)] { } {\trhos{\Gamma}{\Pi}{\E[\rho']}{\ttree}}
+} {
+  \trhos{\Gamma}{\Pi}{\esearch{id}{\E[\rho']}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} $\esearches{id}{\E}$: By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TR-Srs] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{[\ttree]}}
+} {
+  \trhos{\Gamma}{\Pi}{\esearches{id}{\E[\rho]}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premises \emph{(ii)} and \emph{(iii)},
+we get (2) $\trhos{\Gamma}{\Pi'}{\E[\rho']}{[\ttree]}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Srs] {
+  \inferrule*[right=(2)] { } {\trhos{\Gamma}{\Pi}{\E[\rho']}{[\ttree]}}
+} {
+  \trhos{\Gamma}{\Pi}{\esearches{id}{\E[\rho']}}{\tone}
+}
+\end{mathpar}
+
+We have shown the lemma holds for all possible $\E$ and we are done.
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Context replacement, runtime.]
+\label{thm:replrho}
+If \begin{enumerate}[label=(\roman*)]
+\item $\trho{\Gamma}{\Pi}{\Omega}{\E[\rho]}{\rtp_1}$,
+\item $\trho{\Gamma}{\Pi}{\Omega}{\rho}{\rtp_2}$, and
+\item we have some $\Pi' \rpodl \Pi$ and $\Omega' \rpodl \Omega$
+such that $\trho{\Gamma}{\Pi'}{\Omega'}{\rho'}{\rtp_2}$,
+\end{enumerate}
+then $\trho{\Gamma}{\Pi'}{\Omega'}{\E[\rho']}{\rtp_1}$.
+
+\begin{Proof}
+By case-analysis on the derivation of premise \emph{(i)}.
+
+\tb{Case} \ts{TR-Prog}: We have
+\begin{mathpar}
+\inferrule*[right=TR-Prog] {
+  \tprog{\Gamma}{P}{\Omega'}
+  \and
+  \Delta[\C_0] = \pair{\tone}{\emptyset}
+  \and
+  \dom(\Delta) = \Omega \cup \Omega' \cup \{\C_0\}
+} {
+  \trho{\Gamma}{\Pi}{\Omega}{\eprog{P}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We must have $\E=[\cdot]$ and $\rho=\eprog{P}$.
+\item By \thref{thm:tpunique} (uniqueness of typing) 
+on premises \emph{(i)} and \emph{(ii)},
+we get $\rtp_2=\rtp_1=\tone$.
+\item The conclusion is thus given by premise \emph{(iii)}.
+\end{itemize}
+
+\tb{Case} \ts{TR-Lift}: We have
+\begin{mathpar}
+\inferrule*[right=TR-Lift] {
+  \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\E[\rho]}{\rtp_1}}
+  \and
+  \inferrule* {(2)} {\dom(\Delta) = \Omega}
+} {
+  \trho{\Gamma}{\Pi}{\Omega}{\E[\rho]}{\rtp_1}
+}
+\end{mathpar}
+\begin{itemize}
+\item By \thref{thm:replrhos} (sub-judgment replacement) 
+on (1) and premises \emph{(ii)} and \emph{(iii)},
+we get (3) that $\trhos{\Gamma}{\Pi'}{\E[\rho']}{\rtp_1}$.
+\item By (2) and the fact that $\Omega \podl \Omega'$,
+we have (4) that $\Omega' = \dom(\Delta)$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Lift] {
+  \inferrule*[right=(3)] { } {\trhos{\Gamma}{\Pi'}{\E[\rho']}{\rtp_1}}
+  \and
+  \inferrule*[right=(4)] { } {\dom(\Delta) = \Omega'}
+} {
+  \trho{\Gamma}{\Pi'}{\Omega'}{\E[\rho']}{\rtp_1}
+}
+\end{mathpar}
+\
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Context replacement, configurations.]
+\label{thm:replcfg}
+If \begin{enumerate}[label=(\roman*)]
+\item $\tcfg{\Gamma}{\Pi}{\Omega}{\D}{m}{\E[\rho]}{\rtp_1}$,
+\item $\tcfg{\Gamma}{\Pi}{\Omega}{\D}{m}{\rho}{\rtp_2}$,, and
+\item we have some $\Pi' \rpodl \Pi$ and $\Omega' \rpodl \Omega$
+with $\tcfg{\Gamma}{\Pi'}{\Omega'}{\D'}{m'}{\rho'}{\rtp_2}$,
+\end{enumerate}
+then $\tcfg{\Gamma}{\Pi'}{\Omega'}{\D'}{m'}{\E[\rho']}{\rtp_1}$.
+
+\begin{Proof}\
+\begin{itemize}
+\item By premise \emph{(iii)}, we get $\tdef{\Gamma}{\Omega'}{\D'}$
+and $\tmem{\Gamma}{\Pi'}{m'}$. Thus, to show the conclusion,
+it suffices to show (1) that $\trho{\Gamma}{\Pi'}{\Omega'}{\E[\rho']}{\alpha_1}$.
+\item Premise \emph{(i)} gives us (2) that
+$\trho{\Gamma}{\Pi}{\Omega}{\E[\rho]}{\rtp_1}$.
+\item Premise \emph{(ii)} gives us (3) that
+$\trho{\Gamma}{\Pi}{\Omega}{\rho}{\rtp_2}$.
+\item Premise \emph{(iii)} also gives us (4) that 
+$\trho{\Gamma}{\Pi'}{\Omega'}{\rho'}{\rtp_2}$.
+\item We apply \thref{thm:replrho} (runtime replacement) to (2), (3), and (4)
+to get (1), and we are done.
+\end{itemize}
+
+\end{Proof}
+\end{lemma}
 
 \subsubsection{Soundness}
 
@@ -2791,7 +3323,7 @@ If \begin{enumerate}[label=(\roman*)]
 \item $\tcfg{\Gamma}{\Pi}{\Omega}{\D}{m}{\rho}{\rtp}$ and
 \item $\cstep{\D}{m}{\rho}{\D'}{m'}{\rho'}$,
 \end{enumerate}
-then, for some $\Pi' \rpo \Pi$ and $\Omega' \supseteq \Omega$,
+then, for some $\Pi' \rpodl \Pi$ and $\Omega' \rpodl \Omega$,
 we have $\tcfg{\Gamma}{\Pi'}{\Omega'}{\D'}{m'}{\rho'}{\rtp}$.
 
 \begin{Proof}
@@ -2827,7 +3359,17 @@ We proceed by induction over the step judgment in premise \emph{(ii)}.
 }
 \end{mathpar}
 \begin{itemize}
-\item \hl{TO-DO}... needs lemmas (e.g. replacement?)
+\item Premise \emph{(i)} says that 
+$\tcfg{\Gamma}{\Pi}{\Omega}{\D}{m}{\E[\rho]}{\rtp}$.
+\item \thref{thm:holecfg} (hole typing) on \emph{(i)} gives us
+(2) that $\tcfg{\Gamma}{\Pi}{\Omega}{\D}{m}{\rho}{\rtp'}$.
+\item We apply the inductive hypothesis to (1) and (2) to get
+some $\Pi' \rpodl \Pi$ and $\Omega' \rpodl \Omega$ such that
+(3) $\tcfg{\Gamma}{\Pi'}{\Omega'}{\D'}{m'}{\rho'}{\rtp'}$.
+\item Finally, we apply \thref{thm:replcfg} (replacement) to
+premise \emph{(i)}, substituting (3) in for (2),
+to get that $\tcfg{\Gamma}{\Pi'}{\Omega'}{\D'}{m'}{\E[\rho']}{\rtp}$
+and we are done.
 \end{itemize}
 
 \tb{Case} \ts{ER-Seq}:
@@ -2867,8 +3409,8 @@ We have $\cstep{\D}{m}{() \semi \rho}{\D}{m}{\rho}$ and:
 \item Premise (i), in this case,
 says (5) that $\tdef{\Gamma}{\Omega_D}{\D}$.
 We apply \thref{thm:prezprog} to (1), (2), and (5) 
-to get some $\Omega' \subseteq \Omega$
-and $\Omega_D' \supseteq \Omega_D$ such that:
+to get some $\Omega' \podl \Omega$
+and $\Omega_D' \rpodl \Omega_D$ such that:
 \begin{enumerate}[label=(\alph*)]
 \item $\tprog{\Gamma}{P'}{\Omega'}$,
 \item $\tdef{\Gamma}{\Omega_D'}{\D'}$, and
@@ -2960,7 +3502,7 @@ to get (6) that $\tval{\Gamma[x_0 \mapsto \tone]}{\cdot}{v}{\tview}$.
   \mf{spec}: \C_0,
   \mf{labs}: \emptyset,
   \mf{tree}: \ff
-\}]$. Since $p_0$ is fresh, we have $\Pi \po \Pi'$.
+\}]$. Since $p_0$ is fresh, we have $\Pi \podl \Pi'$.
 Then by definition of $m'$, to show conclusion (ii),
 it suffices to show that $\tval{\Gamma}{\Pi'}{()}{\Delta[\C_0]}$.
 This is immediate from (2) and \ts{TV-Unit}.
@@ -3022,7 +3564,7 @@ We can now derive (7) as follows, and we are done:
   \mf{spec}: \C,
   \mf{labs}: \emptyset,
   \mf{tree}: \ff
-\}]$. $p$ is fresh, so $\Pi \po \Pi'$.
+\}]$. $p$ is fresh, so $\Pi \podl \Pi'$.
 \item To show conclusion (ii) given premise (i-b),
 it suffices to show $\tval{\Gamma}{\Pi'}{v}{\Delta[\C]}$.
 This is immediate from (1) and \thref{thm:wkpiv} (weakening).
@@ -3200,7 +3742,7 @@ If $\phi=\mf{Init}$, we also have:
 \begin{itemize}
 \item We apply \thref{thm:prezbodi} (body preservation at $\phi=\mf{Init}$)
 using (1), (2), and premise (i-b) 
-to get some $\Pi' \rpo \Pi$ and $\Sigma' \subseteq \Sigma$ such that:
+to get some $\Pi' \rpodl \Pi$ and $\Sigma' \subseteq \Sigma$ such that:
 \begin{enumerate}[label=(\alph*)]
 \item $\tbod{\Gamma}{\Pi'}{\hat{e}'}{\Pi'[p]}{\Sigma'}$,
 \item $\tmem{\Gamma}{\Pi'}{m'}$, and
@@ -3210,7 +3752,7 @@ to get some $\Pi' \rpo \Pi$ and $\Sigma' \subseteq \Sigma$ such that:
 Conclusion (ii) is immediate from (b).
 \item By (c) and (3), we get (4) that
 $\dom(\Delta[\Pi[p]]) = \Sigma' \cup \Pi'[p].\mf{labs}$.
-Since $\Pi \po \Pi'$, it must be that 
+Since $\Pi \podl \Pi'$, it must be that 
 $\Pi[p].\mf{spec}=\Pi'[p].\mf{spec}$,
 so we conclude this subcase by deriving conclusion (iii) as follows:
 \end{itemize}
@@ -3864,7 +4406,7 @@ and: \begin{mathpar}
 }
 \end{mathpar}
 
-\tb{Case} \ts{TR-ChkNil}: 
+\tb{Case} \ts{ER-ChkNil}: 
 We have $\cstep{\D}{m}{\echks{[]}}{\D}{m}{()}$
 and: \begin{mathpar}
 \inferrule*[right=TR-Chks] {
@@ -3878,7 +4420,7 @@ and: \begin{mathpar}
 and we are done.
 \end{itemize}
 
-\tb{Case} \ts{TR-ChkCons}: We have\\
+\tb{Case} \ts{ER-ChkCons}: We have\\
 $\cstep{\D}{m}{\echks{\rho :: \rho s}}
 {\D}{m}{\echk{\rho} \semi \echks{\rho s}}$ and:
 \begin{mathpar}
@@ -3927,10 +4469,24 @@ for \emph{any} step.
 
 \section{Linear-Typed Runtime}
 
+We extend the runtime language of the previous section
+with a linear context, in order to prove termination of realization.
+
+\subsection{Syntax}
+
 We define $\Theta=\{\num{p}\}$ to be a \emph{linear} context
 of paths. As a well-formedness condition,
 $\Theta$ should not contain duplicates, and 
 context composition is defined in the usual linear way.
+
+To maintain soundness, we place a \emph{value restriction}
+on some terms, namely:
+$$\rho ::= \cdots \mid \echk{u} \mid \echks{u} \mid \esearch{id}{u}
+\mid \esearches{id}{u}$$
+
+Correspondingly, we shrink our evaluation context grammar as follows:
+$$\E ::= [\cdot] \mid \enode{id}{v}{\E} \mid \E ::_\rho \rho
+\mid u ::_\rho \E \mid \E \semi \rho \mid \enew{\phi}{p}{\E}$$
 
 \subsection{Memory}
 
@@ -4021,17 +4577,17 @@ Judgment: $\trhol{\Gamma}{\Pi}{\Theta}{\rho}{\rtp}$
 \inferrule*[right=TL-Cons] {
   \trhol{\Gamma}{\Pi}{\Theta_1}{\rho}{\rtp}
   \and
-  \trhol{\Gamma}{\Pi}{\Theta_2}{\rho}{[\rtp]}
+  \trhol{\Gamma}{\Pi}{\Theta_2}{\rho s}{[\rtp]}
 } {
   \trhol{\Gamma}{\Pi}{\Theta_1, \Theta_2}{\rho :: \rho s}{[\rtp]}
 }
 \and
 \inferrule*[right=TL-Node] {
-  \tval{\Gamma}{\Pi}{u}{[\tattr]}
+  \tval{\Gamma}{\Pi}{v}{[\tattr]}
   \and
-  \trhol{\Gamma}{\Pi}{\Theta}{\rho}{[\rtp]}
+  \trhol{\Gamma}{\Pi}{\Theta}{\rho}{[\ttree]}
 } {
-  \trhol{\Gamma}{\Pi}{\Theta}{\enode{id}{u}{\rho}}{\ttree}
+  \trhol{\Gamma}{\Pi}{\Theta}{\enode{id}{v}{\rho}}{\ttree}
 }
 \and
 \inferrule*[right=TL-Lit] {
@@ -4072,7 +4628,7 @@ and so do not allow superexpressions to reference their path.
   \trhol{\Gamma}{\Pi}{\cdot}{\einit{v}}{\ttree}
 }
 \and
-\inferrule*[right=TL-Inits] {
+\inferrule*[right=TL-Ins] {
   \tval{\Gamma}{\Pi}{v}{[\tview]}
 } {
   \trhol{\Gamma}{\Pi}{\cdot}{\einits{v}}{[\ttree]}
@@ -4201,35 +4757,871 @@ $\tcfgl{\Gamma}{\Pi}{\Theta}{\Omega}{\D}{m}{\rho}{\rtp}$
 implies our old judgment
 $\tcfg{\Gamma}{\Pi}{\Omega}{\D}{m}{\rho}{\rtp}$,
 so progress follows from our old \thref{thm:progcfg}.
+It remains to show preservation.
+
+We need some additional lemmas under $\Theta$:
+
+\begin{proposition}[Path context weakening, linear sub-judgment.]
+\label{thm:wkpirl}
+If\\$\trhol{\Gamma}{\Pi}{\Theta}{\rho}{\rtp}$ and $\Pi \podl \Pi'$,
+then $\trhol{\Gamma}{\Pi'}{\Theta}{\rho}{\rtp}$.
+\end{proposition}
+
+\begin{proposition}[Linear uniqueness of typing.]
+\label{thm:linunique}
+If $\trhol{\Gamma}{\Pi}{\Theta}{\rho}{\rtp}$
+and also $\trhol{\Gamma}{\Pi}{\Theta'}{\rho}{\rtp'}$,
+then $\Theta=\Theta'$ and $\rtp = \rtp'$.
+\end{proposition}
+
+\begin{proposition}[Uniqueness of memory typing.]
+\label{thm:memunique}
+If $\tmeml{\Gamma}{\Pi}{\Theta}{m}$
+and also $\tmeml{\Gamma}{\Pi'}{\Theta'}{m}$
+then $\Pi=\Pi'$ and $\Theta = \Theta'$.
+\end{proposition}
+
+\begin{proposition}[Linear context containment.]
+\label{thm:contain}
+If $\trhol{\Gamma}{\Pi}{\Theta}{\rho}{\rtp}$,
+then $\Theta \subseteq \dom(\Pi)$.
+\end{proposition}
+
+\begin{lemma}[Delinearization.]
+\label{thm:delin}
+If $\trhol{\cdot}{\Pi}{\Theta}{u}{\rtp}$,
+where $\rtp=\ttree$ or $\rtp=[\ttree]$,
+then $\trhoi{\cdot}{\Pi}{u}{\rtp}$.
+\begin{Proof}
+By induction on the (linear) typing derivation.
+
+\tb{Case} \ts{TL-Nil}: Immediate by \ts{TI-Nil}.
+
+\tb{Case} \ts{TL-Cons}: We have \begin{mathpar}
+\inferrule*[right=TL-Cons] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta_1}{u}{\ttree}}
+  \and
+  \inferrule* {(2)} {\trhol{\Gamma}{\Pi}{\Theta_2}{u s}{[\ttree]}}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta_1, \Theta_2}{u :: u s}{[\ttree]}
+}
+\end{mathpar}
+\begin{itemize}
+\item We apply the inductive hypothesis to (1) and (2)
+to get (respectively) that (3) $\trhoi{\Gamma}{\Pi}{u}{\ttree}$
+and (4) $\trhoi{\Gamma}{\Pi}{us}{[\ttree]}$.
+\item We derive the conclusion as follows:
+\begin{mathpar}
+\inferrule*[right=TI-Cons] {
+  \inferrule*[right=(3)] { } {\trhoi{\Gamma}{\Pi}{u}{\ttree}}
+  \and
+  \inferrule*[right=(4)] { } {\trhoi{\Gamma}{\Pi}{u s}{[\ttree]}}
+} {
+  \trhoi{\Gamma}{\Pi}{u :: u s}{[\ttree]}
+}
+\end{mathpar}
+\end{itemize}
+
+\tb{Case} \ts{TL-Lit}: We have \begin{mathpar}
+\inferrule*[right=TL-Lit] {
+  \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v}{\tstr}}
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\elit{v}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive the conclusion as follows:
+\begin{mathpar}
+\inferrule*[right=TI-Lit] {
+  \inferrule*[right=(1)] { } {\tval{\Gamma}{\Pi}{v}{\tstr}}
+} {
+  \trhoi{\Gamma}{\Pi}{\elit{v}}{\ttree}
+}
+\end{mathpar}
+\end{itemize}
+
+\tb{Case} \ts{TL-Node}: We have \begin{mathpar}
+\inferrule*[right=TL-Node] {
+  \inferrule*[right=(1)] { } {\tval{\Gamma}{\Pi}{v}{[\tattr]}}
+  \and
+  \inferrule*[right=(2)] { } {\trhol{\Gamma}{\Pi}{\Theta}{u}{[\ttree]}}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta}{\enode{id}{v}{u}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item We apply the inductive hypothesis to (2)
+to get (3) that $\trhoi{\Gamma}{\Pi}{u}{[\ttree]}$.
+\item We derive the conclusion as follows:
+\begin{mathpar}
+\inferrule*[right=TI-Node] {
+  \inferrule*[right=(1)] { } {\tval{\Gamma}{\Pi}{v}{[\tattr]}}
+  \and
+  \inferrule*[right=(3)] { } {\trhoi{\Gamma}{\Pi}{u}{[\ttree]}}
+} {
+  \trhoi{\Gamma}{\Pi}{\enode{id}{v}{u}}{\ttree}
+}
+\end{mathpar}
+\end{itemize}
+
+\tb{Case} \ts{TL-Path}: We have
+\begin{mathpar}
+\inferrule*[right=TL-Path] {
+  \inferrule* {(1)} {\trhoi{\Gamma}{\Pi}{p}{\ttree}}
+} {
+  \trhol{\Gamma}{\Pi}{p}{p}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item The conclusion is given by (1) and we are done.
+\end{itemize}
+
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Hole typing, linear sub-judgment.]
+\label{thm:lholerhos}
+If $\trhol{\Gamma}{\Pi}{\Theta}{\E[\rho]}{\rtp}$,
+then, for some $\rtp'$ and $\Theta_1,\Theta_2$
+such that $\Theta=\Theta_1,\Theta_2$,
+we have $\trhol{\Gamma}{\Pi}{\Theta_1}{\rho}{\rtp'}$.
+
+\begin{Proof}
+By induction on the typing judgment.
+
+In each case, we subcase on whether $\E=[\cdot]$ or not.
+If so, we choose $\rtp=\rtp'$ and $\Theta_2=\cdot$,
+such that the conclusion follows directly from the premise.
+
+Thus, in the following case-analysis, we assume $\E \neq [\cdot]$.
+We only mention those cases which are possible by the grammar of $\E$.
+
+\tb{Case} $\enode{id}{v}{\E}$: We have
+\begin{mathpar}
+\inferrule*[right=TL-Node] {
+  \tval{\Gamma}{\Pi}{v}{[\tattr]}
+  \and
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta}{\E[\rho]}{[\ttree]}}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta}{\enode{id}{v}{\E[\rho]}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item The conclusion is immediate from the inductive hypothesis on (1).
+\end{itemize}
+
+\tb{Case} $\E :: \rho s$: We have
+\begin{mathpar}
+\inferrule*[right=TL-Cons] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta}{\E[\rho]}{\rtp}}
+  \and
+  \trhol{\Gamma}{\Pi}{\Theta'}{\rho s}{[\rtp]}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta, \Theta'}{\E[\rho] :: \rho s}{[\rtp]}
+}
+\end{mathpar}
+\begin{itemize}
+\item The inductive hypothesis on (1) gives us some $\Theta_a,\Theta_b=\Theta$
+such that $\trhol{\Gamma}{\Pi}{\Theta_a}{\rho}{\rtp'}$.
+\item We choose $\Theta_1=\Theta_a$ and $\Theta_2=\Theta',\Theta_b$.
+Since $\Theta_a,\Theta_b=\Theta$, we have $\Theta,\Theta'=\Theta_1,\Theta_2$
+and we are done.
+\end{itemize}
+
+\tb{Case} $u :: \E$: We have
+\begin{mathpar}
+\inferrule*[right=TL-Cons] {
+  \trhol{\Gamma}{\Pi}{\Theta}{u}{\rtp}
+  \and
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta'}{\E[\rho]}{[\rtp]}}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta, \Theta'}{u :: \E[\rho]}{[\rtp]}
+}
+\end{mathpar}
+\begin{itemize}
+\item The inductive hypothesis on (1) gives us some $\Theta_a,\Theta_b=\Theta'$
+such that $\trhol{\Gamma}{\Pi}{\Theta_a}{\rho}{\rtp'}$.
+\item We choose $\Theta_1=\Theta_a$ and $\Theta_2=\Theta,\Theta_b$.
+Since $\Theta_a,\Theta_b=\Theta'$, we have $\Theta,\Theta'=\Theta_1,\Theta_2$
+and we are done.
+\end{itemize}
+
+\tb{Case} $\E \semi \rho$: We have
+\begin{mathpar}
+\inferrule*[right=TL-Seq] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta}{\E[\rho]}{\tone}}
+  \and
+  \trhol{\Gamma}{\Pi}{\Theta'}{\rho_2}{\rtp}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta, \Theta'}{\E[\rho] \semi \rho_2}{\rtp}
+}
+\end{mathpar}
+\begin{itemize}
+\item The inductive hypothesis on (1) gives us some $\Theta_a,\Theta_b=\Theta$
+such that $\trhol{\Gamma}{\Pi}{\Theta_a}{\rho}{\rtp'}$.
+\item We choose $\Theta_1=\Theta_a$ and $\Theta_2=\Theta',\Theta_b$.
+Since $\Theta_a,\Theta_b=\Theta$, we have $\Theta,\Theta'=\Theta_1,\Theta_2$
+and we are done.
+\end{itemize}
+
+\tb{Case} $\enew{\mf{Init}}{p}{\E}$: We have
+\begin{mathpar}
+\inferrule*[right=TL-NewI] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta}{\E[\rho]}{\ttree}}
+  \and
+  \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
+} {
+  \trhol{\Gamma}{\Pi}{\Theta,p}{\enew{\mf{Init}}{p}{\E[\rho]}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item The inductive hypothesis on (1) gives us some $\Theta_a,\Theta_b=\Theta$
+such that $\trhol{\Gamma}{\Pi}{\Theta_a}{\rho}{\rtp'}$.
+\item We choose $\Theta_1=\Theta_a$ and $\Theta_2=\Theta_b,p$.
+Since $\Theta_a,\Theta_b=\Theta$, we have $\Theta,p=\Theta_1,\Theta_2$
+and we are done.
+\end{itemize}
+
+\tb{Case} $\enew{\mf{Succ}}{p}{\E}$: We have
+\begin{mathpar}
+\inferrule*[right=TL-NewS] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta}{\rho}{\ttree}}
+  \and
+  \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
+} {
+  \trhol{\Gamma}{\Pi}{\Theta}{\enew{\mf{Succ}}{p}{\rho}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item The conclusion is immediate from the inductive hypothesis on (1).
+\end{itemize}
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Hole typing, linear judgment.]
+\label{thm:lholerho}
+If $\trhop{\Gamma}{\Pi}{\Theta}{\Omega}{\E[\rho]}{\rtp}$,
+then, for some $\rtp'$ and $\Theta_1,\Theta_2$
+such that $\Theta=\Theta_1,\Theta_2$,
+we have $\trhop{\Gamma}{\Pi}{\Theta_1}{\Omega}{\rho}{\rtp'}$.
+
+\begin{Proof}
+By case-analysis of the typing derivation.
+
+\tb{Case} \ts{TR-Prog}: 
+\begin{mathpar}
+\inferrule*[right=TR-Prog] {
+  \tprog{\Gamma}{P}{\Omega'}
+  \and
+  \Delta[\C_0] = \pair{\tone}{\emptyset}
+  \and
+  \dom(\Delta) = \Omega \cup \Omega' \cup \{\C_0\}
+} {
+  \trhop{\Gamma}{\Pi}{\cdot}{\Omega}{\eprog{P}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We must have $\E=[\cdot]$ and $\rho=\eprog{P}$.
+\item The conclusion is given by the premise with $\rtp_2=\rtp_1=\tone$
+and $\Theta_1=\Theta_2=\cdot$.
+\end{itemize}
+
+\tb{Case} \ts{TR-Lift}:
+\begin{mathpar}
+\inferrule*[right=TR-Lift] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta}{\E[\rho]}{\rtp}}
+  \and
+  \dom(\Delta) = \Omega
+} {
+  \trhop{\Gamma}{\Pi}{\Theta}{\Omega}{\E[\rho]}{\rtp}
+}
+\end{mathpar}
+\begin{itemize}
+\item The conclusion follows directly from \thref{thm:lholerhos} on (1).
+\end{itemize}
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Hole typing, linear configs.]
+\label{thm:lholecfg}
+If $\tcfgl{\Gamma}{\Pi}{\Theta}{\Omega}{\D}{m}{\E[\rho]}{\rtp}$,
+then, for some $\rtp'$ and $\Theta_1,\Theta_2$
+such that $\Theta=\Theta_1,\Theta_2$,
+we have $\tcfgl{\Gamma}{\Pi}{\Theta_1}{\Omega}{\D}{m}{\rho}{\rtp}$.
+
+\begin{Proof}\
+\begin{itemize}
+\item By definition, we have (1) $\tdef{\Gamma}{\Omega}{\D}$.
+\item We also have some split $\Theta_m,\Theta_\rho=\Theta$ such that
+(2) $\tmeml{\Gamma}{\Pi}{\Theta_m}{m}$ and 
+(3) $\trhop{\Gamma}{\Pi}{\Theta_\rho}{\Omega}{\E[\rho]}{\rtp}$.
+\item By \thref{thm:lholerho} (hole typing) on (3),
+we get some $\Theta_{\rho1},\Theta_{\rho2}=\Theta_\rho$
+such that (4) $\trhop{\Gamma}{\Pi}{\Theta_{\rho_1}}{\Omega}{\rho}{\rtp}$.
+\item We choose $\Theta_1=\Theta_m,\Theta_{\rho1}$ and $\Theta_2=\Theta_{\rho2}$.
+Clearly $\Theta=\Theta_1,\Theta_2$.
+\item The conclusion follows from (1), (2), and (4), and we are done.
+\end{itemize}
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Replacement, linear sub-judgment.]
+\label{thm:lreplrhos}
+If \begin{enumerate}[label=(\roman*)]
+\item $\trhol{\Gamma}{\Pi}{\Theta_1,\Theta_2}{\E[\rho]}{\alpha}$,
+\item $\trhol{\Gamma}{\Pi}{\Theta_1}{\rho}{\alpha'}$,
+\item $\trhol{\Gamma}{\Pi'}{\Theta_1'}{\rho'}{\alpha'}$ for $\Pi' \rpodl \Pi$, and
+\item $(\Theta_1' \setminus \Theta_1) \cap \dom(\Pi) = \emptyset$,
+\end{enumerate}
+then $\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\E[\rho']}{\alpha}$.
+
+\begin{Proof}
+By induction on the typing premise \emph{(i)}.
+
+In each case, we subcase on whether $\E=[\cdot]$ or not.
+If so, \thref{thm:linunique} (typing uniqueness)
+on premises \emph{(i)} and \emph{(ii)} gives that $\alpha'=\alpha$
+and $\Theta_2=\cdot$, and then the conclusion is immediate from
+premise \emph{(iii)}.
+
+Thus, in the following case-analysis, we assume $\E \neq [\cdot]$.
+We only mention those cases which are possible by the grammar of $\E$.
+
+\tb{Case} $\enode{id}{v}{\E}$: By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TL-Node] {
+  \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v}{[\tattr]}}
+  \and
+  \inferrule* {(2)} {\trhol{\Gamma}{\Pi}{\Theta_1,\Theta_2}{\E[\rho]}{[\ttree]}}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta_1,\Theta_2}{\enode{id}{v}{\E[\rho]}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (2) and premises \emph{(ii)}-\emph{(iv)},
+we get (3) that $\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\E[\rho']}{[\ttree]}$.
+\item By \thref{thm:wkpiv} (weakening) on (1), we have (4) that
+$\tval{\Gamma}{\Pi'}{v}{[\tattr]}$. We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TL-Node] {
+  \inferrule*[right=(4)] { } {\tval{\Gamma}{\Pi'}{v}{[\tattr]}}
+  \and
+  \inferrule*[right=(3)] { } {
+    \trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\E[\rho']}{[\ttree]}
+  }
+} {
+  \trhol{\Gamma}{\Pi}{\Theta_1',\Theta_2}{\enode{id}{v}{\E[\rho]}}{\ttree}
+}
+\end{mathpar}
+
+\tb{Case} $\E :: \rho_\mf{tl}$: Let $\Theta_2=\Theta_2',\Theta_\mf{tl}$.
+By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TL-Cons] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta_1,\Theta_2'}{\E[\rho]}{\rtp}}
+  \and
+  \inferrule* {(2)} {\trhol{\Gamma}{\Pi}{\Theta_\mf{tl}}{\rho_\mf{tl}}{[\rtp]}}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta_1, \Theta_2',\Theta_\mf{tl}}{\E[\rho] :: \rho_\mf{tl}}{[\rtp]}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premises \emph{(ii)}-\emph{(iv)},
+we get (3) that $\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2'}{\E[\rho']}{\rtp}$.
+\item By \thref{thm:wkpirl} (weakening) on (2), we get (4)
+that $\trhol{\Gamma}{\Pi'}{\Theta_\mf{tl}}{\rho_\mf{tl}}{[\rtp]}$.
+\item We want to conclude via the derivation:
+\begin{mathpar}
+\inferrule*[right=TL-Cons] {
+  \inferrule*[right=(3)] { } {\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2'}{\E[\rho']}{\rtp}}
+  \ 
+  \inferrule*[right=(4)] { } {\trhol{\Gamma}{\Pi'}{\Theta_\mf{tl}}{\rho_\mf{tl}}{[\rtp]}}
+} {
+  \trhol{\Gamma}{\Pi'}{\Theta_1', \Theta_2',\Theta_\mf{tl}}{\E[\rho'] :: \rho_\mf{tl}}{[\rtp]}
+}
+\end{mathpar}
+\item It suffices to show that $\Theta_1',\Theta_2$ is well-defined.
+\item By premise \emph{(i)} we know that $\Theta_1,\Theta_2$ is well-defined, 
+i.e. (4) $\Theta_1 \cap \Theta_2 = \emptyset$. By \thref{thm:contain}
+(containment), we also have (5) that $\Theta_2 \subseteq \dom(\Pi)$.
+\item It follows from (4), (5), and premise \emph{(iv)} that 
+$\Theta_1' \cap \Theta_2 = \emptyset$:
+\begin{itemize}
+  \item \hl{TODO}: is this argument non-constructive? (and do we care?)
+  \item For any $p \in \Theta_1'$, either $p \in \Theta_1$ or not.
+  \item If $p \in \Theta_1$, then $p \notin \Theta_2$ by (4).
+  \item If $p \notin \Theta_1$, then $p \notin \Pi$ by premise \emph{(iv)}.
+  By (5), we again get $p \notin \Theta_2$.
+\end{itemize}
+\item Thus, $\Theta_1',\Theta_2$ is well-defined and we are done.
+\end{itemize}
+
+\tb{Case} $u :: \E$: Let $\Theta_2=\Theta_2',\Theta_\mf{hd}$.
+By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TL-Cons] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta_\mf{hd}}{u}{\rtp}}
+  \and
+  \inferrule* {(2)} {\trhol{\Gamma}{\Pi}{\Theta_1,\Theta_2'}{\E[\rho]}{[\rtp]}}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta_1, \Theta_2',\Theta_\mf{hd}}{u :: \E[\rho]}{[\rtp]}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (2) and premises \emph{(ii)}-\emph{(iv)},
+we get (3) that $\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2'}{\E[\rho']}{[\rtp]}$.
+\item By \thref{thm:wkpirl} (weakening) on (1), we get (4)
+$\trhol{\Gamma}{\Pi'}{\Theta_\mf{hd}}{u}{\rtp}$.
+\item We want to conclude via the derivation:
+\begin{mathpar}
+\inferrule*[right=TL-Cons] {
+  \inferrule*[right=(4)] { } {\trhol{\Gamma}{\Pi'}{\Theta_\mf{hd}}{u}{\rtp}}
+  \and
+  \inferrule*[right=(3)] { } {\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2'}{\E[\rho']}{[\rtp]}}
+} {
+  \trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2',\Theta_\mf{hd}}{u :: \E[\rho']}{[\rtp]}
+}
+\end{mathpar}
+\item It suffices to show that $\Theta_1',\Theta_2$ is well-defined.
+This follows from an argument analogous to the previous case,
+and we are done.
+\end{itemize}
+
+\tb{Case} $\E \semi \rho''$: Let $\Theta_2=\Theta_2',\Theta_3$.
+By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TL-Seq] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta_1,\Theta_2'}{\E[\rho]}{\tone}}
+  \and
+  \inferrule* {(2)} {\trhol{\Gamma}{\Pi}{\Theta_3}{\rho''}{\rtp}}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta_1, \Theta_2', \Theta_3}{\E[\rho] \semi \rho''}{\rtp}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premises \emph{(ii)}-\emph{(iv)},
+we get (3) that $\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2'}{\E[\rho']}{\tone}$.
+\item By \thref{thm:wkpirl} (weakening) on (2), we get (4)
+$\trhol{\Gamma}{\Pi'}{\Theta_3}{\rho''}{\rtp}$.
+\item We want to conclude via the derivation:
+\begin{mathpar}
+\inferrule*[right=TL-Seq] {
+  \inferrule*[right=(3)] { } {\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2'}{\E[\rho']}{\tone}}
+  \and
+  \inferrule*[right=(4)] { } {\trhol{\Gamma}{\Pi'}{\Theta_3}{\rho''}{\rtp}}
+} {
+  \trhol{\Gamma}{\Pi'}{\Theta_1', \Theta_2', \Theta_3}{\E[\rho'] \semi \rho''}{\rtp}
+}
+\end{mathpar}
+\item It suffices to show that $\Theta_1',\Theta_2$ is well-defined.
+This follows from an argument analogous to the previous two cases,
+and we are done.
+\end{itemize}
+
+\tb{Case} $\enew{\mf{Init}}{p}{\E}$: Let $\Theta_2=\Theta_2',p$.
+By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TL-NewI] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta_1,\Theta_2'}{\E[\rho]}{\ttree}}
+  \and
+  \inferrule* {(2)} {\Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta_1,\Theta_2',p}{\enew{\mf{Init}}{p}{\E[\rho]}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premises \emph{(ii)}-\emph{(iv)},
+we get (3) that $\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2'}{\E[\rho']}{\ttree}$.
+\item Since $\Pi \podl \Pi'$, (2) gives us (4) that 
+$\Pi'[p].\mf{labs} = \dom(\Delta[\Pi'[p]])$.
+\item We want to conclude via the derivation:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TL-NewI] {
+  \inferrule*[right=(3)] { } {\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2'}{\E[\rho']}{\ttree}}
+  \
+  \inferrule*[right=(4)] { } {\Pi'[p].\mf{labs} = \dom(\Delta[\Pi'[p]])}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta_1',\Theta_2',p}{\enew{\mf{Init}}{p}{\E[\rho']}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item It remains to be shown that $\Theta_1',\Theta_2$ is well-defined,
+given that $\Theta_1',\Theta_2'$ is well-defined by (3).
+\item Since $\Theta_1,\Theta_2',p$ is well-defined (by premise \emph{(i)}),
+clearly $p \notin \Theta_2'$.
+Thus, it suffices to show that $p \notin (\Theta_1' \setminus \Theta_1)$.
+\item By (2), clearly $p \in \dom(\Pi)$, so from premise \emph{(iv)}
+we conclude $p \notin (\Theta_1' \setminus \Theta_1)$ and we are done.
+\end{itemize}
+
+\tb{Case} $\enew{\mf{Succ}}{p}{\E}$: By premise \emph{(i)}, we have
+\begin{mathpar}
+\inferrule*[right=TL-NewS] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta_1,\Theta_2}{\E[\rho]}{\ttree}}
+  \and
+  \inferrule* {(2)} {\Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta_1,\Theta_2}{\enew{\mf{Succ}}{p}{\E[\rho]}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premises \emph{(ii)}-\emph{(iv)},
+we get (3) that $\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\E[\rho']}{\ttree}$.
+\item Since $\Pi \podl \Pi'$, (2) gives us (4) that 
+$\Pi'[p].\mf{labs} = \dom(\Delta[\Pi'[p]])$.
+\item We conclude via the derivation:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TL-NewS] {
+  \inferrule*[right=(3)] { } {\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\E[\rho']}{\ttree}}
+  \
+  \inferrule*[right=(4)] { } {\Pi'[p].\mf{labs} = \dom(\Delta[\Pi'[p]])}
+} {
+  \trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\enew{\mf{Succ}}{p}{\E[\rho']}}{\tone}
+}
+\end{mathpar}
+\
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Replacement, linear judgment.]
+\label{thm:lreplrho}
+If \begin{enumerate}[label=(\roman*)]
+\item $\trhop{\Gamma}{\Pi}{\Theta_1,\Theta_2}{\Omega}{\E[\rho]}{\alpha}$,
+\item $\trhop{\Gamma}{\Pi}{\Theta_1}{\Omega}{\rho}{\alpha'}$,
+\item $\trhop{\Gamma}{\Pi'}{\Theta_1'}{\Omega'}{\rho'}{\alpha'}$ 
+for $\Pi' \rpodl \Pi$ and $\Omega' \rpodl \Omega$, and
+\item $(\Theta_1' \setminus \Theta_1) \cap \dom(\Pi) = \emptyset$,
+\end{enumerate}
+then $\trhop{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\Omega'}{\E[\rho']}{\alpha}$.
+
+\begin{Proof}
+By case-analysis on the typing premise \emph{(i)}.
+
+\tb{Case} \ts{TR-Prog}: We have
+\begin{mathpar}
+\inferrule*[right=TR-Prog] {
+  \tprog{\Gamma}{P}{\Omega'}
+  \and
+  \Delta[\C_0] = \pair{\tone}{\emptyset}
+  \and
+  \dom(\Delta) = \Omega \cup \Omega' \cup \{\C_0\}
+} {
+  \trhop{\Gamma}{\Pi}{\cdot}{\Omega}{\eprog{P}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We must have $\E=[\cdot]$, $\rho=\eprog{P}$, and $\Theta_1=\Theta_2=\cdot$.
+\item The conclusion is immediate from premise \emph{(iii)}.
+\end{itemize}
+
+\tb{Case} \ts{TR-Lift}: We have
+\begin{mathpar}
+\inferrule*[right=TR-Lift] {
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta_1,\Theta_2}{\E[\rho]}{\rtp}}
+  \and
+  \inferrule* {(2)} {\dom(\Delta) = \Omega}
+} {
+  \trhop{\Gamma}{\Pi}{\Theta_1,\Theta_2}{\Omega}{\E[\rho]}{\rtp}
+}
+\end{mathpar}
+\begin{itemize}
+\item \thref{thm:replrhos} (replacement) on (1) gives us (3) that
+$\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\E[\rho']}{\rtp}$.
+\item By (2) and the fact that $\Omega \podl \Omega'$,
+we have (4) that $\Omega' = \dom(\Delta)$.
+\item We rederive the conclusion as follows, and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Lift] {
+  \inferrule* {(3)} {\trhol{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\E[\rho']}{\rtp}}
+  \and
+  \inferrule* {(4)} {\dom(\Delta) = \Omega'}
+} {
+  \trhop{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\Omega'}{\E[\rho']}{\rtp}
+}
+\end{mathpar}
+\
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Replacement, linear configs.]
+\label{thm:lreplcfg}
+If \begin{enumerate}[label=(\roman*)]
+\item $\tcfgl{\Gamma}{\Pi}{\Theta_1,\Theta_2}{\Omega}{\D}{m}{\E[\rho]}{\alpha}$,
+\item $\tcfgl{\Gamma}{\Pi}{\Theta_1}{\Omega}{\D}{m}{\rho}{\alpha'}$,
+\item $\tcfgl{\Gamma}{\Pi'}{\Theta_1'}{\Omega'}{\D'}{m'}{\rho'}{\alpha'}$ 
+for $\Pi' \rpodl \Pi$ and $\Omega' \rpodl \Omega$, and
+\item $(\Theta_1' \setminus \Theta_1) \cap \dom(\Pi) = \emptyset$,
+\end{enumerate}
+then $\tcfgl{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\Omega'}{\D'}{m'}{\E[\rho']}{\alpha}$.
+
+\begin{Proof}\
+\begin{itemize}
+\item For some $\Theta_m$ and $\Theta_\rho$ with $\Theta_m,\Theta_\rho=\Theta_1$,
+premise \emph{(ii)} gives us (1) that $\tmeml{\Gamma}{\Pi}{\Theta_m}{m}$
+and (2) that $\trhop{\Gamma}{\Pi}{\Theta_\rho}{\Omega}{\rho}{\alpha'}$.
+\item Similarly, for $\hat{\Theta}_m,\hat{\Theta}_\rho=\Theta_1,\Theta_2$,
+premise \emph{(i)} says (3) that $\tmeml{\Gamma}{\Pi}{\hat{\Theta}_m}{m}$
+and (4) that $\trhop{\Gamma}{\Pi}{\hat{\Theta}_\rho}{\Omega}{\E[\rho]}{\alpha}$.
+\item By \thref{thm:memunique} (uniqueness) on (1) and (3), we have that
+$\Theta_m=\hat{\Theta}_m$.
+\item Since $\hat{\Theta}_m,\hat{\Theta}_\rho=\Theta_1,\Theta_2$
+and $\Theta_m,\Theta_\rho=\Theta_1$,
+we also get $\hat{\Theta}_\rho=\Theta_\rho,\Theta_2$.
+\item Thus, (4) gives us (5) that
+$\trhop{\Gamma}{\Pi}{\Theta_\rho,\Theta_2}{\Omega}{\E[\rho]}{\alpha}$.
+\item From premise \emph{(iii)}, by definition, we have 
+(6) that $\tdef{\Gamma}{\Omega'}{\D'}$,
+(7) that $\tmeml{\Gamma}{\Pi'}{\Theta_m'}{m'}$, and
+(8) that $\trhop{\Gamma}{\Pi'}{\Theta_\rho'}{\Omega'}{\rho'}{\alpha'}$
+(for a split $\Theta_1'=\Theta_m',\Theta_\rho'$).
+\item By (6) and (7), in order to show the conclusion, it suffices to show
+(9) that $\trhop{\Gamma}{\Pi'}{\Theta_\rho',\Theta_2}{\Omega'}{\E[\rho']}{\alpha}$.
+\item We apply \thref{thm:lreplrho} (replacement)
+using (5), (2), (8), and premise \emph{(iv)}
+to get precisely (9), and we are done.
+\end{itemize}
+\end{Proof}
+\end{lemma}
+
+We are now ready to state and prove preservation under $\Theta$.
+
+% TODO: update statement to prove that theta' is fresh w.r.t. pi
 
 \begin{lemma}[Preservation of configurations, linear extension.]
 \label{thm:prezcfgl}
-If\\ $\tcfgl{\Gamma}{\Pi}{\Theta}{\Omega}{\D}{m}{\rho}{\rtp}$
-and $\cstep{\D}{m}{\rho}{\D'}{m'}{\rho'}$,
-then there exist some $\Pi' \rpo \Pi$, $\Theta' \supseteq \Theta$,
+If \begin{enumerate}[label=(\roman*)]
+\item $\tcfgl{\Gamma}{\Pi}{\Theta}{\Omega}{\D}{m}{\rho}{\rtp}$ and
+\item $\cstep{\D}{m}{\rho}{\D'}{m'}{\rho'}$,
+\end{enumerate}
+then there exist some $\Pi' \rpodl \Pi$, $\Theta' \supseteq \Theta$,
 and $\Omega' \supseteq \Omega$ such that
-$\tcfgl{\Gamma}{\Pi'}{\Theta'}{\Omega'}{\D'}{m'}{\rho'}{\rtp}$.
+\begin{enumerate}[label=(\roman*)]
+\item $\tcfgl{\Gamma}{\Pi'}{\Theta'}{\Omega'}{\D'}{m'}{\rho'}{\rtp}$ and
+\item $(\Theta' \setminus \Theta) \cap \Pi = \emptyset$.
+\end{enumerate}
 
 \begin{Proof}
-We detail only those cases which significantly differ from
-\thref{thm:prezcfg} via the introduction of $\Theta$,
-or are otherwise noteworthy.
-The other cases are straightforward by choosing $\Theta' = \Theta$.
+Premise \emph{(i)} gives us the following three sub-premises:
+\begin{enumerate}[label=(i-\alph*)]
+\item $\tdef{\Gamma}{\Omega}{\D}$,
+\item $\tmeml{\Gamma}{\Pi}{\Theta}{m}$, and
+\item $\trhop{\Gamma}{\Pi}{\Theta}{\Omega}{\rho}{\rtp}$.
+\end{enumerate}
 
-\tb{Case} \ts{ER-Ctx}: Nontrivial, and \hl{depends on our formulation}
-of this case in \thref{thm:prezcfg}.
+Likewise, we want to show the following three sub-conclusions:
+\begin{enumerate}[label=(i-\alph*)]
+\item $\tdef{\Gamma}{\Omega'}{\D'}$,
+\item $\tmeml{\Gamma}{\Pi'}{\Theta'}{m'}$, and
+\item $\trhop{\Gamma}{\Pi'}{\Theta'}{\Omega'}{\rho'}{\rtp}$.
+\end{enumerate}
 
-In particular, for an expression like $\einit{\pair{\C}{v}} \semi \rho$,
-we'll type each subexpression via $\Theta_1$ and $\Theta_2$ respectively,
-where $\Theta=\Theta_1,\Theta_2$.
-When we step $\einit{\pair{\C}{v}}$, we extend $\Theta_1$ by some 
-``fresh'' $p$, but this $p$ must be fresh \emph{with respect to} $\Theta$,
-not just $\Theta_1$, in order for the result $\Theta,p$ to be well-formed.
+Unless otherwise specified, we choose $\Omega'=\Omega$,
+$\Pi'=\Pi$, and $\Theta'=\Theta$, such that conclusion \emph{(ii)}
+is trivial, and conclusions (i-a)
+and (i-b) are immediate from premises (i-a) and (i-b)
+when $\D'=\D$ and $m'=m$, respectively.
 
-This property should follow when we say that ``$p$ fresh'' means $p \notin \dom(m)$,
-which means $p \notin \dom(\Pi)$, and since $\Theta \subset \dom(\Pi)$,
-we get $p \notin \Theta$. However, I don't know \hl{how to formalize this idea
-across all evaluation contexts}.
+In most cases, we elide mention of $\Omega$
+and work over an implicitly \ts{TR-Lift}ed sub-judgment,
+i.e. premise (i-c) gives us $\trhol{\Gamma}{\Pi}{\Theta}{\rho}{\rtp}$,
+and for conclusion (i-c) it suffices to show
+$\trhol{\Gamma}{\Pi'}{\Theta'}{\rho'}{\rtp}$.
+
+We proceed by induction over the step judgment in premise \emph{(ii)}.
+
+\tb{Case} \ts{ER-Ctx}: We have \begin{mathpar}
+\inferrule*[right=ER-Ctx] {
+  \inferrule* {(1)} {\cstep{\D}{m}{\rho}{\D'}{m'}{\rho'}}
+} {
+  \cstep{\D}{m}{\E[\rho]}{\D'}{m'}{\E'[\rho]}
+}
+\end{mathpar}
+\begin{itemize}
+\item Premise \emph{(i)} says that 
+$\tcfgl{\Gamma}{\Pi}{\Theta}{\Omega}{\D}{m}{\E[\rho]}{\rtp}$.
+\item \thref{thm:lholecfg} (hole typing) on \emph{(i)} gives us,
+for some $\Theta_1,\Theta_2=\Theta$, that
+(2) $\tcfgl{\Gamma}{\Pi}{\Theta_1}{\Omega}{\D}{m}{\rho}{\rtp'}$.
+\item We apply the inductive hypothesis to (1) and (2) to get
+some $\Pi' \rpodl \Pi$, $\Omega' \rpodl \Omega$,
+and $\Theta_1' \supseteq \Theta_1$ such that
+(3) $\tcfgl{\Gamma}{\Pi'}{\Theta_1'}{\Omega'}{\D'}{m'}{\rho'}{\rtp'}$
+and (4) $(\Theta_1' \setminus \Theta_1) \cap \Pi = \emptyset$.
+\item Finally, we apply \thref{thm:lreplcfg} (replacement) to
+premise \emph{(i)}, substituting (3) in for (2) and using (4), to get 
+$\tcfgl{\Gamma}{\Pi'}{\Theta_1',\Theta_2}{\Omega'}{\D'}{m'}{\E[\rho']}{\rtp}$,
+i.e. conclusion \emph{(i)}
+\item (4) gives us that
+$(\Theta_1',\Theta_2) \setminus (\Theta_1,\Theta_2) \cap \dom(\Pi)=\emptyset$,
+so conclusion \emph{(ii)} also holds and we are done.
+\end{itemize}
+
+\tb{Case} \ts{ER-Seq}:
+We have $\cstep{\D}{m}{() \semi \rho}{\D}{m}{\rho}$ and:
+\begin{mathpar}
+\inferrule*[right=TL-Seq] {
+  \inferrule*[right=TL-Unit] { } {
+    \trhol{\Gamma}{\Pi}{\cdot}{\rho_1}{\tone}
+  }
+  \and
+  \inferrule* {(1)} {\trhol{\Gamma}{\Pi}{\Theta}{\rho_2}{\rtp}}
+} {
+  \trhol{\Gamma}{\Pi}{\Theta}{\rho_1 \semi \rho_2}{\rtp}
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion (i-c) is directly given by (1) and we are done.
+\end{itemize}
+
+\tb{Case} \ts{ER-Prog}: We have
+\begin{mathpar}
+\inferrule*[right=ER-Prog] {
+  \inferrule* {(1)} {\pstep{\D}{P}{P'}{\D'}}
+} {
+  \cstep{\D}{m}{\eprog{P}}{\D'}{m}{\eprog{P'}}
+}
+\and
+\inferrule*[right=TR-Prog] {
+  \inferrule* {(2)} {\tprog{\Gamma}{P}{\Omega}}
+  \and
+  \inferrule* {(3)} {\Delta[\C_0] = \pair{\tone}{\emptyset}}
+  \and
+  \inferrule* {(4)} {\dom(\Delta) = \Omega \cup \Omega_D \cup \{\C_0\}}
+} {
+  \trhop{\Gamma}{\Pi}{\cdot}{\Omega_D}{\eprog{P}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item Premise (i-a), in this case,
+says (5) that $\tdef{\Gamma}{\Omega_D}{\D}$.
+We apply \thref{thm:prezprog} (program preservation)
+to (1), (2), and (5) 
+to get some $\Omega' \podl \Omega$
+and $\Omega_D' \rpodl \Omega_D$ such that:
+\begin{enumerate}[label=(\alph*)]
+\item $\tprog{\Gamma}{P'}{\Omega'}$,
+\item $\tdef{\Gamma}{\Omega_D'}{\D'}$, and
+\item $\Omega' \cup \Omega_D' = \Omega \cup \Omega_D$.
+\end{enumerate}
+\item Choose our new $\Omega$ to be $\Omega_D'$, such that
+conclusion (i-a) is given by (b).
+\item By (4) and (c), we get (6) that 
+$\dom(\Delta) = \Omega' \cup \Omega_D' \cup \{\C_0\}$.
+We derive conclusion (i-c) as follows, and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Prog] {
+  \inferrule*[right=\tn{(a)}] { } {\tprog{\Gamma}{P'}{\Omega'}}
+  \
+  \inferrule*[right=\tn{(3)}] { } {\Delta[\C_0] = \pair{\tone}{\emptyset}}
+  \:
+  \inferrule*[right=\tn{(6)}] { } {
+    \dom(\Delta) = \Omega' \cup \Omega_D' \cup \{\C_0\}
+  }
+} {
+  \trhop{\Gamma}{\Pi}{\cdot}{\Omega_D'}{\eprog{P'}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-PDone}: We have
+\begin{mathpar}
+\inferrule*[right=ER-PDone] {
+  \D' = \D[\C_0 \mapsto x.\eret{v}]
+  \\
+  m' = m[p_0 \mapsto \{\mf{spec}: \pair{\C_0}{()}, \mf{st}: \cdot,
+  \mf{tree}: \cdot, \mf{rerender}: \mf{ff}\}]
+} {
+  \cstep{\D}{m}{\eprog{\eret{v}}}{\D'}{m'}{\enew{\mf{Succ}}{p_0}{\einit{v}}}
+}
+\and
+\inferrule*[right=TR-Prog] {
+  \inferrule*{
+    (1)
+  } {
+    \tprog{\Gamma}{\eret{v}}{\emptyset}
+  }
+  \
+  \inferrule* {(2)} {\Delta[\C_0] = \pair{\tone}{\emptyset}}
+  \
+  \inferrule*{(3)} {
+    \dom(\Delta) = \emptyset \cup \Omega \cup \{\C_0\}
+  }
+} {
+  \trhop{\Gamma}{\Pi}{\cdot}{\Omega}{\eprog{\eret{v}}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item From (1) we further derive:
+\begin{mathpar}
+\inferrule*[right=TP-Lift] {
+  \inferrule*[right=TE-Ret] {
+    \inferrule* {(4)} {\tval{\Gamma}{\cdot}{v}{\tview}}
+  } {
+    \texp{\Gamma}{\cdot}{\eret{v}}{\tview}{\epsilon}
+  }
+} {
+  \tprog{\Gamma}{\eret{v}}{\emptyset}\ (1)
+}
+\end{mathpar}
+\item Choose $\Omega' = \Omega \cup \C_0$.
+To show conclusion (i-a) given premise (i-a), 
+it thus suffices to show (5)
+that $\tbod{\Gamma[x_0 \mapsto \Delta[\C_0]]}{\cdot}
+{\eret{v}}{\C_0}{\dom(\Delta[\C_0])}$.
+\item By freshness of $x_0$, $\Gamma \po \Gamma[x_0 \mapsto \tone]$.
+We can thus apply \thref{thm:wkgav} (weakening) to (4)
+to get (6) that $\tval{\Gamma[x_0 \mapsto \tone]}{\cdot}{v}{\tview}$.
+(5) is then given by (2) and the following derivation:
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \inferrule*[right=TE-Ret] {
+    \inferrule*[right=\tn{(6)}] { } {
+      \tval{\Gamma[x_0 \mapsto \tone]}{\cdot}{v}{\tview}
+    }
+  } {
+    \texp{\Gamma[x_0 \mapsto \tone]}{\cdot}{\eret{v}}{\tview}{\epsilon}
+  }
+} {
+  \tbod{\Gamma[x_0 \mapsto \tone]}{\cdot}{\eret{v}}{\C_0}{\emptyset}
+}
+\end{mathpar}
+\item Choose $\Pi'=\Pi[p_0 \mapsto \{
+  \mf{spec}: \C_0,
+  \mf{labs}: \emptyset,
+  \mf{tree}: \ff
+\}]$. Since $p_0$ is fresh, we have $\Pi \podl \Pi'$.
+Then by definition of $m'$, to show conclusion (i-b),
+it suffices to show that $\tval{\Gamma}{\Pi'}{()}{\Delta[\C_0]}$.
+This is immediate from (2) and \ts{TV-Unit}.
+\item Finally, we want to show conclusion (i-c).
+By (3) and definition of $\Omega'$, we have $\dom(\Delta)=\Omega'$,
+so it suffices to show (7) 
+$\trhol{\Gamma}{\Pi'}{\cdot}{\enew{\mf{Succ}}{p_0}{\einit{v}}}{\tone}$.
+\item We weaken (4) by \thref{thm:wkpiv} to get (8) that
+$\tval{\Gamma}{\Pi'}{v}{\tview}$.
+Also, by (4) and definition of $\Pi'$,
+we have (9) that $\Pi'[p_0].\mf{labs} = \emptyset = \dom(\Delta[\Pi'[p_0]])$.
+We can now derive (7) as follows, and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TL-New] {
+  \inferrule*[right=TL-Init] {
+    \inferrule*[right=\tn{(8)}] { } {\tval{\Gamma}{\Pi'}{v}{\tview}}
+  } {
+    \trhol{\Gamma}{\Pi'}{\cdot}{\einit{v}}{\ttree}
+  }
+  \
+  \inferrule*[right=\tn{(9)}] { } {
+    \Pi'[p_0].\mf{labs} = \dom(\Delta[\Pi'[p_0]])
+  }
+} {
+  \trhol{\Gamma}{\Pi'}{\cdot}{\enew{\mf{Succ}}{p_0}{\einit{v}}}{\tone}
+}
+\end{mathpar}
 
 \tb{Case} \ts{ER-ISpec}: We have
 \begin{mathpar}
@@ -4259,10 +5651,38 @@ across all evaluation contexts}.
 }
 \end{mathpar}
 \begin{itemize}
-\item In (only) this case, we extend $\Theta$ with our fresh $p$,
-i.e. $\Theta'_\rho = \{p\}$. Via the same choice of $\Pi'$, 
-we derive (2) and (3) in the same way as \thref{thm:prezcfg},
-and the conclusion follows just as before:
+\item Choose $\Pi'=\Pi[p \mapsto \{
+  \mf{spec}: \C,
+  \mf{labs}: \emptyset,
+  \mf{tree}: \ff
+\}]$. $p$ is fresh, so $\Pi \podl \Pi'$.
+\item Choose $\Theta'=p$. Since $p$ is fresh, $p \notin \dom(\Pi)$,
+so conclusion \emph{(ii)} holds.
+\item To show conclusion (i-b) given premise (i-b),
+it suffices to show that $\tval{\Gamma}{\Pi'}{v}{\Delta[\C]}$.
+This is immediate from (1) and \thref{thm:wkpiv} (weakening).
+\item By premise (i-a), we get
+$\tbod{\Gamma[x \mapsto \Delta[\C]]}{\cdot}{\hat{e}}{\C}{\dom(\Delta[\C])}$.
+Say $\Sigma = \dom(\Delta[\C])$.
+We apply lemmas as follows to get (2):
+\begin{align*}
+&\tbod{\Gamma[x \mapsto \Delta[\C]]}{\cdot}{\hat{e}}{\C}{\Sigma}
+&&(\tn{Premise (i-a)})\\
+\Rightarrow\quad
+&\tbod{\Gamma[x \mapsto \Delta[\C]]}{\Pi}{\hat{e}}{\C}{\Sigma}
+&&(\tn{\thref{thm:wkpib}, weakening})\\
+\Rightarrow\quad
+&\tbod{\Gamma}{\Pi}{\hat{e}[v/x]}{\C}{\Sigma}
+&&(\tn{\thref{thm:subbod}, substitution with (1)})\\
+\Rightarrow\quad&(2)\quad
+\tbod{\Gamma}{\Pi'}{\hat{e}[v/x]}{\C}{\Sigma}
+&&(\tn{\thref{thm:wkpib}, weakening})
+\end{align*}
+\item Since $\Pi'[p].\mf{labs} = \emptyset$,
+we also have (3) that 
+$\dom(\Delta[\Pi'[p]]) = \Sigma \cup \Pi'[p].\mf{labs}$.
+We can now derive conclusion (i-c) as follows, 
+noting that $\Pi'[p]=\C$, and we are done:
 \end{itemize}
 \begin{mathpar}
 \inferrule*[right=TL-EvalI] {
@@ -4275,6 +5695,300 @@ and the conclusion follows just as before:
   }
 } {
   \trhol{\Gamma}{\Pi'}{p}{\eeval{\mf{Init}}{p}{\hat{e}[v/x]}}{\ttree}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-IText}:
+We have $\cstep{\D}{m}{\einit{\vtxt{v}}}{\D}{m}{\elit{v}}$
+and: \begin{mathpar}
+\inferrule*[right=TL-Init] {
+  \inferrule*[right=TV-Text] {
+    \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v}{\tstr}}
+  } {
+    \tval{\Gamma}{\Pi}{\vtxt{v}}{\mf{View}}
+  }
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\einit{\vtxt{v}}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive conclusion (i-c) as follows, and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Lit] {
+  \inferrule*[right=(1)] { } {\tval{\Gamma}{\Pi}{v}{\tstr}}
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\elit{v}}{\ttree}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-ITag}:
+We have 
+$\cstep{\D}{m}{\einit{\vtag{v_1}{v_2}}}{\D}{m}{\enode{id}{v_1}{\einits{v_2}}}$
+and: \begin{mathpar}
+\inferrule*[right=TL-Init] {
+  \inferrule*[right=TV-Tag] {
+    \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v_1}{[\mf{Attr}]}}
+    \and
+    \inferrule* {(2)} {\tval{\Gamma}{\Pi}{v_2}{[\mf{View}]}}
+  } {
+    \tval{\Gamma}{\Pi}{\vtag{v_1}{v_2}}{\mf{View}}
+  }
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\einit{\vtag{v_1}{v_2}}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive conclusion (i-c) as follows, and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TL-Node] {
+  \inferrule*[right=\tn{(1)}] { } {\tval{\Gamma}{\Pi}{v}{[\tattr]}}
+  \and
+  \inferrule*[right=TL-Ins] {
+    \inferrule*[right=\tn{(2)}] { } {
+      \tval{\Gamma}{\Pi}{v_2}{[\mf{View}]}
+    }
+  } {
+    \trhol{\Gamma}{\Pi}{\cdot}{\einits{v_2}}{[\ttree]}
+  }
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\enode{id}{v_1}{\einits{v_2}}}{\ttree}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-INil}:
+We have $\cstep{\D}{m}{\einits{[]}}{\D}{m}{[]}$ and:
+\begin{mathpar}
+\inferrule*[right=TL-Ins] {
+  \tval{\Gamma}{\Pi}{[]}{[\tview]}
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\einits{[]}}{[\ttree]}
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion (iii) is given by \ts{TL-Nil}:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TL-Nil] { } {
+  \trhol{\Gamma}{\Pi}{\cdot}{[]}{[\ttree]}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-ICons}:
+We have
+$\cstep{\D}{m}{\einits{v :: vs}}{\D}{m}{\einit{v} :: \einits{vs}}$
+and: \begin{mathpar}
+\inferrule*[right=TL-Ins] {
+  \inferrule*[right=TV-Cons] {
+    \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v}{\tview}}
+    \and
+    \inferrule* {(2)} {\tval{\Gamma}{\Pi}{vs}{[\tview]}}
+  } {
+    \tval{\Gamma}{\Pi}{v :: vs}{[\tview]}
+  }
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\einits{v :: vs}}{[\ttree]}
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive conclusion (iii) as follows, and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TL-Cons] {
+  \inferrule*[right=TL-Init] {
+    \inferrule*[right=(1)] { } {\tval{\Gamma}{\Pi}{v}{\tview}}
+  } {
+    \trhol{\Gamma}{\Pi}{\cdot}{\einit{v}}{\ttree}
+  }
+  \inferrule*[right=TL-Ins] {
+    \inferrule*[right=(2)] { } {\tval{\Gamma}{\Pi}{vs}{[\tview]}}
+  } {
+    \trhol{\Gamma}{\Pi}{\cdot}{\einits{vs}}{[\ttree]}
+  }
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\einit{v} :: \einits{vs}}{[\ttree]}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-Eval}: We have
+\begin{mathpar}
+\inferrule*[right=ER-Eval] {
+  \inferrule* {(1)} {\bstep{m}{\hat{e}}{\phi}{p}{\hat{e}'}{m'}}
+} {
+  \cstep{\D}{m}{\eeval{\phi}{p}{\hat{e}}}{\D}{m'}{\eeval{\phi}{p}{\hat{e}'}}
+}
+\end{mathpar}
+We subcase on whether $\phi=\mf{Init}$ or $\phi=\mf{Succ}$.
+
+If $\phi=\mf{Init}$, we also have:
+\begin{mathpar}
+\inferrule*[right=TL-EvalI] {
+  \inferrule* {(2)} {\tbod{\Gamma}{\Pi}{\hat{e}}{\Pi[p]}{\Sigma}}
+  \and
+  \inferrule* {(3)} {\dom(\Delta[\Pi[p]]) = \Sigma \cup \Pi[p].\mf{labs}}
+} {
+  \trhol{\Gamma}{\Pi}{p}{\eeval{\mf{Init}}{p}{\hat{e}}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item We apply \thref{thm:prezbodi} (body preservation at $\phi=\mf{Init}$)
+using (1), (2), and premise (i-b) 
+to get some $\Pi' \rpodl \Pi$ and $\Sigma' \subseteq \Sigma$ such that:
+\begin{enumerate}[label=(\alph*)]
+\item $\tbod{\Gamma}{\Pi'}{\hat{e}'}{\Pi'[p]}{\Sigma'}$,
+\item $\tmem{\Gamma}{\Pi'}{m'}$, and
+\item $\Pi'[p].\mf{labs} \cup \Sigma' = \Pi[p].\mf{labs} \cup \Sigma$.
+\end{enumerate}
+\item Choose this $\Pi'$ as our new $\Pi$. 
+Conclusion (i-b) is immediate from (b).
+\item By (c) and (3), we get (4) that
+$\dom(\Delta[\Pi[p]]) = \Sigma' \cup \Pi'[p].\mf{labs}$.
+Since $\Pi \podl \Pi'$, it must be that 
+$\Pi[p].\mf{spec}=\Pi'[p].\mf{spec}$,
+so we conclude this subcase by deriving conclusion (i-c) as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TL-EvalI] {
+  \inferrule*[right=\tn{(a)}] { } {
+    \tbod{\Gamma}{\Pi'}{\hat{e}'}{\Pi'[p]}{\Sigma'}
+  }
+  \
+  \inferrule*[right=(4)] { } {
+    \dom(\Delta[\Pi'[p]]) = \Sigma' \cup \Pi'[p].\mf{labs}
+  }
+} {
+  \trhol{\Gamma}{\Pi'}{p}{\eeval{\mf{Init}}{p}{\hat{e}'}}{\ttree}
+}
+\end{mathpar}
+If instead $\phi=\mf{Succ}$, we have:
+\begin{mathpar}
+\inferrule*[right=TL-EvalS] {
+  \inferrule* {(5)} {\tbod{\Gamma}{\Pi}{\hat{e}}{\Pi[p]}{\Sigma}}
+  \
+  \inferrule* {(6)} {\Sigma \subseteq \Pi[p].\mf{labs}}
+  \
+  \inferrule* {(7)} {\Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])}
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\eeval{\mf{Succ}}{p}{\hat{e}}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item It follows from \thref{thm:progbods}
+(body \emph{progress} at $\phi=\mf{Succ}$),
+applied to (5), (6), and premise (i-b), that $m' = m$. 
+Choose $\Pi'=\Pi$; conclusion (i-b) is trivial.
+\item We apply \thref{thm:prezbods} 
+(body \emph{preservation} at $\phi=\mf{Succ}$)
+using (1), (5), and premise (i-b) 
+to get some $\Sigma' \subseteq \Sigma$ with
+(8) $\tbod{\Gamma}{\Pi}{\hat{e}'}{\Pi[p]}{\Sigma'}$.
+\item Since $\Sigma' \subseteq \Sigma$,
+it follows from (6) and (7) that (9)
+$\Sigma' \subseteq \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])$.
+We can now derive conclusion (i-c) as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TL-EvalS] {
+  \inferrule*[right=(6)] { } {
+    \tbod{\Gamma}{\Pi}{\hat{e}'}{\Pi[p]}{\Sigma}
+  }
+  \
+  \inferrule*[right=(9)] { } {
+    \Sigma \subseteq \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
+  }
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\eeval{\mf{Succ}}{p}{\hat{e}'}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-New}: We have
+$\cstep{\D}{m}{\eeval{\phi}{p}{\eret{v}}}
+{\D}{m}{\enew{\phi}{p}{\einit{v}}}$.
+
+We again subcase on whether $\phi=\mf{Init}$ or $\phi=\mf{Succ}$.
+
+If $\phi=\mf{Init}$, we have:
+\begin{mathpar}
+\inferrule*[right=TL-EvalI] {
+  \inferrule* {(1)} {
+    \tbod{\Gamma}{\Pi}{\eret{v}}{\Pi[p]}{\emptyset}
+  }
+  \
+  \inferrule* {(2)} {\dom(\Delta[\Pi[p]]) = \emptyset \cup \Pi[p].\mf{labs}}
+} {
+  \trhol{\Gamma}{\Pi}{p}{\eeval{\mf{Init}}{p}{\eret{v}}}{\ttree}
+}
+\end{mathpar}
+\begin{itemize}
+\item We continue inversion on (1):
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \inferrule*[right=TE-Ret] {
+    \inferrule* {(3)} {
+      \tval{\Gamma}{\Pi}{v}{\tview}
+    }
+  } {
+    \texp{\Gamma}{\Pi}{\eret{v}}{\tview}{\epsilon}
+  }
+} {
+  \tbod{\Gamma}{\Pi}{\eret{v}}{\Pi[p]}{\emptyset}\ (1)
+}
+\end{mathpar}
+\item We now derive conclusion (i-c) as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TL-NewI] {
+  \inferrule*[right=TL-Init] {
+    \inferrule*[right=(3)] { } {
+      \tval{\Gamma}{\Pi}{v}{\tview}
+    }
+  } {
+    \trhol{\Gamma}{\Pi}{\cdot}{\einit{v}}{\ttree}
+  }
+  \and
+  \inferrule*[right=\tn{(2)}] { } {
+    \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
+  }
+} {
+  \trhol{\Gamma}{\Pi}{p}{\enew{\mf{Init}}{p}{\einit{v}}}{\ttree}
+}
+\end{mathpar}
+If instead $\phi=\mf{Succ}$, we have:
+\begin{mathpar}
+\inferrule*[right=TL-EvalS] {
+  \inferrule* {(4)} {
+    \tbod{\Gamma}{\Pi}{\eret{v}}{\Pi[p]}{\emptyset}
+  }
+  \and
+  \inferrule* {(5)} {
+    \emptyset \subseteq \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
+  }
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\eeval{\mf{Succ}}{p}{\hat{e}}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item (4) is identical to (1), so we perform the same inversion
+to obtain (3) in this subcase as well.
+\item We derive conclusion (i-c) as follows, 
+thus satisfying all subcases:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TL-NewS] {
+  \inferrule*[right=TL-Init] {
+    \inferrule*[right=\tn{(3)}] { } {
+      \tval{\Gamma}{\Pi}{v}{\tview}
+    }
+  } {
+    \trhol{\Gamma}{\Pi}{\cdot}{\einit{v}}{\ttree}
+  }
+  \and
+  \inferrule*[right=\tn{(5)}] { } {
+    \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
+  }
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\enew{\mf{Succ}}{p}{\einit{v}}}{\tone}
 }
 \end{mathpar}
 
@@ -4300,12 +6014,12 @@ and: \begin{mathpar}
 between the memory and the expression,
 such that $\Theta_m' = \Theta_m,\Theta_\rho$ and $\Theta_\rho'=\{p\}$.
 \item Within the memory, we distribute $\Theta_m$ across paths
-exactly as before, and we let $\Theta_\rho$ correspond to $p$.
+exactly as before, and we assign $\Theta_\rho$ to $p$.
 \item Finally, choose $\Pi' = \Pi \mid \Pi[p].\mf{tree} = \tt$.
 By (2), we already have $p \in \dom(\Pi)$,
-so to show conclusion (ii), it suffices to show
+so to show conclusion (i-b), it suffices to show
 that $\trhol{\Gamma}{\Pi}{\Theta_\rho}{u}{\ttree}$, which is given by (1).
-\item Conclusion (iii) follows from the derivation:
+\item Conclusion (i-c) follows from the derivation:
 \begin{mathpar}
 \inferrule*[right=TL-Path] {
   \inferrule*[right=TI-Path] {
@@ -4336,12 +6050,528 @@ and: \begin{mathpar}
 }
 \end{mathpar}
 \begin{itemize}
-\item We redistribute $\Theta$ in an analogous way to the prior case,
-except that $\Theta_\rho'=\emptyset$. The memory is thus well-typed
-via an analogous argument,
-and conclusion (iii) follows from \ts{TR-Unit}
-(under an empty $\Theta_\rho'$).
+\item We again choose $\Theta'=\Theta$,
+but redistribute such that $\Theta_m'=\Theta_m,\Theta_\rho$
+and $\Theta_\rho'=\emptyset$.
+\item Within the memory, we distribute $\Theta_m$ across paths
+exactly as before, and we assign $\Theta_\rho$ to $p$.
+\item Finally, choose $\Pi' = \Pi \mid \Pi[p].\mf{tree} = \tt$.
+By (2), we already have $p \in \dom(\Pi)$,
+so to show conclusion (i-b), it suffices to show
+that $\trhol{\Gamma}{\Pi}{\Theta_\rho}{u}{\ttree}$, which is given by (1).
+\item Conclusion (i-c) follows from \ts{TL-Unit}
+(under empty $\Theta_\rho'$) and we are done.
 \end{itemize}
+
+\tb{Case} \ts{ER-SLit}: We have
+$\cstep{\D}{m}{\esearch{id}{\elit{v}}}{\D}{m}{()}$
+and: \begin{mathpar}
+\inferrule*[right=TL-Sr] {
+  \trhoi{\Gamma}{\Pi}{\elit{v}}{\ttree}
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\esearch{id}{\elit{v}}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion (i-c) is immediate by \ts{TR-Unit}
+and we are done.
+\end{itemize}
+
+\tb{Case} \ts{ER-SPath}: We have
+$\cstep{\D}{m}{\esearch{id}{p}}{\D}{m}{\esearch{id}{m[p].\mf{tree}}}$
+and: \begin{mathpar}
+\inferrule*[right=TL-Sr] {
+  \inferrule*[right=TR-Path] {
+    \inferrule* {(1)} {\Pi[p].\mf{tree} = \tt}
+    \and
+    \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
+  } {
+    \trhoi{\Gamma}{\Pi}{p}{\ttree}
+  }
+} {
+  \trhol{\Gamma}{\Pi}{\cdot}{\esearch{id}{p}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item By (1) and premise (i-b),
+we have (2) that $\trhol{\Gamma}{\Pi}{\Theta_p}{m[p].\mf{tree}}{\ttree}$
+for some $\Theta_p$.
+\item \hl{TODO}: linear-removal lemma
+\item We invert on (2) as follows:
+\begin{mathpar}
+
+\end{mathpar}
+\item We can now derive conclusion (i-c):
+\begin{mathpar}
+\inferrule*[right=TR-Sr] {
+  \inferrule*[right=\tn{(2)}] { } {
+    \trhoi{\Gamma}{\Pi}{m[p].\mf{tree}}{\ttree}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\esearch{id}{m[p].\mf{tree}}}{\tone}
+}
+\end{mathpar}
+\end{itemize}
+
+\tb{Case} \ts{ER-SNodeF}: We have\\
+$\cstep{\D}{m}{\esearch{id}{\enode{id'}{v}{\rho}}}
+{\D}{m}{\esearches{id}{\rho}}$
+and: \begin{mathpar}
+\inferrule*[right=TR-Sr] {
+  \inferrule*[right=TR-Node] {
+    \tval{\Gamma}{\Pi}{v}{[\tattr]}
+    \and
+    \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\rho}{[\ttree]}}
+  } {
+    \trhos{\Gamma}{\Pi}{\enode{id'}{v}{\rho}}{\ttree}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\esearch{id}{\enode{id'}{v}{\rho}}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive conclusion (iii) as follows and we are done:
+\begin{mathpar}
+\inferrule*[right=TR-Srs] {
+  \inferrule*[right=\tn{(1)}] { } {
+    \trhos{\Gamma}{\Pi}{\rho}{[\ttree]}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\esearches{id}{\rho}}{\tone}
+}
+\end{mathpar}
+\end{itemize}
+
+\tb{Case} \ts{ER-SNodeT}: We have\\
+$\cstep{\D}{m}{\esearch{id}{\enode{id}{v}{\rho}}}
+{\D}{m}{\escans{v} \semi \esearches{id}{\rho}}$ and:
+\begin{mathpar}
+\inferrule*[right=TR-Sr] {
+  \inferrule*[right=TR-Node] {
+    \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v}{[\tattr]}}
+    \and
+    \inferrule* {(2)} {\trhos{\Gamma}{\Pi}{\rho}{[\ttree]}}
+  } {
+    \trhos{\Gamma}{\Pi}{\enode{id'}{v}{\rho}}{\ttree}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\esearch{id}{\enode{id'}{v}{\rho}}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive conclusion (iii) as follows and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Seq] {
+  \inferrule*[right=TR-Scs] {
+    \inferrule*[right=\tn{(1)}] { } {
+      \tval{\Gamma}{\Pi}{v}{[\tattr]}
+    }
+  } {
+    \trhos{\Gamma}{\Pi}{\escans{v}}{\tone}
+  }
+  \
+  \inferrule*[right=TR-Srs] {
+    \inferrule*[right=\tn{(2)}] { } {
+      \trhos{\Gamma}{\Pi}{\rho}{[\ttree]}
+    }
+  } {
+    \trhos{\Gamma}{\Pi}{\esearches{id}{\rho}}{\tone}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\escans{v} \semi \esearches{id}{\rho}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-SNil}: We have
+$\cstep{\D}{m}{\esearches{id}{[]}}{\D}{m}{()}$ and:
+\begin{mathpar}
+\inferrule*[right=TR-Srs] {
+  \trhos{\Gamma}{\Pi}{[]}{[\ttree]}
+} {
+  \trhos{\Gamma}{\Pi}{\esearches{id}{[]}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion (iii) is immediate from \ts{TR-Unit},
+and we are done.
+\end{itemize}
+
+\tb{Case} \ts{ER-SCons}: We have\\
+$\cstep{\D}{m}{\esearches{id}{\rho :: \rho s}}
+{\D}{m}{\esearch{id}{\rho} \semi \esearches{id}{\rho s}}$ and:
+\begin{mathpar}
+\inferrule*[right=TR-Srs] {
+  \inferrule*[right=TR-Cons] {
+    \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\rho}{\ttree}}
+    \and
+    \inferrule* {(2)} {\trhos{\Gamma}{\Pi}{\rho s}{[\ttree]}}
+  } {
+    \trhos{\Gamma}{\Pi}{\rho :: \rho s}{[\ttree]}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\esearches{id}{\rho :: \rho s}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive conclusion (iii) as follows and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Seq] {
+  \inferrule*[right=TR-Sr] {
+    \inferrule*[right=\tn{(1)}] { } {
+      \trhos{\Gamma}{\Pi}{\rho}{\ttree}
+    }
+  } {
+    \trhos{\Gamma}{\Pi}{\esearch{id}{\rho}}{\tone}
+  }
+  \inferrule*[right=TR-Srs] {
+    \inferrule*[right=\tn{(2)}] { } {
+      \trhos{\Gamma}{\Pi}{\rho s}{[\ttree]}
+    }
+  } {
+    \trhos{\Gamma}{\Pi}{\esearches{id}{\rho s}}{\tone}
+  }
+} {
+  \trhos{\Gamma}{\Pi}
+  {\esearch{id}{\rho} \semi \esearches{id}{\rho s}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-ScAttr}: We have
+$\cstep{\D}{m}{\escan{\vattr{v_1}{v_2}}}{\D}{m}{()}$
+and: \begin{mathpar}
+\inferrule*[right=TR-Sc] {
+  \tval{\Gamma}{\Pi}{\vattr{v_1}{v_2}}{\tattr}
+} {
+  \trhos{\Gamma}{\Pi}{\escan{\vattr{v_1}{v_2}}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion (iii) is immediate from \ts{TR-Unit},
+and we are done.
+\end{itemize}
+
+\tb{Case} \ts{ER-ScClick}: We have
+$\cstep{\D}{m}{\escan{\vclick{v}}}{\D}{m}{\ehdl{v\ ()}}$
+and: \begin{mathpar}
+\inferrule*[right=TR-Sc] {
+  \inferrule*[right=TV-Click] {
+    \inferrule* {(1)} {
+      \tval{\Gamma}{\Pi}{v}{\tone \arrow{E} \tone}
+    }
+  } {
+    \tval{\Gamma}{\Pi}{\vclick{v}}{\tattr}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\escan{\vclick{v}}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive conclusion (iii) as follows and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Hdl] {
+  \inferrule*[right=TE-AppL] {
+    \inferrule*[right=(1)] { } {
+      \tval{\Gamma}{\Pi}{v}{\tone \arrow{E} \tone}
+    }
+    \
+    \inferrule*[right=TV-Unit] { } {
+      \tval{\Gamma}{\Pi}{()}{\tone}
+    }
+  } {
+    \texp{\Gamma}{\Pi}{v\ ()}{\tone}{E}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\ehdl{v\ ()}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-ScNil}: We have
+$\cstep{\D}{m}{\escans{[]}}{\D}{m}{()}$ and:
+\begin{mathpar}
+\inferrule*[right=TR-Scs] {
+  \tval{\Gamma}{\Pi}{[]}{[\tattr]}
+} {
+  \trhos{\Gamma}{\Pi}{\escans{[]}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion (iii) is immediate from \ts{TR-Unit},
+and we are done.
+\end{itemize}
+
+\tb{Case} \ts{ER-ScCons}: We have
+$\cstep{\D}{m}{\escans{v :: vs}}
+{\D}{m}{\escan{v} \semi \escans{vs}}$
+and: \begin{mathpar}
+\inferrule*[right=TR-Scs] {
+  \inferrule*[right=TV-Cons] {
+    \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v}{\tattr}}
+    \and
+    \inferrule* {(2)} {\tval{\Gamma}{\Pi}{vs}{[\tattr]}}
+  } {
+    \tval{\Gamma}{\Pi}{v :: vs}{[\tattr]}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\escans{v :: vs}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive conclusion (iii) as follows and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Seq] {
+  \inferrule*[right=TR-Sc] {
+    \inferrule*[right=\tn{(1)}] { } {
+      \tval{\Gamma}{\Pi}{v}{\tattr}
+    }
+  } {
+    \trhos{\Gamma}{\Pi}{\escan{v}}{\tone}
+  }
+  \inferrule*[right=TR-Scs] {
+    \inferrule*[right=\tn{(2)}] { } {
+      \trhos{\Gamma}{\Pi}{vs}{[\tattr]}
+    }
+  } {
+    \trhos{\Gamma}{\Pi}{\escans{vs}}{\tone}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\escan{v} \semi \escans{vs}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-Hdl}: We have
+\begin{mathpar}
+\inferrule*[right=ER-Hdl] {
+  \inferrule* {(1)} {\estep{m}{e}{e'}{m'}}
+} {
+  \cstep{\D}{m}{\ehdl{e}}{\D}{m'}{\ehdl{e'}}
+}
+\and
+\inferrule*[right=TR-Hdl] {
+  \inferrule* {(2)} {\texp{\Gamma}{\Pi}{e}{\tone}{E}}
+} {
+  \trhos{\Gamma}{\Pi}{\ehdl{e}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We apply \thref{thm:prezexp} (expression preservation)
+to (1), (2), and premise (i-b) to get that
+(3) $\texp{\Gamma}{\Pi}{e'}{\tone}{E}$ and
+(4) $\tmem{\Gamma}{\Pi}{m'}$.
+\item Choosing $\Pi'=\Pi$, (4) directly gives us conclusion (ii).
+We derive conclusion (iii) as follows and we are done:
+\begin{mathpar}
+\inferrule*[right=TR-Hdl] {
+  \inferrule*[right=\tn{(3)}] { } {\texp{\Gamma}{\Pi}{e'}{\tone}{E}}
+} {
+  \trhos{\Gamma}{\Pi}{\ehdl{e'}}{\tone}
+}
+\end{mathpar}
+\end{itemize}
+
+\tb{Case} \ts{ER-HDone}: We have
+$\cstep{\D}{m}{\ehdl{\eret{()}}}{\D}{m}{()}$
+and: \begin{mathpar}
+\inferrule*[right=TR-Hdl] {
+  \texp{\Gamma}{\Pi}{\eret{()}}{\tone}{E}
+} {
+  \trhos{\Gamma}{\Pi}{\ehdl{\eret{()}}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion (iii) is immediate from \ts{TR-Unit},
+and we are done.
+\end{itemize}
+
+\tb{Case} \ts{ER-ChkPF}: We have
+$\cstep{\D}{m}{\echk{p}}{\D}{m}{\echk{m[p].\mf{tree}}}$
+and: \begin{mathpar}
+\inferrule*[right=TR-Chk] {
+  \inferrule*[right=TR-Path] {
+    \inferrule* {(1)} {\Pi[p].\mf{tree} = \tt}
+    \and
+    \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
+  } {
+    \trhos{\Gamma}{\Pi}{p}{\ttree}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\echk{p}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item By (1) and premise (i-b), we have (2) that
+$\trhos{\Gamma}{\Pi}{m[p].\mf{tree}}{\ttree}$.
+We derive conclusion (iii) as follows and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Chk] {
+  \inferrule*[right=\tn{(2)}] { } {
+    \trhos{\Gamma}{\Pi}{m[p].\mf{tree}}{\ttree}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\echk{m[p].\mf{tree}}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-ChkPT}: We have:
+\begin{mathpar}
+\inferrule*[right=ER-ChkPT] {
+  m[p].\mf{rerender} = \tt
+  \and
+  \inferrule* {(1)} {m[p].\mf{spec} = \pair{\C}{v}}
+  \and
+  \inferrule* {(2)} {\D[\C] = x.\hat{e}}
+} {
+  \cstep{\D}{m}{\echk{p}}
+  {\D}{m \mid m[p].\mf{rerender} = \ff}{\eeval{\mf{Succ}}{p}{\hat{e}[v/x]}}
+}
+\and
+\inferrule*[right=TR-Chk] {
+  \inferrule*[right=TR-Path] {
+    \Pi[p].\mf{tree} = \tt
+    \and
+    \inferrule* {(3)} {\Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])}
+  } {
+    \trhos{\Gamma}{\Pi}{p}{\ttree}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\echk{p}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item By definition, premise (i-b) implies that
+$\tmem{\Gamma}{\Pi}{m \mid m[p].\mf{rerender} = \ff}$, i.e.
+conclusion (ii) holds and it suffices to show conclusion (iii).
+\item By (1) and premise (i-b), we get
+(4) $\tval{\Gamma}{\Pi}{v}{\Delta[\C]}$.
+Let $\Sigma=\dom(\Delta[\C])$; 
+by (2) and premise (i-a), we get (5) that
+$\tbod{\Gamma[x \mapsto \Delta[\C]]}{\cdot}{\hat{e}}{\C}{\Sigma}$.
+\item We first apply \thref{thm:wkpib} (weakening) to (5)
+to get (6) that 
+$\tbod{\Gamma[x \mapsto \Delta[\C]]}{\Pi}{\hat{e}}{\C}{\Sigma}$.
+Then, \thref{thm:subbod} (substitution) using (4) and (6)
+gives (7) that 
+$\tbod{\Gamma}{\Pi}{\hat{e}[v/x]}{\C}{\Sigma}$.
+\item Note, from (4) and definitions of $\Sigma$ and $\C$,
+that (8) $\Sigma \subseteq \Pi[p].\mf{labs} = (\Delta[\C])$.
+We can then derive conclusion (iii) as follows and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-EvalS] {
+  \inferrule*[right=(7)] { } {
+    \tbod{\Gamma}{\Pi}{\hat{e}[v/x]}{\C}{\Sigma}
+  }
+  \
+  \inferrule*[right=(8)] { } {
+    \Sigma \subseteq \Pi[p].\mf{labs} = \dom(\Delta[\C])
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\eeval{\mf{Succ}}{p}{\hat{e}[v/x]}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-ChkLit}: 
+We have $\cstep{\D}{m}{\echk{\elit{v}}}{\D}{m}{()}$ and:
+\begin{mathpar}
+\inferrule*[right=TR-Chk] {
+  \inferrule* {(1)} {
+    \trhos{\Gamma}{\Pi}{\elit{v}}{\ttree}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\echk{\elit{v}}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion (iii) is immediate from \ts{TR-Unit},
+and we are done.
+\end{itemize}
+
+\tb{Case} \ts{ER-ChkNode}: We have
+$\cstep{\D}{m}{\echk{\enode{id}{v}{\rho}}}{\D}{m}{\echks{\rho}}$
+and: \begin{mathpar}
+\inferrule*[right=TR-Chk] {
+  \inferrule*[right=TR-Node] {
+    \tval{\Gamma}{\Pi}{v}{[\tattr]}
+    \and
+    \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\rho}{[\ttree]}}
+  } {
+    \trhos{\Gamma}{\Pi}{\enode{id}{v}{\rho}}{\ttree}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\echk{\enode{id}{v}{\rho}}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive conclusion (iii) as follows and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Chks] {
+  \inferrule*[right=\tn{(1)}] { } {
+    \trhos{\Gamma}{\Pi}{\rho}{[\ttree]}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\echks{\rho}}{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{ER-ChkNil}: 
+We have $\cstep{\D}{m}{\echks{[]}}{\D}{m}{()}$
+and: \begin{mathpar}
+\inferrule*[right=TR-Chks] {
+  \trhos{\Gamma}{\Pi}{[]}{[\ttree]}
+} {
+  \trhos{\Gamma}{\Pi}{\echks{[]}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion (iii) is immediate from \ts{TR-Unit},
+and we are done.
+\end{itemize}
+
+\tb{Case} \ts{ER-ChkCons}: We have\\
+$\cstep{\D}{m}{\echks{\rho :: \rho s}}
+{\D}{m}{\echk{\rho} \semi \echks{\rho s}}$ and:
+\begin{mathpar}
+\inferrule*[right=TR-Chks] {
+  \inferrule*[right=TR-Cons] {
+    \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\rho}{\ttree}}
+    \and
+    \inferrule* {(2)} {\trhos{\Gamma}{\Pi}{\rho s}{[\ttree]}}
+  } {
+    \trhos{\Gamma}{\Pi}{\rho :: \rho s}{[\ttree]}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\echks{\rho :: \rho s}}{\tone}
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive conclusion (iii) as follows and we are done:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TR-Seq] {
+  \inferrule*[right=TR-Chk] {
+    \inferrule*[right=\tn{(1)}] { } {
+      \trhos{\Gamma}{\Pi}{\rho}{\ttree}
+    }
+  } {
+    \trhos{\Gamma}{\Pi}{\echk{\rho}}{\tone}
+  }
+  \
+  \inferrule*[right=TR-Chks] {
+    \inferrule*[right=\tn{(2)}] { } {
+      \trhos{\Gamma}{\Pi}{\rho s}{[\ttree]}
+    }
+  } {
+    \trhos{\Gamma}{\Pi}{\echks{\rho s}}{\tone}
+  }
+} {
+  \trhos{\Gamma}{\Pi}{\echk{\rho} \semi \echks{\rho s}}{\tone}
+}
+\end{mathpar}
 
 \end{Proof}
 \end{lemma}
@@ -4352,10 +6582,10 @@ We define the $\mf{unfold}$ meta-function to ``realize'' a memory into
 a concrete tree structure as follows:
 \begin{align*}
 \mf{unfold}(m, \elit{v}) &= \elit{v}\\
-\mf{unfold}(m, \enode{id}{v}{u}) &= \enode{id}{v}{\mf{unfold}\ u}\\
-\mf{unfold}(m, p) &= \mf{unfold}(m[p].\mf{tree})\\
+\mf{unfold}(m, \enode{id}{v}{u}) &= \enode{id}{v}{\mf{unfold}(m, u)}\\
+\mf{unfold}(m, p) &= \mf{unfold}(m, m[p].\mf{tree})\\
 \mf{unfold}(m, []) &= []\\
-\mf{unfold}(m, u :: us) &= \mf{unfold}\ u :: \mf{unfold}\ us\\
+\mf{unfold}(m, u :: us) &= \mf{unfold}(m, u) :: \mf{unfold}(m, us)\\
 \end{align*}
 
 \begin{theorem}[Termination of realization.]
@@ -4411,22 +6641,20 @@ and destructors alongside ML-style mutable references.
 
 \subsection{Constructor-Abstracted Syntax}
 
-We parametrize our syntax by a set $\num{C_k}$ of constructors $C$
-with arity $k$,
-and a set $\num{A_C}$ of type constants $A_C$.
-(We elide $k$ when irrelevant.)
+We parametrize our syntax by a set of constructors $C^n$
+with arity $n$, and a set of type constants $A_c$.
+(We elide $n$ when irrelevant.)
 \begin{align*}
 \text{Value } v &::= x \mid () \mid s
-\mid \erec{f}{x}{e} \mid \ell \mid \mf{id} \mid C(\num{v})\\
-\text{Expression } e &::= v \mid C(\num{e}) \mid e\ e
-\mid \eref{e} \mid \eget{e} \mid \eset{e}{e} \mid \mf{fresh}
+\mid \erec{f}{x}{e} \mid \ell \mid \mf{id} \mid C^n(v_1,\cdots,v_n)\\
+\text{Expression } e &::= v \mid C^n(e_1,\cdots,e_n) \mid e\ e
+\mid \eref{e} \mid \eget{e} \mid \eset{e}{e}
 \mid \mf{case}\ e\ \{\num{C\ \num{x} \Rightarrow e}\}\\
-\text{Type } \ptp &::= \tone \mid \tstr \mid \ptp \rightarrow \ptp \mid \mf{ID} \mid A_C
+\text{Type } \ptp &::= \tone \mid \tstr \mid \ptp \rightarrow \ptp \mid \mf{ID} \mid A_c
 \end{align*}
 \begin{align*}
 \text{Variable context } \Gamma &::= \cdot \mid \Gamma, x: A\\
 \text{Store context } \Sigma &::= \cdot \mid \Sigma, x: A\\
-\text{Constructor context } \Delta &::= \map{C}{\pair{A}{\map{n}{A}}}\\
 \text{Evaluation context } E &::= [\cdot] \mid C(\num{v}, E, \num{e}) 
 \mid E\ e \mid v\ E \mid \eref{E}\\
 &\quad\mid \eget{E} \mid \eset{E}{e} \mid \eset{v}{E}
@@ -4435,6 +6663,13 @@ and a set $\num{A_C}$ of type constants $A_C$.
 \end{align*}
 
 \subsection{Typing}
+
+We assume the existence of a fixed constructor signature $\Delta$,
+which maps constructors to their types (via $\Delta(C)$)
+and the types of their $i$th arguments (via $\Delta(C_i)$).
+
+We denote the set of all constructors associated with a type
+via the function $\Delta(A)$.
 
 \begin{mathpar}
 \inferrule*[right=T-Var] { } {
@@ -4464,11 +6699,11 @@ and a set $\num{A_C}$ of type constants $A_C$.
 }
 \and
 \inferrule*[right=T-Con] {
-  (0 \leq i < k)
+  (0 \leq i < n)
   \quad
-  \Gamma \semi \Sigma \vdash v_i: \Delta[C][i]
+  \Gamma \semi \Sigma \vdash v_i: \Delta(C_i)
 } {
-  \Gamma \semi \Sigma \vdash C_k(\num{v_i}): \Delta[C]
+  \Gamma \semi \Sigma \vdash C^n(v_1,\cdots,v_n): \Delta(C)
 }
 \and
 \inferrule*[right=T-App] {
@@ -4499,49 +6734,21 @@ and a set $\num{A_C}$ of type constants $A_C$.
   \Gamma \semi \Sigma \vdash \eset{e_1}{e_2}: \tone
 }
 \and
-\inferrule*[right=T-Fresh] { } {
-  \Gamma \semi \Sigma \vdash \mf{fresh}: \mf{ID}
-}
-\and
 \inferrule*[right=T-Case] {
-  \Gamma \semi \Sigma \vdash e: \Delta[C_k]
+  \Gamma \semi \Sigma \vdash e: A_1
   \and
-  (\forall C) \quad
-  \Gamma, \num{x: \Delta[C][i]}
-  \semi \Sigma \vdash e_C: A
+  (\forall C^n \in \Delta(A_1)) \quad
+  \Gamma, \num{x_j: \Delta(C_j)}
+  \semi \Sigma \vdash e_i: A_2
 } {
-  \Gamma \semi \Sigma \vdash \mf{case}\ e\ \{\num{C_k\ \num{x} \Rightarrow e_C}\}: A
+  \Gamma \semi \Sigma \vdash \mf{case}\ e\ 
+  \{\num{C^n_i(x_1,\cdots,x_n) \Rightarrow e_i}\}: A_2
 }
 \end{mathpar}
 
-\subsection{Syntax}
-\begin{align*}
-\text{Value } v &::= x \mid () \mid s \mid \mf{true} \mid \mf{false}
-\mid \erec{f}{x}{e} \mid \ell
-\mid \vtxt{v} \mid \vtag{v}{v} \mid \mf{id}\\ 
-&\quad\mid \mf{spec}(v, v) \mid \elit{v} \mid \enoden{v}{v}{v} \mid \mf{path}\ v
-\mid \vattr{v}{v} \mid \vclick{v}\\
-&\quad\mid \mf{cell}(v,v,v,v)\\
-\text{Expression } e &::= v \mid \vtxt{e} \mid \vtag{e}{e} \mid \mf{spec}(e, e)
-\mid \elit{e} \mid \enoden{e}{e}{e} \mid \mf{path}\ e\\
-&\quad\mid \vattr{e}{e} \mid \vclick{e}
-\mid \eref{e} \mid \eget{e} \mid \eset{e}{e} \mid e\ e\\
-&\quad\mid e = e \mid \eif{e}{e}{e} \mid \mf{fresh}\\
-&\quad\mid \edattr{e}\\
-&\quad\mid \edview{e}\\
-&\quad\mid \edtree{e}\\
-\text{Type } \ptp &::= \tone \mid \tstr \mid \tbool
-\mid \ptp \rightarrow \ptp \mid \mf{View} \mid \mf{Attr} \mid \mf{Tree} \mid \mf{ID}
-\end{align*}
+\subsection{Operational Semantics}
 
-\subsection{Abbreviations}
-
-\[\mf{init} = \mf{rec} f(x). \mf{case}\ x \begin{cases}
-    \vtxt{y} &\Rightarrow \elit{y}\\
-    \vtag{y_1}{y_2} &\Rightarrow \enoden{\mf{fresh}}{y_1}{\mf{map}\ f\ y_2}\\
-    \mf{spec}(\C, x) &\Rightarrow \elet{\pair{b}{r}}{\C\: x}{\mf{path}(\mf{cell}(x,r,f(r()),b))}
-\end{cases}
-\]
+TBD
 
 \section{$\lambda_\mf{tgt}$}
 
