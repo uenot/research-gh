@@ -1,64 +1,72 @@
-\contentsline {proposition}{{Proposition}{1}{Type context weakening, values}}{6}{}%
-\contentsline {proposition}{{Proposition}{2}{Path context weakening, values}}{6}{}%
-\contentsline {proposition}{{Proposition}{3}{Path context weakening, top-level expressions}}{6}{}%
-\contentsline {proposition}{{Proposition}{4}{Path context weakening, memory}}{7}{}%
-\contentsline {proposition}{{Proposition}{5}{Canonical Forms}}{7}{}%
-\contentsline {proposition}{{Proposition}{6}{Substitution lemma, expressions.}}{7}{}%
-\contentsline {proposition}{{Proposition}{7}{Substitution lemma, top-level expressions.}}{7}{}%
-\contentsline {proposition}{{Proposition}{8}{Substitution lemma, programs.}}{7}{}%
-\contentsline {proposition}{{Proposition}{9}{Label-set substitution}}{7}{}%
-\contentsline {proposition}{{Proposition}{10}{Component-name substitution}}{7}{}%
+\contentsline {proposition}{{Proposition}{1}{Canonical forms.}}{7}{}%
+\contentsline {proposition}{{Proposition}{2}{Variable context weakening, values.}}{7}{}%
+\contentsline {proposition}{{Proposition}{3}{Path context weakening, values.}}{7}{}%
+\contentsline {proposition}{{Proposition}{4}{Path context weakening, bodies.}}{7}{}%
+\contentsline {proposition}{{Proposition}{5}{Substitution lemma, expressions.}}{7}{}%
+\contentsline {proposition}{{Proposition}{6}{Substitution lemma, bodies.}}{7}{}%
+\contentsline {proposition}{{Proposition}{7}{Substitution lemma, programs.}}{7}{}%
 \contentsline {lemma}{{Lemma}{1}{Progress of expressions.}}{7}{}%
-\contentsline {Proof}{{Proof}{1}{}}{8}{}%
+\contentsline {Proof}{{Proof}{1}{}}{7}{}%
 \contentsline {lemma}{{Lemma}{2}{Preservation of expressions.}}{9}{}%
 \contentsline {Proof}{{Proof}{2}{}}{9}{}%
 \contentsline {lemma}{{Lemma}{3}{Purity of expressions.}}{12}{}%
 \contentsline {Proof}{{Proof}{3}{}}{12}{}%
-\contentsline {lemma}{{Lemma}{4}{Progress of top-level expressions, initial phase.}}{13}{}%
+\contentsline {lemma}{{Lemma}{4}{Progress of bodies, initial phase.}}{13}{}%
 \contentsline {Proof}{{Proof}{4}{}}{13}{}%
-\contentsline {lemma}{{Lemma}{5}{Preservation of top-level expressions, initial phase.}}{14}{}%
+\contentsline {lemma}{{Lemma}{5}{Preservation of bodies, initial phase.}}{14}{}%
 \contentsline {Proof}{{Proof}{5}{}}{14}{}%
-\contentsline {lemma}{{Lemma}{6}{Progress of top-level expressions, successor phase.}}{16}{}%
-\contentsline {Proof}{{Proof}{6}{}}{17}{}%
-\contentsline {lemma}{{Lemma}{7}{Preservation of top-level expressions, successor phase.}}{17}{}%
-\contentsline {Proof}{{Proof}{7}{}}{17}{}%
-\contentsline {lemma}{{Lemma}{8}{Top-level preservation of specifications.}}{19}{}%
+\contentsline {lemma}{{Lemma}{6}{Progress of bodies, successor phase.}}{16}{}%
+\contentsline {Proof}{{Proof}{6}{}}{16}{}%
+\contentsline {lemma}{{Lemma}{7}{Preservation of bodies, successor phase.}}{17}{}%
+\contentsline {Proof}{{Proof}{7}{}}{18}{}%
+\contentsline {lemma}{{Lemma}{8}{Progress of programs.}}{19}{}%
 \contentsline {Proof}{{Proof}{8}{}}{19}{}%
-\contentsline {lemma}{{Lemma}{9}{Progress of programs.}}{19}{}%
-\contentsline {Proof}{{Proof}{9}{}}{19}{}%
-\contentsline {lemma}{{Lemma}{10}{Preservation of programs.}}{20}{}%
-\contentsline {Proof}{{Proof}{10}{}}{20}{}%
-\contentsline {lemma}{{Lemma}{11}{Preservation of configurations.}}{27}{}%
-\contentsline {Proof}{{Proof}{11}{}}{27}{}%
-\contentsline {lemma}{{Lemma}{12}{Progress of initialization}}{47}{}%
-\contentsline {proof}{{Proof}{1}{}}{47}{}%
-\contentsline {lemma}{{Lemma}{13}{Preservation of initialization}}{47}{}%
-\contentsline {proof}{{Proof}{2}{}}{48}{}%
-\contentsline {theorem}{{Theorem}{1}{Progress of configurations}}{48}{}%
-\contentsline {theorem}{{Theorem}{2}{Preservation of configurations}}{48}{}%
-\contentsline {lemma}{{Lemma}{14}{Path Preservation}}{48}{}%
-\contentsline {proof}{{Proof}{3}{}}{48}{}%
-\contentsline {corollary}{{Corollary}{1}{}}{48}{}%
-\contentsline {proof}{{Proof}{4}{}}{48}{}%
-\contentsline {lemma}{{Lemma}{15}{Memory Freshness}}{48}{}%
-\contentsline {proof}{{Proof}{5}{}}{49}{}%
-\contentsline {lemma}{{Lemma}{16}{Label Initialization}}{49}{}%
-\contentsline {proof}{{Proof}{6}{}}{49}{}%
-\contentsline {corollary}{{Corollary}{2}{}}{50}{}%
-\contentsline {proof}{{Proof}{7}{}}{50}{}%
-\contentsline {lemma}{{Lemma}{17}{Strong Disjoint Memory}}{50}{}%
-\contentsline {proof}{{Proof}{8}{}}{50}{}%
-\contentsline {theorem}{{Theorem}{3}{Critical Property of Initialization}}{50}{}%
-\contentsline {proof}{{Proof}{9}{}}{51}{}%
-\contentsline {lemma}{{Lemma}{18}{Weakening $\Gamma $ in $\vdashv $}}{59}{}%
-\contentsline {proof}{{Proof}{10}{}}{59}{}%
-\contentsline {lemma}{{Lemma}{19}{Canonical Forms}}{59}{}%
-\contentsline {lemma}{{Lemma}{20}{Type preservation under substitution}}{60}{}%
-\contentsline {proof}{{Proof}{11}{}}{60}{}%
-\contentsline {theorem}{{Theorem}{4}{Progress of expressions}}{61}{}%
-\contentsline {proof}{{Proof}{12}{}}{61}{}%
-\contentsline {theorem}{{Theorem}{5}{Preservation of expressions}}{62}{}%
-\contentsline {proof}{{Proof}{13}{}}{62}{}%
-\contentsline {theorem}{{Theorem}{6}{Type soundness for expressions}}{63}{}%
-\contentsline {proof}{{Proof}{14}{}}{63}{}%
-\contentsline {corollary}{{Corollary}{3}{}}{63}{}%
+\contentsline {lemma}{{Lemma}{9}{Preservation of programs.}}{20}{}%
+\contentsline {Proof}{{Proof}{9}{}}{21}{}%
+\contentsline {proposition}{{Proposition}{8}{Canonical forms, runtime.}}{27}{}%
+\contentsline {proposition}{{Proposition}{9}{Path context weakening, runtime sub-judgment.}}{27}{}%
+\contentsline {proposition}{{Proposition}{10}{Uniqueness of typing.}}{27}{}%
+\contentsline {lemma}{{Lemma}{10}{Hole typing, runtime sub-judgment.}}{27}{}%
+\contentsline {Proof}{{Proof}{10}{}}{28}{}%
+\contentsline {lemma}{{Lemma}{11}{Hole typing, runtime.}}{29}{}%
+\contentsline {Proof}{{Proof}{11}{}}{29}{}%
+\contentsline {lemma}{{Lemma}{12}{Hole typing, configurations.}}{30}{}%
+\contentsline {Proof}{{Proof}{12}{}}{30}{}%
+\contentsline {lemma}{{Lemma}{13}{Context replacement, runtime sub-judgment.}}{30}{}%
+\contentsline {Proof}{{Proof}{13}{}}{30}{}%
+\contentsline {lemma}{{Lemma}{14}{Context replacement, runtime.}}{33}{}%
+\contentsline {Proof}{{Proof}{14}{}}{33}{}%
+\contentsline {lemma}{{Lemma}{15}{Context replacement, configurations.}}{34}{}%
+\contentsline {Proof}{{Proof}{15}{}}{34}{}%
+\contentsline {lemma}{{Lemma}{16}{Progress of configurations.}}{34}{}%
+\contentsline {proof}{{Proof}{1}{}}{34}{}%
+\contentsline {lemma}{{Lemma}{17}{Preservation of configurations.}}{42}{}%
+\contentsline {Proof}{{Proof}{16}{}}{42}{}%
+\contentsline {proposition}{{Proposition}{11}{Path context weakening, linear sub-judgment.}}{58}{}%
+\contentsline {proposition}{{Proposition}{12}{Linear uniqueness of typing.}}{58}{}%
+\contentsline {proposition}{{Proposition}{13}{Uniqueness of memory typing.}}{58}{}%
+\contentsline {proposition}{{Proposition}{14}{Linear context containment.}}{58}{}%
+\contentsline {lemma}{{Lemma}{18}{Delinearization.}}{58}{}%
+\contentsline {Proof}{{Proof}{17}{}}{58}{}%
+\contentsline {lemma}{{Lemma}{19}{Hole typing, linear sub-judgment.}}{59}{}%
+\contentsline {Proof}{{Proof}{18}{}}{59}{}%
+\contentsline {lemma}{{Lemma}{20}{Hole typing, linear judgment.}}{61}{}%
+\contentsline {Proof}{{Proof}{19}{}}{61}{}%
+\contentsline {lemma}{{Lemma}{21}{Hole typing, linear configs.}}{61}{}%
+\contentsline {Proof}{{Proof}{20}{}}{61}{}%
+\contentsline {lemma}{{Lemma}{22}{Replacement, linear sub-judgment.}}{62}{}%
+\contentsline {Proof}{{Proof}{21}{}}{62}{}%
+\contentsline {lemma}{{Lemma}{23}{Replacement, linear judgment.}}{64}{}%
+\contentsline {Proof}{{Proof}{22}{}}{65}{}%
+\contentsline {lemma}{{Lemma}{24}{Replacement, linear configs.}}{65}{}%
+\contentsline {Proof}{{Proof}{23}{}}{65}{}%
+\contentsline {lemma}{{Lemma}{25}{Preservation of configurations, linear extension.}}{66}{}%
+\contentsline {Proof}{{Proof}{24}{}}{66}{}%
+\contentsline {proposition}{{Proposition}{15}{Hole typing, realization.}}{80}{}%
+\contentsline {proposition}{{Proposition}{16}{Replacement, realization.}}{80}{}%
+\contentsline {lemma}{{Lemma}{26}{Progress of realization.}}{80}{}%
+\contentsline {Proof}{{Proof}{25}{}}{80}{}%
+\contentsline {lemma}{{Lemma}{27}{Preservation of realization.}}{80}{}%
+\contentsline {Proof}{{Proof}{26}{}}{81}{}%
+\contentsline {theorem}{{Theorem}{1}{Termination of realization.}}{82}{}%
+\contentsline {Proof}{{Proof}{27}{}}{82}{}%

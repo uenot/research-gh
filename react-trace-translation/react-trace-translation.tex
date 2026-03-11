@@ -4671,15 +4671,15 @@ and so do not allow superexpressions to reference their path.
 
 \begin{mathpar}
 \inferrule*[right=TL-Sr] {
-  \trhoi{\Gamma}{\Pi}{\rho}{\ttree}
+  \trhoi{\Gamma}{\Pi}{u}{\ttree}
 } {
-  \trhol{\Gamma}{\Pi}{\cdot}{\esearch{id}{\rho}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\esearch{id}{u}}{\tone}
 }
 \and
 \inferrule*[right=TL-Srs] {
-  \trhoi{\Gamma}{\Pi}{\rho}{[\ttree]}
+  \trhoi{\Gamma}{\Pi}{u}{[\ttree]}
 } {
-  \trhol{\Gamma}{\Pi}{\cdot}{\esearches{id}{\rho}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\esearches{id}{u}}{\tone}
 }
 \and
 \inferrule*[right=TL-Sc] {
@@ -4701,15 +4701,15 @@ and so do not allow superexpressions to reference their path.
 }
 \and
 \inferrule*[right=TL-Chk] {
-  \trhoi{\Gamma}{\Pi}{\rho}{\ttree}
+  \trhoi{\Gamma}{\Pi}{u}{\ttree}
 } {
-  \trhol{\Gamma}{\Pi}{\cdot}{\echk{\rho}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\echk{u}}{\tone}
 }
 \and
 \inferrule*[right=TL-Chks] {
-  \trhoi{\Gamma}{\Pi}{\rho}{[\ttree]}
+  \trhoi{\Gamma}{\Pi}{u}{[\ttree]}
 } {
-  \trhol{\Gamma}{\Pi}{\cdot}{\echks{\rho}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\echks{u}}{\tone}
 }
 \end{mathpar}
 
@@ -5148,7 +5148,6 @@ i.e. (4) $\Theta_1 \cap \Theta_2 = \emptyset$. By \thref{thm:contain}
 \item It follows from (4), (5), and premise \emph{(iv)} that 
 $\Theta_1' \cap \Theta_2 = \emptyset$:
 \begin{itemize}
-  \item \hl{TODO}: is this argument non-constructive? (and do we care?)
   \item For any $p \in \Theta_1'$, either $p \in \Theta_1$ or not.
   \item If $p \in \Theta_1$, then $p \notin \Theta_2$ by (4).
   \item If $p \notin \Theta_1$, then $p \notin \Pi$ by premise \emph{(iv)}.
@@ -5388,8 +5387,6 @@ to get precisely (9), and we are done.
 \end{lemma}
 
 We are now ready to state and prove preservation under $\Theta$.
-
-% TODO: update statement to prove that theta' is fresh w.r.t. pi
 
 \begin{lemma}[Preservation of configurations, linear extension.]
 \label{thm:prezcfgl}
@@ -6073,7 +6070,7 @@ and: \begin{mathpar}
 }
 \end{mathpar}
 \begin{itemize}
-\item Conclusion (i-c) is immediate by \ts{TR-Unit}
+\item Conclusion (i-c) is immediate by \ts{TL-Unit}
 and we are done.
 \end{itemize}
 
@@ -6081,7 +6078,7 @@ and we are done.
 $\cstep{\D}{m}{\esearch{id}{p}}{\D}{m}{\esearch{id}{m[p].\mf{tree}}}$
 and: \begin{mathpar}
 \inferrule*[right=TL-Sr] {
-  \inferrule*[right=TR-Path] {
+  \inferrule*[right=TI-Path] {
     \inferrule* {(1)} {\Pi[p].\mf{tree} = \tt}
     \and
     \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
@@ -6096,19 +6093,16 @@ and: \begin{mathpar}
 \item By (1) and premise (i-b),
 we have (2) that $\trhol{\Gamma}{\Pi}{\Theta_p}{m[p].\mf{tree}}{\ttree}$
 for some $\Theta_p$.
-\item \hl{TODO}: linear-removal lemma
-\item We invert on (2) as follows:
-\begin{mathpar}
-
-\end{mathpar}
+\item By \thref{thm:delin} (delinearization) on (2),
+we get (3) $\trhoi{\Gamma}{\Pi}{m[p].\mf{tree}}{\ttree}$.
 \item We can now derive conclusion (i-c):
 \begin{mathpar}
-\inferrule*[right=TR-Sr] {
-  \inferrule*[right=\tn{(2)}] { } {
+\inferrule*[right=TL-Sr] {
+  \inferrule*[right=(3)] { } {
     \trhoi{\Gamma}{\Pi}{m[p].\mf{tree}}{\ttree}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\esearch{id}{m[p].\mf{tree}}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\esearch{id}{m[p].\mf{tree}}}{\tone}
 }
 \end{mathpar}
 \end{itemize}
@@ -6117,27 +6111,27 @@ for some $\Theta_p$.
 $\cstep{\D}{m}{\esearch{id}{\enode{id'}{v}{\rho}}}
 {\D}{m}{\esearches{id}{\rho}}$
 and: \begin{mathpar}
-\inferrule*[right=TR-Sr] {
-  \inferrule*[right=TR-Node] {
+\inferrule*[right=TL-Sr] {
+  \inferrule*[right=TI-Node] {
     \tval{\Gamma}{\Pi}{v}{[\tattr]}
     \and
-    \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\rho}{[\ttree]}}
+    \inferrule* {(1)} {\trhoi{\Gamma}{\Pi}{\rho}{[\ttree]}}
   } {
-    \trhos{\Gamma}{\Pi}{\enode{id'}{v}{\rho}}{\ttree}
+    \trhoi{\Gamma}{\Pi}{\enode{id'}{v}{\rho}}{\ttree}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\esearch{id}{\enode{id'}{v}{\rho}}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\esearch{id}{\enode{id'}{v}{\rho}}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
-\item We derive conclusion (iii) as follows and we are done:
+\item We derive conclusion (i-c) as follows and we are done:
 \begin{mathpar}
-\inferrule*[right=TR-Srs] {
-  \inferrule*[right=\tn{(1)}] { } {
-    \trhos{\Gamma}{\Pi}{\rho}{[\ttree]}
+\inferrule*[right=TL-Srs] {
+  \inferrule*[right=(1)] { } {
+    \trhoi{\Gamma}{\Pi}{\rho}{[\ttree]}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\esearches{id}{\rho}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\esearches{id}{\rho}}{\tone}
 }
 \end{mathpar}
 \end{itemize}
@@ -6146,54 +6140,54 @@ and: \begin{mathpar}
 $\cstep{\D}{m}{\esearch{id}{\enode{id}{v}{\rho}}}
 {\D}{m}{\escans{v} \semi \esearches{id}{\rho}}$ and:
 \begin{mathpar}
-\inferrule*[right=TR-Sr] {
-  \inferrule*[right=TR-Node] {
+\inferrule*[right=TL-Sr] {
+  \inferrule*[right=TI-Node] {
     \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v}{[\tattr]}}
     \and
-    \inferrule* {(2)} {\trhos{\Gamma}{\Pi}{\rho}{[\ttree]}}
+    \inferrule* {(2)} {\trhoi{\Gamma}{\Pi}{\rho}{[\ttree]}}
   } {
-    \trhos{\Gamma}{\Pi}{\enode{id'}{v}{\rho}}{\ttree}
+    \trhoi{\Gamma}{\Pi}{\enode{id'}{v}{\rho}}{\ttree}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\esearch{id}{\enode{id'}{v}{\rho}}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\esearch{id}{\enode{id'}{v}{\rho}}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
-\item We derive conclusion (iii) as follows and we are done:
+\item We derive conclusion (i-c) as follows and we are done:
 \end{itemize}
 \begin{mathpar}
-\inferrule*[right=TR-Seq] {
-  \inferrule*[right=TR-Scs] {
-    \inferrule*[right=\tn{(1)}] { } {
+\inferrule*[right=TL-Seq] {
+  \inferrule*[right=TL-Scs] {
+    \inferrule*[right=(1)] { } {
       \tval{\Gamma}{\Pi}{v}{[\tattr]}
     }
   } {
-    \trhos{\Gamma}{\Pi}{\escans{v}}{\tone}
+    \trhol{\Gamma}{\Pi}{\cdot}{\escans{v}}{\tone}
   }
   \
-  \inferrule*[right=TR-Srs] {
-    \inferrule*[right=\tn{(2)}] { } {
-      \trhos{\Gamma}{\Pi}{\rho}{[\ttree]}
+  \inferrule*[right=TL-Srs] {
+    \inferrule*[right=(2)] { } {
+      \trhoi{\Gamma}{\Pi}{\rho}{[\ttree]}
     }
   } {
-    \trhos{\Gamma}{\Pi}{\esearches{id}{\rho}}{\tone}
+    \trhol{\Gamma}{\Pi}{\cdot}{\esearches{id}{\rho}}{\tone}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\escans{v} \semi \esearches{id}{\rho}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\escans{v} \semi \esearches{id}{\rho}}{\tone}
 }
 \end{mathpar}
 
 \tb{Case} \ts{ER-SNil}: We have
 $\cstep{\D}{m}{\esearches{id}{[]}}{\D}{m}{()}$ and:
 \begin{mathpar}
-\inferrule*[right=TR-Srs] {
-  \trhos{\Gamma}{\Pi}{[]}{[\ttree]}
+\inferrule*[right=TL-Srs] {
+  \trhoi{\Gamma}{\Pi}{[]}{[\ttree]}
 } {
-  \trhos{\Gamma}{\Pi}{\esearches{id}{[]}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\esearches{id}{[]}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
-\item Conclusion (iii) is immediate from \ts{TR-Unit},
+\item Conclusion (i-c) is immediate from \ts{TL-Unit},
 and we are done.
 \end{itemize}
 
@@ -6201,39 +6195,39 @@ and we are done.
 $\cstep{\D}{m}{\esearches{id}{\rho :: \rho s}}
 {\D}{m}{\esearch{id}{\rho} \semi \esearches{id}{\rho s}}$ and:
 \begin{mathpar}
-\inferrule*[right=TR-Srs] {
-  \inferrule*[right=TR-Cons] {
-    \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\rho}{\ttree}}
+\inferrule*[right=TL-Srs] {
+  \inferrule*[right=TI-Cons] {
+    \inferrule* {(1)} {\trhoi{\Gamma}{\Pi}{\rho}{\ttree}}
     \and
-    \inferrule* {(2)} {\trhos{\Gamma}{\Pi}{\rho s}{[\ttree]}}
+    \inferrule* {(2)} {\trhoi{\Gamma}{\Pi}{\rho s}{[\ttree]}}
   } {
-    \trhos{\Gamma}{\Pi}{\rho :: \rho s}{[\ttree]}
+    \trhoi{\Gamma}{\Pi}{\rho :: \rho s}{[\ttree]}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\esearches{id}{\rho :: \rho s}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\esearches{id}{\rho :: \rho s}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
-\item We derive conclusion (iii) as follows and we are done:
+\item We derive conclusion (i-c) as follows and we are done:
 \end{itemize}
 \begin{mathpar}
-\inferrule*[right=TR-Seq] {
-  \inferrule*[right=TR-Sr] {
+\inferrule*[right=TL-Seq] {
+  \inferrule*[right=TL-Sr] {
     \inferrule*[right=\tn{(1)}] { } {
-      \trhos{\Gamma}{\Pi}{\rho}{\ttree}
+      \trhoi{\Gamma}{\Pi}{\rho}{\ttree}
     }
   } {
-    \trhos{\Gamma}{\Pi}{\esearch{id}{\rho}}{\tone}
+    \trhol{\Gamma}{\Pi}{\cdot}{\esearch{id}{\rho}}{\tone}
   }
-  \inferrule*[right=TR-Srs] {
+  \inferrule*[right=TL-Srs] {
     \inferrule*[right=\tn{(2)}] { } {
-      \trhos{\Gamma}{\Pi}{\rho s}{[\ttree]}
+      \trhoi{\Gamma}{\Pi}{\rho s}{[\ttree]}
     }
   } {
-    \trhos{\Gamma}{\Pi}{\esearches{id}{\rho s}}{\tone}
+    \trhol{\Gamma}{\Pi}{\cdot}{\esearches{id}{\rho s}}{\tone}
   }
 } {
-  \trhos{\Gamma}{\Pi}
+  \trhol{\Gamma}{\Pi}{\cdot}
   {\esearch{id}{\rho} \semi \esearches{id}{\rho s}}{\tone}
 }
 \end{mathpar}
@@ -6241,21 +6235,21 @@ $\cstep{\D}{m}{\esearches{id}{\rho :: \rho s}}
 \tb{Case} \ts{ER-ScAttr}: We have
 $\cstep{\D}{m}{\escan{\vattr{v_1}{v_2}}}{\D}{m}{()}$
 and: \begin{mathpar}
-\inferrule*[right=TR-Sc] {
+\inferrule*[right=TL-Sc] {
   \tval{\Gamma}{\Pi}{\vattr{v_1}{v_2}}{\tattr}
 } {
-  \trhos{\Gamma}{\Pi}{\escan{\vattr{v_1}{v_2}}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\escan{\vattr{v_1}{v_2}}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
-\item Conclusion (iii) is immediate from \ts{TR-Unit},
+\item Conclusion (i-c) is immediate from \ts{TL-Unit},
 and we are done.
 \end{itemize}
 
 \tb{Case} \ts{ER-ScClick}: We have
 $\cstep{\D}{m}{\escan{\vclick{v}}}{\D}{m}{\ehdl{v\ ()}}$
 and: \begin{mathpar}
-\inferrule*[right=TR-Sc] {
+\inferrule*[right=TL-Sc] {
   \inferrule*[right=TV-Click] {
     \inferrule* {(1)} {
       \tval{\Gamma}{\Pi}{v}{\tone \arrow{E} \tone}
@@ -6264,14 +6258,14 @@ and: \begin{mathpar}
     \tval{\Gamma}{\Pi}{\vclick{v}}{\tattr}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\escan{\vclick{v}}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\escan{\vclick{v}}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
-\item We derive conclusion (iii) as follows and we are done:
+\item We derive conclusion (i-c) as follows and we are done:
 \end{itemize}
 \begin{mathpar}
-\inferrule*[right=TR-Hdl] {
+\inferrule*[right=TL-Hdl] {
   \inferrule*[right=TE-AppL] {
     \inferrule*[right=(1)] { } {
       \tval{\Gamma}{\Pi}{v}{\tone \arrow{E} \tone}
@@ -6284,21 +6278,21 @@ and: \begin{mathpar}
     \texp{\Gamma}{\Pi}{v\ ()}{\tone}{E}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\ehdl{v\ ()}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\ehdl{v\ ()}}{\tone}
 }
 \end{mathpar}
 
 \tb{Case} \ts{ER-ScNil}: We have
 $\cstep{\D}{m}{\escans{[]}}{\D}{m}{()}$ and:
 \begin{mathpar}
-\inferrule*[right=TR-Scs] {
+\inferrule*[right=TL-Scs] {
   \tval{\Gamma}{\Pi}{[]}{[\tattr]}
 } {
-  \trhos{\Gamma}{\Pi}{\escans{[]}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\escans{[]}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
-\item Conclusion (iii) is immediate from \ts{TR-Unit},
+\item Conclusion (i-c) is immediate from \ts{TL-Unit},
 and we are done.
 \end{itemize}
 
@@ -6306,7 +6300,7 @@ and we are done.
 $\cstep{\D}{m}{\escans{v :: vs}}
 {\D}{m}{\escan{v} \semi \escans{vs}}$
 and: \begin{mathpar}
-\inferrule*[right=TR-Scs] {
+\inferrule*[right=TL-Scs] {
   \inferrule*[right=TV-Cons] {
     \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v}{\tattr}}
     \and
@@ -6315,30 +6309,30 @@ and: \begin{mathpar}
     \tval{\Gamma}{\Pi}{v :: vs}{[\tattr]}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\escans{v :: vs}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\escans{v :: vs}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
-\item We derive conclusion (iii) as follows and we are done:
+\item We derive conclusion (i-c) as follows and we are done:
 \end{itemize}
 \begin{mathpar}
-\inferrule*[right=TR-Seq] {
-  \inferrule*[right=TR-Sc] {
+\inferrule*[right=TL-Seq] {
+  \inferrule*[right=TL-Sc] {
     \inferrule*[right=\tn{(1)}] { } {
       \tval{\Gamma}{\Pi}{v}{\tattr}
     }
   } {
-    \trhos{\Gamma}{\Pi}{\escan{v}}{\tone}
+    \trhol{\Gamma}{\Pi}{\cdot}{\escan{v}}{\tone}
   }
-  \inferrule*[right=TR-Scs] {
+  \inferrule*[right=TL-Scs] {
     \inferrule*[right=\tn{(2)}] { } {
-      \trhos{\Gamma}{\Pi}{vs}{[\tattr]}
+      \tval{\Gamma}{\Pi}{vs}{[\tattr]}
     }
   } {
-    \trhos{\Gamma}{\Pi}{\escans{vs}}{\tone}
+    \trhol{\Gamma}{\Pi}{\cdot}{\escans{vs}}{\tone}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\escan{v} \semi \escans{vs}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\escan{v} \semi \escans{vs}}{\tone}
 }
 \end{mathpar}
 
@@ -6350,10 +6344,10 @@ and: \begin{mathpar}
   \cstep{\D}{m}{\ehdl{e}}{\D}{m'}{\ehdl{e'}}
 }
 \and
-\inferrule*[right=TR-Hdl] {
+\inferrule*[right=TL-Hdl] {
   \inferrule* {(2)} {\texp{\Gamma}{\Pi}{e}{\tone}{E}}
 } {
-  \trhos{\Gamma}{\Pi}{\ehdl{e}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\ehdl{e}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
@@ -6361,13 +6355,13 @@ and: \begin{mathpar}
 to (1), (2), and premise (i-b) to get that
 (3) $\texp{\Gamma}{\Pi}{e'}{\tone}{E}$ and
 (4) $\tmem{\Gamma}{\Pi}{m'}$.
-\item Choosing $\Pi'=\Pi$, (4) directly gives us conclusion (ii).
-We derive conclusion (iii) as follows and we are done:
+\item Choosing $\Pi'=\Pi$, (4) directly gives us conclusion (i-b).
+We derive conclusion (i-c) as follows and we are done:
 \begin{mathpar}
-\inferrule*[right=TR-Hdl] {
+\inferrule*[right=TL-Hdl] {
   \inferrule*[right=\tn{(3)}] { } {\texp{\Gamma}{\Pi}{e'}{\tone}{E}}
 } {
-  \trhos{\Gamma}{\Pi}{\ehdl{e'}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\ehdl{e'}}{\tone}
 }
 \end{mathpar}
 \end{itemize}
@@ -6375,44 +6369,46 @@ We derive conclusion (iii) as follows and we are done:
 \tb{Case} \ts{ER-HDone}: We have
 $\cstep{\D}{m}{\ehdl{\eret{()}}}{\D}{m}{()}$
 and: \begin{mathpar}
-\inferrule*[right=TR-Hdl] {
+\inferrule*[right=TL-Hdl] {
   \texp{\Gamma}{\Pi}{\eret{()}}{\tone}{E}
 } {
-  \trhos{\Gamma}{\Pi}{\ehdl{\eret{()}}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\ehdl{\eret{()}}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
-\item Conclusion (iii) is immediate from \ts{TR-Unit},
+\item Conclusion (i-c) is immediate from \ts{TL-Unit},
 and we are done.
 \end{itemize}
 
 \tb{Case} \ts{ER-ChkPF}: We have
 $\cstep{\D}{m}{\echk{p}}{\D}{m}{\echk{m[p].\mf{tree}}}$
 and: \begin{mathpar}
-\inferrule*[right=TR-Chk] {
-  \inferrule*[right=TR-Path] {
+\inferrule*[right=TL-Chk] {
+  \inferrule*[right=TI-Path] {
     \inferrule* {(1)} {\Pi[p].\mf{tree} = \tt}
     \and
     \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
   } {
-    \trhos{\Gamma}{\Pi}{p}{\ttree}
+    \trhoi{\Gamma}{\Pi}{p}{\ttree}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\echk{p}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\echk{p}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
 \item By (1) and premise (i-b), we have (2) that
-$\trhos{\Gamma}{\Pi}{m[p].\mf{tree}}{\ttree}$.
-We derive conclusion (iii) as follows and we are done:
+$\trhol{\Gamma}{\Pi}{\Theta}{m[p].\mf{tree}}{\ttree}$.
+\item By \thref{thm:delin} (delinearization),
+we get (3) that $\trhoi{\Gamma}{\Pi}{m[p].\mf{tree}}{\ttree}$.
+\item We derive conclusion (i-c) as follows and we are done:
 \end{itemize}
 \begin{mathpar}
-\inferrule*[right=TR-Chk] {
-  \inferrule*[right=\tn{(2)}] { } {
-    \trhos{\Gamma}{\Pi}{m[p].\mf{tree}}{\ttree}
+\inferrule*[right=TL-Chk] {
+  \inferrule*[right=\tn{(3)}] { } {
+    \trhoi{\Gamma}{\Pi}{m[p].\mf{tree}}{\ttree}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\echk{m[p].\mf{tree}}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\echk{m[p].\mf{tree}}}{\tone}
 }
 \end{mathpar}
 
@@ -6429,8 +6425,8 @@ We derive conclusion (iii) as follows and we are done:
   {\D}{m \mid m[p].\mf{rerender} = \ff}{\eeval{\mf{Succ}}{p}{\hat{e}[v/x]}}
 }
 \and
-\inferrule*[right=TR-Chk] {
-  \inferrule*[right=TR-Path] {
+\inferrule*[right=TL-Chk] {
+  \inferrule*[right=TI-Path] {
     \Pi[p].\mf{tree} = \tt
     \and
     \inferrule* {(3)} {\Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])}
@@ -6438,13 +6434,13 @@ We derive conclusion (iii) as follows and we are done:
     \trhos{\Gamma}{\Pi}{p}{\ttree}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\echk{p}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\echk{p}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
 \item By definition, premise (i-b) implies that
 $\tmem{\Gamma}{\Pi}{m \mid m[p].\mf{rerender} = \ff}$, i.e.
-conclusion (ii) holds and it suffices to show conclusion (iii).
+conclusion (i-b) holds and it suffices to show conclusion (i-c).
 \item By (1) and premise (i-b), we get
 (4) $\tval{\Gamma}{\Pi}{v}{\Delta[\C]}$.
 Let $\Sigma=\dom(\Delta[\C])$; 
@@ -6458,10 +6454,10 @@ gives (7) that
 $\tbod{\Gamma}{\Pi}{\hat{e}[v/x]}{\C}{\Sigma}$.
 \item Note, from (4) and definitions of $\Sigma$ and $\C$,
 that (8) $\Sigma \subseteq \Pi[p].\mf{labs} = (\Delta[\C])$.
-We can then derive conclusion (iii) as follows and we are done:
+We can then derive conclusion (i-c) as follows and we are done:
 \end{itemize}
 \begin{mathpar}
-\inferrule*[right=TR-EvalS] {
+\inferrule*[right=TL-EvalS] {
   \inferrule*[right=(7)] { } {
     \tbod{\Gamma}{\Pi}{\hat{e}[v/x]}{\C}{\Sigma}
   }
@@ -6470,65 +6466,65 @@ We can then derive conclusion (iii) as follows and we are done:
     \Sigma \subseteq \Pi[p].\mf{labs} = \dom(\Delta[\C])
   }
 } {
-  \trhos{\Gamma}{\Pi}{\eeval{\mf{Succ}}{p}{\hat{e}[v/x]}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\eeval{\mf{Succ}}{p}{\hat{e}[v/x]}}{\tone}
 }
 \end{mathpar}
 
 \tb{Case} \ts{ER-ChkLit}: 
 We have $\cstep{\D}{m}{\echk{\elit{v}}}{\D}{m}{()}$ and:
 \begin{mathpar}
-\inferrule*[right=TR-Chk] {
+\inferrule*[right=TL-Chk] {
   \inferrule* {(1)} {
-    \trhos{\Gamma}{\Pi}{\elit{v}}{\ttree}
+    \trhoi{\Gamma}{\Pi}{\elit{v}}{\ttree}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\echk{\elit{v}}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\echk{\elit{v}}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
-\item Conclusion (iii) is immediate from \ts{TR-Unit},
+\item Conclusion (i-c) is immediate from \ts{TL-Unit},
 and we are done.
 \end{itemize}
 
 \tb{Case} \ts{ER-ChkNode}: We have
 $\cstep{\D}{m}{\echk{\enode{id}{v}{\rho}}}{\D}{m}{\echks{\rho}}$
 and: \begin{mathpar}
-\inferrule*[right=TR-Chk] {
-  \inferrule*[right=TR-Node] {
+\inferrule*[right=TL-Chk] {
+  \inferrule*[right=TI-Node] {
     \tval{\Gamma}{\Pi}{v}{[\tattr]}
     \and
-    \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\rho}{[\ttree]}}
+    \inferrule* {(1)} {\trhoi{\Gamma}{\Pi}{\rho}{[\ttree]}}
   } {
-    \trhos{\Gamma}{\Pi}{\enode{id}{v}{\rho}}{\ttree}
+    \trhoi{\Gamma}{\Pi}{\enode{id}{v}{\rho}}{\ttree}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\echk{\enode{id}{v}{\rho}}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\echk{\enode{id}{v}{\rho}}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
 \item We derive conclusion (iii) as follows and we are done:
 \end{itemize}
 \begin{mathpar}
-\inferrule*[right=TR-Chks] {
+\inferrule*[right=TL-Chks] {
   \inferrule*[right=\tn{(1)}] { } {
-    \trhos{\Gamma}{\Pi}{\rho}{[\ttree]}
+    \trhoi{\Gamma}{\Pi}{\rho}{[\ttree]}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\echks{\rho}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\echks{\rho}}{\tone}
 }
 \end{mathpar}
 
 \tb{Case} \ts{ER-ChkNil}: 
 We have $\cstep{\D}{m}{\echks{[]}}{\D}{m}{()}$
 and: \begin{mathpar}
-\inferrule*[right=TR-Chks] {
-  \trhos{\Gamma}{\Pi}{[]}{[\ttree]}
+\inferrule*[right=TL-Chks] {
+  \trhoi{\Gamma}{\Pi}{[]}{[\ttree]}
 } {
-  \trhos{\Gamma}{\Pi}{\echks{[]}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\echks{[]}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
-\item Conclusion (iii) is immediate from \ts{TR-Unit},
+\item Conclusion (iii) is immediate from \ts{TL-Unit},
 and we are done.
 \end{itemize}
 
@@ -6536,103 +6532,558 @@ and we are done.
 $\cstep{\D}{m}{\echks{\rho :: \rho s}}
 {\D}{m}{\echk{\rho} \semi \echks{\rho s}}$ and:
 \begin{mathpar}
-\inferrule*[right=TR-Chks] {
-  \inferrule*[right=TR-Cons] {
-    \inferrule* {(1)} {\trhos{\Gamma}{\Pi}{\rho}{\ttree}}
+\inferrule*[right=TL-Chks] {
+  \inferrule*[right=TI-Cons] {
+    \inferrule* {(1)} {\trhoi{\Gamma}{\Pi}{\rho}{\ttree}}
     \and
-    \inferrule* {(2)} {\trhos{\Gamma}{\Pi}{\rho s}{[\ttree]}}
+    \inferrule* {(2)} {\trhoi{\Gamma}{\Pi}{\rho s}{[\ttree]}}
   } {
-    \trhos{\Gamma}{\Pi}{\rho :: \rho s}{[\ttree]}
+    \trhoi{\Gamma}{\Pi}{\cdot}{\rho :: \rho s}{[\ttree]}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\echks{\rho :: \rho s}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\echks{\rho :: \rho s}}{\tone}
 }
 \end{mathpar}
 \begin{itemize}
 \item We derive conclusion (iii) as follows and we are done:
 \end{itemize}
 \begin{mathpar}
-\inferrule*[right=TR-Seq] {
-  \inferrule*[right=TR-Chk] {
+\inferrule*[right=TL-Seq] {
+  \inferrule*[right=TL-Chk] {
     \inferrule*[right=\tn{(1)}] { } {
-      \trhos{\Gamma}{\Pi}{\rho}{\ttree}
+      \trhoi{\Gamma}{\Pi}{\rho}{\ttree}
     }
   } {
-    \trhos{\Gamma}{\Pi}{\echk{\rho}}{\tone}
+    \trhol{\Gamma}{\Pi}{\cdot}{\echk{\rho}}{\tone}
   }
   \
-  \inferrule*[right=TR-Chks] {
+  \inferrule*[right=TL-Chks] {
     \inferrule*[right=\tn{(2)}] { } {
-      \trhos{\Gamma}{\Pi}{\rho s}{[\ttree]}
+      \trhoi{\Gamma}{\Pi}{\rho s}{[\ttree]}
     }
   } {
-    \trhos{\Gamma}{\Pi}{\echks{\rho s}}{\tone}
+    \trhol{\Gamma}{\Pi}{\cdot}{\echks{\rho s}}{\tone}
   }
 } {
-  \trhos{\Gamma}{\Pi}{\echk{\rho} \semi \echks{\rho s}}{\tone}
+  \trhol{\Gamma}{\Pi}{\cdot}{\echk{\rho} \semi \echks{\rho s}}{\tone}
 }
 \end{mathpar}
 
+\hl{TODO}: we need to show expression and body evaluations
+don't affect $\Theta$ (i.e. linear memory typing is preserved).
 \end{Proof}
 \end{lemma}
 
 \subsection{Realization}
 
-We define the $\mf{unfold}$ meta-function to ``realize'' a memory into
+We define the $\mf{realize}$ meta-function to ``unfold'' a memory into
 a concrete tree structure as follows:
 \begin{align*}
-\mf{unfold}(m, \elit{v}) &= \elit{v}\\
-\mf{unfold}(m, \enode{id}{v}{u}) &= \enode{id}{v}{\mf{unfold}(m, u)}\\
-\mf{unfold}(m, p) &= \mf{unfold}(m, m[p].\mf{tree})\\
-\mf{unfold}(m, []) &= []\\
-\mf{unfold}(m, u :: us) &= \mf{unfold}(m, u) :: \mf{unfold}(m, us)\\
+\mf{realize}_m(\elit{v}) &= \elit{v}\\
+\mf{realize}_m(\enode{id}{v}{u}) &= \enode{id}{v}{\mf{realize}_m(u)}\\
+\mf{realize}_m(p) &= \mf{realize}_m(m[p].\mf{tree})\\
+\mf{realize}_m([]) &= []\\
+\mf{realize}_m(u :: us) &= \mf{realize}_m(u) :: \mf{realize}_m(us)
 \end{align*}
 
-\begin{theorem}[Termination of realization.]
-\label{thm:realterm}
-$\tcfgl{\cdot}{\Pi}{\Theta}{\Omega}{\D}{m}{u}{\ttree}$
-implies that $\mf{unfold}(m, u)$ terminates.
+\subsubsection{Direct Proof Approach}
+
+\hl{...}
+
+\subsubsection{Language-Based Formulation}
+
+\begin{align*}
+\text{Concrete tree } t &::= \elit{v} \mid \enode{id}{v}{t}
+\mid \mf{realize}(u) \mid [] \mid t :: t\\
+\text{Concrete tree value } t_v &::= \elit{v} \mid \enode{id}{v}{t_v}
+\mid [] \mid t_v :: t_v\\
+\text{Concrete tree type } \alpha^* &::= \ttree^* \mid [\ttree]^*\\
+\text{Evaluation context } \E &::= [\cdot] \mid \enode{id}{v}{\E}
+\mid \E :: t \mid t_v :: \E
+\end{align*}
+
+We augment our runtime
+tree-typing judgments with a measure $n \in \mathbb{N}$ of the size
+of the syntax tree:
+\begin{mathpar}
+\inferrule*[right=TN-Lit] {
+  \tval{\Gamma}{\Pi}{v}{\tstr}
+} {
+  \Gamma \semi \Pi \semi \cdot \Vdash^1_\Delta \elit{v}: \ttree
+}
+\and
+\inferrule*[right=TN-Node] {
+  \tval{\Gamma}{\Pi}{v}{[\tattr]}
+  \and
+  \Gamma \semi \Pi \semi \Theta \Vdash^n_\Delta v: [\ttree]
+} {
+  \Gamma \semi \Pi \semi \Theta \Vdash^{n+1}_\Delta \enode{id}{v}{u}: \ttree
+}
+\and
+\inferrule*[right=TN-Path] {
+  \Pi[p].\mf{tree} = \tt
+  \and
+  \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
+} {
+  \Gamma \semi \Pi \semi p \Vdash^1_\Delta p: \ttree
+}
+\and
+\inferrule*[right=TN-Nil] { } {
+  \Gamma \semi \Pi \semi \cdot \Vdash^1_\Delta []: [\ttree]
+}\and
+\inferrule*[right=TN-Cons] {
+  \Gamma \semi \Pi \semi \Theta_1 \Vdash^{n_1}_\Delta u_1 : \ttree
+  \and
+  \Gamma \semi \Pi \semi \Theta_2 \Vdash^{n_2}_\Delta u_2 : [\ttree]
+} {
+  \Gamma \semi \Pi \semi \Theta_1,\Theta_2
+  \Vdash^{n_1+n_2+1}_\Delta 
+  u_1 :: u_2: [\ttree]
+}
+\end{mathpar}
+
+We define a typing judgment on concrete trees,
+which includes a measure of the number of unrealized syntax nodes:
+\begin{mathpar}
+\inferrule*[right=TC-Lit] {
+  \tval{\Gamma}{\Pi}{v}{\tstr}
+} {
+  \Gamma \semi \Pi \semi \cdot \Vdash^0_\Delta \elit{v}: \ttree^*
+}
+\and
+\inferrule*[right=TC-Node] {
+  \tval{\Gamma}{\Pi}{v}{[\tattr]}
+  \and
+  \Gamma \semi \Pi \semi \Theta \Vdash^n_\Delta t: [\ttree]^*
+} {
+  \Gamma \semi \Pi \semi \Theta \Vdash^{n}_\Delta \enode{id}{v}{t}: \ttree^*
+}
+\and
+\inferrule*[right=TC-Real] {
+  \Gamma \semi \Pi \semi \Theta \Vdash^n_\Delta u: \alpha
+} {
+  \Gamma \semi \Pi \semi \Theta
+  \Vdash^{n}_\Delta \mf{realize}(u): \alpha^*
+}
+\and
+\inferrule*[right=TC-Nil] { } {
+  \Gamma \semi \Pi \semi \cdot \Vdash^0_\Delta []: [\ttree]^*
+}\and
+\inferrule*[right=TC-Cons] {
+  \Gamma \semi \Pi \semi \Theta_1 \Vdash^{n_1}_\Delta t_1 : \ttree^*
+  \and
+  \Gamma \semi \Pi \semi \Theta_2 \Vdash^{n_2}_\Delta t_2 : [\ttree]^*
+} {
+  \Gamma \semi \Pi \semi \Theta_1,\Theta_2
+  \Vdash^{n_1+n_2}_\Delta 
+  t_1 :: t_2: [\ttree]^*
+}
+\end{mathpar}
+
+We define $\Gamma \semi \Pi \semi \Sigma \semi \Theta \vDash_\Delta \pi: p$ 
+to hold if,
+for $\pi.\mf{spec}=\pair{\C}{v}$:
+\begin{itemize}
+\item $\Pi[p].\mf{spec}=\C$,
+\item $\tval{\Gamma}{\Pi}{v}{\Delta[\C]}$,
+\item $\dom(\pi.\mf{st}) = \Pi[p].\mf{labs}$,
+\item for all $\ell \in \dom(\pi.\mf{st})$,
+we have $\tval{\Gamma}{\Pi}{\pi.\mf{st}[\ell]}{\Delta[\C][\ell]}$,
+\item if $\Pi[p].\mf{tree} = \tt$ and $p \notin \Sigma$, then
+$\Gamma \semi \Pi \semi \Theta \Vdash^n_\Delta \pi.\mf{tree} : \ttree$
+(for some $n$),
+\item if instead $\Pi[p].\mf{tree} = \ff$ or $p \in \Sigma$, then $\Theta=\cdot$, and
+\item $p \notin \Theta$.
+\end{itemize}
+($\Sigma$ here is the context of ``seen'' paths in a realization.)
+
+We define $\Gamma \semi \Pi \semi \Sigma \semi \Theta \vDash_\Delta m$ 
+to hold if
+there is some series of $\Theta_i$ with $\num{\Theta_i}=\Theta$,
+and, for all $p_i \in \dom(m)$,
+$\Gamma \semi \Pi \semi \Sigma \semi \Theta_i \vDash_\Delta m[p_i]: p_i$.
+We also require that $p_0 \notin \Theta$ and $\Theta \cap \Sigma = \emptyset$.
+
+Define 
+$\Gamma \semi \Pi \semi \Sigma \semi \Theta \vdash_\Delta^n \pair{m}{t}: \alpha$
+to abbreviate that 
+$\Gamma \semi \Pi \semi \Sigma \semi \Theta_m \vDash_\Delta m$
+and $\Gamma \semi \Pi \semi \Theta_t \Vdash^n_\Delta t: \alpha$,
+where $\Theta=\Theta_m,\Theta_t$.
+
+% TODO: domain-equality constraint? (add to linear definition too?)
+
+Finally, we define an operational semantics to realize concrete trees:
+\begin{mathpar}
+\inferrule*[right=EC-Ctx] {
+  t \mapsto_m t'
+} {
+  \E[t] \mapsto_m \E[t']
+}
+\end{mathpar}
+\begin{align*}
+\mf{realize}(\elit{v}) &\mapsto_m \elit{v} &&\textsc{EC-Lit}\\
+\mf{realize}(\enode{id}{v}{u}) &\mapsto_m \enode{id}{v}{\mf{realize}(u)}
+&&\textsc{EC-Node}\\
+\mf{realize}(p) &\mapsto_m \mf{realize}(m[p].\mf{tree})
+&&\textsc{EC-Path}\\
+\mf{realize}([]) &\mapsto_m []
+&&\textsc{EC-Nil}\\
+\mf{realize}(u :: us) &\mapsto_m \mf{realize}(u) :: \mf{realize}(us)
+&&\textsc{EC-Cons}\\
+\end{align*}
+
+\begin{proposition}[Hole typing, realization.]
+\label{thm:realhole}
+If $\Gamma \semi \Pi \semi \Theta_e,\Theta_h
+\Vdash^{n_e + n_h}_\Delta \E[t]: \alpha^*$,
+then $\Gamma \semi \Pi \semi \Theta_h
+\Vdash^{n_h}_\Delta t: \alpha'^*$
+\end{proposition}
+
+\begin{proposition}[Replacement, realization.]
+\label{thm:realrepl}
+If:
+\begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \semi \Theta_e,\Theta_h
+\Vdash^{n_e + n_h}_\Delta \E[t]: \alpha^*$,
+\item $\Gamma \semi \Pi \semi \Theta_h
+\Vdash^{n_h}_\Delta t: \alpha'^*$,
+\item $\Gamma \semi \Pi \semi \Theta_h'
+\Vdash^{n_h'}_\Delta t: \alpha'^*$, and
+\item $\Theta_e \cap \Theta'_h = \emptyset$,
+\end{enumerate}
+then $\Gamma \semi \Pi \semi \Theta_e,\Theta_h'
+\Vdash^{n_e + n_h'}_\Delta \E[t']: \alpha^*$.
+\end{proposition}
+
+\begin{lemma}[Progress of realization.]
+If $\cdot \semi \Pi \semi \Sigma \semi \Theta 
+\vdash^n_\Delta \pair{m}{t}: \alpha$,
+then either $t=t_v$ or $t \mapsto_m t'$ for some $t'$.
 
 \begin{Proof}
-\hl{Incomplete}: not sure how to phrase this idea formally.
+By induction on the typing derivation.
 
-We treat the equational definition of $\mf{unfold}$
-as a series of (left-to-right) \emph{rewriting rules}
-in order to reason about individual steps.
+The only non-trivial case is when $t=\mf{realize}(p)$,
+in which case we need to show that $m[p].\mf{tree}$
+is well-defined, but this is given by the premise
+that $\Pi[p].\mf{tree} = \tt$ and the well-typing of the memory $m$.
+\end{Proof}
+\end{lemma}
 
-We define a measure $\mc{M}$ \emph{on the typing judgment}
-in $\mathbb{P}(\mf{Path}) \times \mathbb{N}$,
-such that the first component is $\Theta$ and
-the second is the (syntactic) size of $u$.
-Since $\Theta$ must be finite, we have
-a well-founded lexicographic order given by
-$\subset$ and $<$ on respective components.
-To prove termination, it suffices to show that
+\begin{lemma}[Preservation of realization.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \semi \Sigma \semi \Theta
+\vdash_\Delta^n \pair{m}{t}: \alpha$ and
+\item $t \mapsto_m t'$,
+\end{enumerate}
+then, for some $\Theta'$, $\Sigma'$, and $n'$, we have
 \begin{enumerate}[label=(\roman*)]
-\item $\mf{unfold}(m, u)$ is well-defined 
-for any $m$ and $u$ (which are well-typed in the configuration),
-\item any subcalls to $\mf{unfold}(m, u')$ are well-typed
-by some $\Theta' \subseteq \Theta$,
-i.e.\\$\tcfgl{\cdot}{\Pi}{\Theta'}{\Omega}{\D}{m}{u'}{\ttree}$, and
-\item the measure $\mc{M}$ on the typing derivations of those
-subcalls is strictly decreasing.
+\item $\Gamma \semi \Pi \semi \Sigma' \semi \Theta'
+\vdash_\Delta^{n'} \pair{m}{t'}: \alpha$, and
+\item either: \begin{enumerate}[label=(ii-\alph*)]
+  \item $\Theta' \subset \Theta$, or
+  \item $\Theta' = \Theta$ and $n' < n$.
+\end{enumerate}
 \end{enumerate}
 
-We case-analyze on the canonical forms of $u$.
-By definition of $\mf{unfold}$,
-clearly $u$'s size decreases in every case
-\emph{except} for when $u=p$.
-We choose $\Theta'=\Theta$, and clearly
-$\mc{M}$ decreases. The typing conclusion
-is obvious from the premise.
+\begin{Proof}
+By induction on the derivation of the step judgment.
 
-When $u=p$, we know by well-typedness that 
-$m[p].\mf{tree}$ is well-defined, and that $\Theta_\rho=p$.
-By construction, $p \notin \Theta_m$.
-Choose $\Theta' = \Theta_m$;
-clearly $\Theta' \subset \Theta$...
+\tb{Case} \ts{EC-Ctx}: (\hl{informal})
+\begin{itemize}
+\item \thref{thm:realhole}: hole is well-typed
+\item and the $\Theta_h$ that types it is disjoint from $\Theta_m$,
+so $\Gamma \semi \Pi \semi \Sigma \semi \Theta_m,\Theta_h
+\vdash_\Delta^{n_h} \pair{m}{t}: \alpha'$
+\item IH gives $\Gamma \semi \Pi \semi \Sigma' \semi \Theta''
+\vdash_\Delta^{n'_h} \pair{m}{t'}: \alpha'$
+\item subcases: either (a) $\Theta'' \subset \Theta_m,\Theta_h$,
+or (b) $\Theta''=\Theta_m,\Theta_h$ and $n'_h < n_h$
+\item in subcase (a): since $\Theta_m,\Theta_e,\Theta_h$ is well-typed,
+we get $\Theta_m',\Theta_e,\Theta_h'$ is too,
+i.e. $\Theta_h' \cap \Theta_e=\emptyset$
+\item \thref{thm:realrepl} gives us our conclusion
+(choosing $\Theta'=\Theta_m',\Theta_h',\Theta_e$, $\Sigma'$,
+and $n'=n_e+n_h'$)
+\item in subcase (b), clearly $\Theta_h \cap \Theta_e=\emptyset$
+\item so \thref{thm:realrepl} gives us our typing conclusion,
+$\Gamma \semi \Pi \semi \Theta_e,\Theta_h \Vdash^{n_e+n_h'}_\Delta
+\E[t']: \alpha$
+\item choose $n'=n_e+n_h'$, satisfying conclusion \emph{(ii-b)}
+and we are done
+\end{itemize}
+
+
+\tb{Case} \ts{EC-Lit}: We have
+\begin{mathpar}
+\inferrule*[right=TC-Real] {
+  \inferrule*[right=TN-Lit] {
+    \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v}{\tstr}}
+  } {
+    \Gamma \semi \Pi \semi \cdot \Vdash^1_\Delta \elit{v}: \ttree
+  }
+} {
+  \Gamma \semi \Pi \semi \cdot
+  \Vdash^{1}_\Delta \mf{realize}(\elit{v}): \ttree^*
+}
+\end{mathpar}
+Choosing $\Theta'=\cdot$, $\Sigma'=\Sigma$, and $n'=0$, 
+we derive the conclusion as follows:
+\begin{mathpar}
+\inferrule*[right=TC-Lit] {
+  \inferrule*[right=(1)] { } {\tval{\Gamma}{\Pi}{v}{\tstr}}
+} {
+  \Gamma \semi \Pi \semi \cdot \Vdash^0_\Delta \elit{v}: \ttree^*
+}
+\end{mathpar}
+
+\tb{Case} \ts{EC-Node}: We have
+\begin{mathpar}
+\inferrule*[right=TC-Real] {
+  \inferrule*[right=TN-Node] {
+    \inferrule* {(1)} {\tval{\Gamma}{\Pi}{v}{[\tattr]}}
+    \and
+    \inferrule* {(2)} {
+      \Gamma \semi \Pi \semi \Theta
+      \Vdash^n_\Delta u: [\ttree]
+    }
+  } {
+    \Gamma \semi \Pi \semi \Theta 
+    \Vdash^{n+1}_\Delta \enode{id}{v}{u}: \ttree
+  }
+} {
+  \Gamma \semi \Pi \semi \Theta
+  \Vdash^{n+1}_\Delta \mf{realize}(\enode{id}{v}{u}): \ttree^*
+}
+\end{mathpar}
+Choose $\Theta'=\Theta$, $\Sigma'=\Sigma$,
+and $n'=n$ to satisfy conclusion \emph{(ii-b)}.
+We derive the typing conclusion as follows:
+\begin{mathpar}
+\inferrule*[right=TC-Node] {
+  \inferrule*[right=(1)] { } {
+    \tval{\Gamma}{\Pi}{v}{[\tattr]}
+  }
+  \ 
+  \inferrule*[right=TC-Real] {
+    \inferrule*[right=(2)] { } {
+      \Gamma \semi \Pi \semi \Theta
+      \Vdash^n_\Delta u: [\ttree]
+    }
+  } {
+    \Gamma \semi \Pi \semi \Theta
+    \Vdash^n_\Delta \mf{realize}(u): [\ttree]^*
+  }
+} {
+  \Gamma \semi \Pi \semi \Theta
+  \Vdash^{n}_\Delta \enode{id}{v}{\mf{realize}(u)}: \ttree^*
+}
+\end{mathpar}
+
+\tb{Case} \ts{EC-Path}: We have
+\begin{mathpar}
+\inferrule*[right=TC-Real] {
+  \inferrule*[right=TN-Path] {
+    \inferrule* {(1)} {\Pi[p].\mf{tree} = \tt}
+    \and
+    \Pi[p].\mf{labs} = \dom(\Delta[\Pi[p]])
+  } {
+    \Gamma \semi \Pi \semi p \Vdash^1_\Delta p: \ttree
+  }
+} {
+  \Gamma \semi \Pi \semi p
+  \Vdash^{1}_\Delta \mf{realize}(p): \ttree^*
+}
+\end{mathpar}
+Choose $\Theta'=\Theta_m$.
+By (1) and the memory typing premise (which implies $p \notin \Sigma$),
+there is some split $\Theta_m=\Theta_p,\Theta_m'$
+such that (2)
+$\Gamma \semi \Pi \semi \Theta_p \Vdash^n_\Delta m[p].\mf{tree}: \ttree$.
+Split $\Theta'$ such that $\Theta_m'$ is assigned to the memory
+and $\Theta_p$ to the term.
+Furthermore, choose $\Sigma'=\Sigma,p$ and $n'=n$.
+Since $\Theta' \subset \Theta$, we satisfy conclusion \emph{(ii-a)}.
+
+We assign $\Theta_p'=\cdot$ and the rest of $\Theta_m'$ as before,
+but the well-typedness
+of the memory still holds because $p \in \Sigma$.
+
+Finally, the well-typedness of the term is given as follows:
+\begin{mathpar}
+\inferrule*[right=TC-Real] {
+  \inferrule*[right=(2)] { } {
+    \Gamma \semi \Pi \semi \Theta_p 
+    \Vdash^n_\Delta m[p].\mf{tree}: \ttree
+  }
+} {
+  \Gamma \semi \Pi \semi \Theta_p
+  \Vdash^{n}_\Delta \mf{realize}(m[p].\mf{tree}): \ttree^*
+}
+\end{mathpar}
+
+\tb{Case} \ts{EC-Nil}: Choose $n'=0$; easy.
+
+\tb{Case} \ts{EC-Cons}: Choose $n'=n-1$; easy.
+
+\end{Proof}
+\end{lemma}
+
+\begin{theorem}[Termination of realization.]
+If $\tcfgl{\cdot}{\Pi}{\Theta_m}{\Omega}{\D}{m}{\rho}{\rtp}$
+and $\Pi[p_0].\mf{tree} = \tt$,
+then $\mf{realize}_m(p_0)$ terminates.
+
+\begin{Proof}
+By definition of the typing premise,
+we have $\tmeml{\cdot}{\Pi}{\Theta_m}{m}$,
+where $p_0 \notin \Theta_m$.
+It follows by definition that (1)
+$\cdot \semi \Pi \semi \cdot \semi \Theta_m \vDash_\Delta m$.
+From the latter premise, 
+\hl{as long as $\mf{tree}=\tt \Rightarrow \mf{labs}$ full},
+we can derive
+(2) that $\cdot \semi \Pi \semi p_0 \Vdash^1_\Delta p_0: \ttree$.
+Now, progress and preservation applied repeatedly to (1) and (2)
+give us that $\mf{realize}$ never ``gets stuck''.
+
+Choose (lexicographic) measure $\pair{|\Theta|}{n} \in \mathbb{N}^2$.
+Preservation tells us that this measure is strictly decreasing
+across steps, and since $\mathbb{N}^2$ is lexicographically well-ordered,
+$\mf{realize}$ must terminate and we are done.
 \end{Proof}
 \end{theorem}
+
+\section{Translation Workshopping}
+
+Try: all FGCBV, let-rec-and for components
+\begin{align*}
+\text{Value } v &::= x \mid () \mid s \mid \lambda x.e \mid [] \mid v :: v\\
+&\quad\mid \C \mid \vtxt{v} \mid \vtag{v}{v}
+\mid \vattr{v}{v} \mid \vclick{v}\\
+&\quad\mid \mgrey{\pair{\C}{v}} \mid \mgrey{\vset{\ell}{p}}\\
+\text{Expression } e &::= \eret{v} \mid \elet{x}{e}{e} \mid v\ v \\
+&\quad\mid \ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}\\
+\text{Body }\hat{e} &::= e \mid \estate{x}{\ell}{v}{\hat{e}} \mid \elet{x}{e}{\hat{e}}\\
+\text{Program } P &::= e \mid \elet{x}{e}{P} \mid \elet{\C(x)}{\hat{e}}{P}\\
+\text{Type } \ptp &::= \tone \mid \tstr \mid \ptp \arrow{E} \ptp
+\mid [\ptp] \\
+&\quad\mid \tview \mid \tattr
+\mid \tcomp{\ptp} \mid \tset{\ptp}\\
+\text{Effect } E &::= \epsilon \mid \emut
+\end{align*}
+\begin{align*}
+\text{Runtime values } u
+&::= ()_\rho \mid []_\rho \mid u ::_\rho u
+\mid \elit{v} \mid \enode{id}{v}{u}
+\mid p\\
+\text{Runtime expressions } \rho
+&::= \eret{u} \mid \elet{x}{\rho}{\rho}\\
+&\quad\mid
+\einit{v} \mid \einits{v} \mid \escan{v} \mid \escans{v}\\
+&\quad\mid \echk{u} \mid \echks{u}
+\mid \esearch{id}{u} \mid \esearches{id}{u}\\
+&\quad\mid \eeval{\phi}{p}{\hat{e}} \mid \enew{\phi}{p}{u}
+\mid \ehdl{e} \mid \eprog{P}\\
+\text{Runtime type } \rtp &::= \tone_\rho \mid \mf{Tree}
+\mid [\ttree]
+\end{align*}
+
+\begin{align*}
+\text{Target values } v
+&::= x \mid () \mid s \mid \lambda x.e \mid [] \mid v :: v \mid \ell\\
+&\quad\mid \vtxt{v} \mid \vtag{v}{v} \mid \vattr{v}{v} \mid \vclick{v}\\
+&\quad\mid \elit{v} \mid \enode{v}{v}{v}\\
+\text{Target expressions } e
+&::= \eret{v} \mid \elet{x}{e}{e}
+\mid v\ v \mid \eref{v} \mid \eget{v} \mid \eset{v}{v}\\
+&\quad\mid \mf{let\ rec}\ \beta\ \mf{in}\ e\\
+&\quad\mid \ecase{v}{[]}{e_1}{x :: x}{e_2}\\
+&\quad\mid \ecase{v}{\vattr{x}{x}}{e_1}{\vclick{x}}{e_2}\\
+&\quad\mid \ecase{v}{\vtxt{x}}{e_1}{\vtag{x}{x}}{e_2}\\
+&\quad\mid \ecase{v}{\elit{x}}{e_1}{\enode{x}{x}{x}}{e_2}\\
+\text{Binding list } \beta &::= x = v \mid x = v\ \mf{and}\ \beta\\
+\text{Target type } A &::= \tone \mid \tstr \mid A \rightarrow A \mid [A]
+\mid \tview \mid \tattr \mid \ttree \mid \tref{A}
+\end{align*}
+
+\begin{align*}
+\llrr{\tcomp{A}} &= A \rightarrow \tref{\tbool} 
+\times (\tone \rightarrow \tview)\\
+\llrr{\tset{A}} &= A \rightarrow \tone\\
+\llrr{\C} &= x_\C\\
+\llrr{\pair{\C}{v}} &= \mf{spec}(\lambda ().\llrr{\C}\ \llrr{v})\\
+\llrr{\vset{\ell}{p}} &= \lambda x.\eset{\ell}{x} 
+\semi \mf{flag}_\ell = \mf{true}\\
+\end{align*}
+
+\begin{align*}
+\llrr{\hat{e}} &= \llrr{\hat{e}}^\mf{Init}_{\hat{e}}\\ \\
+\llrr{\elet{x}{e}{\hat{e}}}^\mf{Init}_{\hat{e}_0}
+&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}}\\
+\llrr{e}^\mf{Init}_{\hat{e}_0} &= \pair{\mf{flag}}{\lambda ().\llrr{\hat{e}_0}^\mf{Succ}}\\
+\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Init}_{\hat{e}_0} 
+&= \elet{x_\ell}{\eref{\llrr{v}}}{\\
+  &\quad\ \elet{x_\mf{set}}{\lambda y.(\eset{x_\ell}{y} \semi \eset{\mf{flag}}{\mf{true}})}{\\
+    &\quad\ \elet{x}{\eget{x_\ell}}{\llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}}
+  }
+}
+\end{align*}
+\begin{align*}
+\llrr{e}^\mf{Succ} &= \llrr{e}\\
+\llrr{\elet{x}{e}{\hat{e}}}^\mf{Succ} &=
+\elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Succ}}\\
+\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Succ} &= 
+\elet{x_\mf{set}}{\lambda y.(\eset{x_\ell}{y} \semi \eset{\mf{flag}}{\mf{true}})}{\\
+  &\quad\ \elet{x}{\eget{x_\ell}}{\llrr{\hat{e}}^\mf{Succ}}
+}
+\end{align*}
+
+\begin{align*}
+\llrr{\elet{x}{e}{P}}_\beta &= \elet{x}{\llrr{e}}{\llrr{P}_\beta}\\
+\llrr{\elet{\C(x)}{\hat{e}}{P}}_\beta &=
+\llrr{P}_{\beta, x_\C=\lambda x.\llrr{\hat{e}}_\emptyset}\\
+\llrr{e}_\beta &= \mf{let\ rec}\ \beta\ \mf{in}\ \llrr{e}\\
+\end{align*}
+
+\begin{align*}
+\llrr{\mf{id}} &= s_\mf{id}\\
+\llrr{p} &= \ell_p\\
+\llrr{\einit{v}} &= \mhl{func}\\
+\llrr{\einits{v}} &= \mf{map}\ \mf{init}\ \llrr{v}\\
+\llrr{\escan{v}} &= \mhl{func}\\
+\llrr{\escans{v}} &= \mf{iter}\ \mf{scan}\ \llrr{v}\\
+\llrr{\echk{v}} &= \mhl{func}\\
+\llrr{\echks{v}} &= \mf{iter}\ \mf{check}\ \llrr{v}\\
+\llrr{\esearch{id}{v}} &= \mhl{func}\\
+\llrr{\esearches{id}{v}} &= \mf{iter}\ (\mf{search}\ \llrr{id})\ \llrr{v}\\
+\llrr{\ehdl{e}} &= \llrr{e}\\
+\llrr{\eeval{\mf{Init}}{p}{\hat{e}}} &= \elet{(flag, s)}{\llrr{\hat{e}}^\mf{Init}}{\\
+  &\quad\ \elet{view}{s\ ()}{\\
+    &\quad\ \elet{tree}{\einit{view}}{\\
+      &\quad\ \elet{cell}{\eref{\trip{s}{tree}{flag}}}{
+        \mf{Path}(cell)
+      }
+    }
+  }
+}\\
+\llrr{\enew{\mf{Init}}{p}{u}} &= \elet{tree}{\einit{u}}{\\
+  &\quad\ \elet{cell}{\eref{\trip{s}{tree}{flag}}}{
+    \mf{Path}(cell)
+  }
+}\\
+\llrr{\eeval{\mf{Succ}}{p}{\hat{e}}} &=
+  \elet{view}{\llrr{\hat{e}}^\mf{Succ}}{\\
+    &\quad\ \elet{tree}{\einit{view}}{\\
+      &\quad\ \elet{cell}{\eref{\trip{s}{tree}{flag}}}{
+        \mf{Path}(cell)
+      }
+    }
+}\\
+\llrr{\enew{\mf{Succ}}{p}{u}} &= \mhl{\cdots}
+\end{align*}
 
 \section{$\lambda_\mf{cg}$}
 

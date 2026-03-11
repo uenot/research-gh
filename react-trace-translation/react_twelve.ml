@@ -3,46 +3,41 @@ type attr
   | OnClick of (unit -> unit)
 
 type view =
-  | Text : string -> view
-  | Tag : attr list * view list -> view
-  | Spec : 'a component * 'a -> view
-
-and 'a component = 'a -> (bool ref * (unit -> view))
+  | Text  of string
+  | Tag of attr list * view list
+  | Spec of (unit -> bool ref * (unit -> view))
 
 type tree =
-  | Lit : string -> tree
-  | Node : string * attr list * tree list -> tree
-  | Path : (unit -> view) * tree ref * bool ref -> tree
+  | Lit of string
+  | Node of string * attr list * tree list
+  | Path of ((unit -> view) * tree * bool ref) ref
 
 let ctr = ref(0)
 let fresh () =
   let x = "id" ^ (Int.to_string (!ctr)) in
   ctr := !ctr + 1; x
 
-(*
-types: string, bool, attr, view, tree, ID, a->a, ref a, [a], cell/pairs
-destructors: bool, attr, view, tree, list
-id functions: fresh, eq
-refs
-recursive functions
-
-constants: map, init, check, scan, search, event-loop?
-*)
-
 let rec init v = match v with
   | Text str -> Lit str
   | Tag(attrs, children) -> Node(fresh(), attrs, List.map init children)
-  | Spec(c, v') ->
-    let (flag, thunk) = c v' in
-    Path(thunk, ref(init(thunk ())), flag)
+  | Spec(c) ->
+    let (flag, thunk) = c () in
+    let view = thunk () in
+    let tree = init view in
+    let cell = ref(thunk, tree, flag) in
+    Path(cell)
 
 let rec check t = match t with
   | Lit _ -> ()
   | Node(_, _, children) -> List.iter check children
-  | Path(thunk, child, flag) ->
+  | Path(p) ->
+    let thunk, child, flag = !p in
     if !flag
-      then (flag := false; child := init (thunk ()))
-      else check !child
+      then (flag := false; 
+        let view = thunk () in
+        let tree = init view in 
+        p := (thunk, tree, flag))
+      else check child
 
 let rec scan a = match a with
   | Attr(_, _) -> ()
@@ -50,7 +45,7 @@ let rec scan a = match a with
 
 let rec search id t = match t with
   | Lit _ -> ()
-  | Path (_, t', _) -> search id !t'
+  | Path (p) -> let _, child, _ = !p in search id child
   | Node(id', attrs, children) ->
     (if id = id'
       then List.iter scan attrs
@@ -82,13 +77,20 @@ let parent () =
   let xl = ref(0) in
   let xset = fun x -> xl := x; flag := true in
   let x = !xl in
-  let cs = List.init x (fun y -> Spec(child, y)) in
+  let cs = List.init x (fun y -> Spec(fun () -> child y)) in
   flag, fun () ->
     let x = !xl in
-    let cs = List.init x (fun y -> Spec(child, y)) in
+    let cs = List.init x (fun y -> Spec(fun () -> child y)) in
     Tag([OnClick(fun () -> xset (x + 1))], cs)
 
-let toplevel = Tag([Attr("color", "red")], [Spec(parent, ())])
+(* generate a unique name for each useState 
+make them option-types, initializing
+map (heterogeneous), "box" type somehow?
+
+tuple-of-state; 
+*)
+
+let toplevel = Tag([Attr("color", "red")], [Spec(fun () -> parent ())])
 
 type html
   = HtmlText of string
@@ -97,7 +99,7 @@ type html
 let rec realize t = match t with
   | Lit str -> HtmlText str
   | Node(id, attrs, children) -> HtmlTag(id, attrs, List.map realize children)
-  | Path(_, t', _) -> realize !t'
+  | Path(p) -> let _, child, _ = !p in realize child
 
 let fmt_attr attr =  match attr with
   | Attr(k, v) -> k ^ "=" ^ v
