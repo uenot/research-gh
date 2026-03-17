@@ -112,6 +112,7 @@
 \newcommand{\vset}[2]{\mf{set}@^{#1}_{#2}}
 \newcommand{\D}{\mc{D}}
 \newcommand{\E}{\mc{E}}
+\newcommand{\Ell}{\mc{L}}
 
 \newcommand{\elet}[3]{\mf{let}\ #1 = #2\ \mf{in}\ #3}
 \newcommand{\eletrec}[3]{\mf{let}\ \mf{rec}\ #1 = #2\ \mf{in}\ #3}
@@ -6958,7 +6959,9 @@ $\mf{realize}$ must terminate and we are done.
 
 \section{Translation Workshopping}
 
-Try: all FGCBV, let-rec-and for components
+\subsection{Syntax}
+
+We recap the syntax of the user-level and runtime languages:
 \begin{align*}
 \text{Value } v &::= x \mid () \mid s \mid \lambda x.e \mid [] \mid v :: v\\
 &\quad\mid \C \mid \vtxt{v} \mid \vtag{v}{v}
@@ -6974,9 +6977,11 @@ Try: all FGCBV, let-rec-and for components
 \mid \tcomp{\ptp} \mid \tset{\ptp}\\
 \text{Effect } E &::= \epsilon \mid \emut
 \end{align*}
+For the runtime language, we assume a FGCBV formulation
+(as opposed to the previous CBV formulation):
 \begin{align*}
 \text{Runtime values } u
-&::= ()_\rho \mid []_\rho \mid u ::_\rho u
+&::= x \mid ()_\rho \mid []_\rho \mid u ::_\rho u
 \mid \elit{v} \mid \enode{id}{v}{u}
 \mid p\\
 \text{Runtime expressions } \rho
@@ -6991,2331 +6996,1057 @@ Try: all FGCBV, let-rec-and for components
 \mid [\ttree]
 \end{align*}
 
+The following target language is sufficient to translate 
+user-level programs (but not the runtime language):
 \begin{align*}
 \text{Target values } v
-&::= x \mid () \mid s \mid \lambda x.e \mid [] \mid v :: v \mid \ell\\
+&::= x \mid () \mid s \mid \mf{true} \mid \mf{false} \mid
+\lambda x.e \mid [] \mid v :: v \mid \ell \mid (v, v)\\
 &\quad\mid \vtxt{v} \mid \vtag{v}{v} \mid \vattr{v}{v} \mid \vclick{v}\\
-&\quad\mid \elit{v} \mid \enode{v}{v}{v}\\
 \text{Target expressions } e
-&::= \eret{v} \mid \elet{x}{e}{e}
-\mid v\ v \mid \eref{v} \mid \eget{v} \mid \eset{v}{v}\\
-&\quad\mid \mf{let\ rec}\ \beta\ \mf{in}\ e\\
+&::= \eret{v} \mid \elet{x}{e}{e} \mid v\ v\\
+&\quad\mid \eref{v} \mid \eget{v} \mid \eset{v}{v}\\
 &\quad\mid \ecase{v}{[]}{e_1}{x :: x}{e_2}\\
-&\quad\mid \ecase{v}{\vattr{x}{x}}{e_1}{\vclick{x}}{e_2}\\
-&\quad\mid \ecase{v}{\vtxt{x}}{e_1}{\vtag{x}{x}}{e_2}\\
-&\quad\mid \ecase{v}{\elit{x}}{e_1}{\enode{x}{x}{x}}{e_2}\\
-\text{Binding list } \beta &::= x = v \mid x = v\ \mf{and}\ \beta\\
 \text{Target type } A &::= \tone \mid \tstr \mid A \rightarrow A \mid [A]
-\mid \tview \mid \tattr \mid \ttree \mid \tref{A}
+\mid \tview \mid \tattr \mid \tref{A} \mid A \times A
 \end{align*}
+Typing rules and operational semantics are entirely standard.
 
-\begin{align*}
-\llrr{\tcomp{A}} &= A \rightarrow \tref{\tbool} 
-\times (\tone \rightarrow \tview)\\
-\llrr{\tset{A}} &= A \rightarrow \tone\\
-\llrr{\C} &= x_\C\\
-\llrr{\pair{\C}{v}} &= \mf{spec}(\lambda ().\llrr{\C}\ \llrr{v})\\
-\llrr{\vset{\ell}{p}} &= \lambda x.\eset{\ell}{x} 
-\semi \mf{flag}_\ell = \mf{true}\\
-\end{align*}
+\subsection{Context-Free Translation}
 
-\begin{align*}
-\llrr{\hat{e}} &= \llrr{\hat{e}}^\mf{Init}_{\hat{e}}\\ \\
-\llrr{\elet{x}{e}{\hat{e}}}^\mf{Init}_{\hat{e}_0}
-&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}}\\
-\llrr{e}^\mf{Init}_{\hat{e}_0} &= \pair{\mf{flag}}{\lambda ().\llrr{\hat{e}_0}^\mf{Succ}}\\
-\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Init}_{\hat{e}_0} 
-&= \elet{x_\ell}{\eref{\llrr{v}}}{\\
-  &\quad\ \elet{x_\mf{set}}{\lambda y.(\eset{x_\ell}{y} \semi \eset{\mf{flag}}{\mf{true}})}{\\
-    &\quad\ \elet{x}{\eget{x_\ell}}{\llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}}
-  }
-}
-\end{align*}
-\begin{align*}
-\llrr{e}^\mf{Succ} &= \llrr{e}\\
-\llrr{\elet{x}{e}{\hat{e}}}^\mf{Succ} &=
-\elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Succ}}\\
-\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Succ} &= 
-\elet{x_\mf{set}}{\lambda y.(\eset{x_\ell}{y} \semi \eset{\mf{flag}}{\mf{true}})}{\\
-  &\quad\ \elet{x}{\eget{x_\ell}}{\llrr{\hat{e}}^\mf{Succ}}
-}
-\end{align*}
+We define a ``context-free'' translation on user-level types, values,
+expressions, bodies, and programs.
+(This translation is ``context-free'' in that it does not account for
+how the system evolves during runtime.)
 
-\begin{align*}
-\llrr{\elet{x}{e}{P}}_\beta &= \elet{x}{\llrr{e}}{\llrr{P}_\beta}\\
-\llrr{\elet{\C(x)}{\hat{e}}{P}}_\beta &=
-\llrr{P}_{\beta, x_\C=\lambda x.\llrr{\hat{e}}_\emptyset}\\
-\llrr{e}_\beta &= \mf{let\ rec}\ \beta\ \mf{in}\ \llrr{e}\\
-\end{align*}
+Interesting cases are \hl{highlighted}.
 
-\begin{align*}
-\llrr{\mf{id}} &= s_\mf{id}\\
-\llrr{p} &= \ell_p\\
-\llrr{\einit{v}} &= \mhl{func}\\
-\llrr{\einits{v}} &= \mf{map}\ \mf{init}\ \llrr{v}\\
-\llrr{\escan{v}} &= \mhl{func}\\
-\llrr{\escans{v}} &= \mf{iter}\ \mf{scan}\ \llrr{v}\\
-\llrr{\echk{v}} &= \mhl{func}\\
-\llrr{\echks{v}} &= \mf{iter}\ \mf{check}\ \llrr{v}\\
-\llrr{\esearch{id}{v}} &= \mhl{func}\\
-\llrr{\esearches{id}{v}} &= \mf{iter}\ (\mf{search}\ \llrr{id})\ \llrr{v}\\
-\llrr{\ehdl{e}} &= \llrr{e}\\
-\llrr{\eeval{\mf{Init}}{p}{\hat{e}}} &= \elet{(flag, s)}{\llrr{\hat{e}}^\mf{Init}}{\\
-  &\quad\ \elet{view}{s\ ()}{\\
-    &\quad\ \elet{tree}{\einit{view}}{\\
-      &\quad\ \elet{cell}{\eref{\trip{s}{tree}{flag}}}{
-        \mf{Path}(cell)
-      }
-    }
-  }
-}\\
-\llrr{\enew{\mf{Init}}{p}{u}} &= \elet{tree}{\einit{u}}{\\
-  &\quad\ \elet{cell}{\eref{\trip{s}{tree}{flag}}}{
-    \mf{Path}(cell)
-  }
-}\\
-\llrr{\eeval{\mf{Succ}}{p}{\hat{e}}} &=
-  \elet{view}{\llrr{\hat{e}}^\mf{Succ}}{\\
-    &\quad\ \elet{tree}{\einit{view}}{\\
-      &\quad\ \elet{cell}{\eref{\trip{s}{tree}{flag}}}{
-        \mf{Path}(cell)
-      }
-    }
-}\\
-\llrr{\enew{\mf{Succ}}{p}{u}} &= \mhl{\cdots}
-\end{align*}
-
-\section{$\lambda_\mf{cg}$}
-
-A ``coarse-grained'' target calculus, with primitive inductive data types
-and destructors alongside ML-style mutable references.
-
-\subsection{Constructor-Abstracted Syntax}
-
-We parametrize our syntax by a set of constructors $C^n$
-with arity $n$, and a set of type constants $A_c$.
-(We elide $n$ when irrelevant.)
-\begin{align*}
-\text{Value } v &::= x \mid () \mid s
-\mid \erec{f}{x}{e} \mid \ell \mid \mf{id} \mid C^n(v_1,\cdots,v_n)\\
-\text{Expression } e &::= v \mid C^n(e_1,\cdots,e_n) \mid e\ e
-\mid \eref{e} \mid \eget{e} \mid \eset{e}{e}
-\mid \mf{case}\ e\ \{\num{C\ \num{x} \Rightarrow e}\}\\
-\text{Type } \ptp &::= \tone \mid \tstr \mid \ptp \rightarrow \ptp \mid \mf{ID} \mid A_c
-\end{align*}
-\begin{align*}
-\text{Variable context } \Gamma &::= \cdot \mid \Gamma, x: A\\
-\text{Store context } \Sigma &::= \cdot \mid \Sigma, x: A\\
-\text{Evaluation context } E &::= [\cdot] \mid C(\num{v}, E, \num{e}) 
-\mid E\ e \mid v\ E \mid \eref{E}\\
-&\quad\mid \eget{E} \mid \eset{E}{e} \mid \eset{v}{E}
-\mid \mf{case}\ E\ \{\num{C\ \num{x} \Rightarrow e}\}\\
-\text{Store } \sigma &::= \cdot \mid \sigma, \ell \mapsto v
-\end{align*}
-
-\subsection{Typing}
-
-We assume the existence of a fixed constructor signature $\Delta$,
-which maps constructors to their types (via $\Delta(C)$)
-and the types of their $i$th arguments (via $\Delta(C_i)$).
-
-We denote the set of all constructors associated with a type
-via the function $\Delta(A)$.
-
-\begin{mathpar}
-\inferrule*[right=T-Var] { } {
-  \Gamma, x: A \semi \Sigma \vdash x: A
-}
-\and
-\inferrule*[right=T-Unit] { } {
-  \Gamma \semi \Sigma \vdash (): \tone
-}
-\and
-\inferrule*[right=T-Str] { } {
-  \Gamma \semi \Sigma \vdash s: \tstr
-}
-\and
-\inferrule*[right=T-ID] { } {
-  \Gamma \semi \Sigma \vdash \mf{id}: \mf{ID}
-}
-\and
-\inferrule*[right=T-Fun] {
-  \Gamma, f: A_1 \rightarrow A_2, x: A_1 \semi \Sigma \vdash e: A_2
-} {
-  \Gamma \semi \Sigma \vdash \erec{f}{x}{e}: A_1 \rightarrow A_2
-}
-\and
-\inferrule*[right=T-Loc] { } {
-  \Gamma \semi \Sigma, \ell: A \vdash \ell: A
-}
-\and
-\inferrule*[right=T-Con] {
-  (0 \leq i < n)
-  \quad
-  \Gamma \semi \Sigma \vdash v_i: \Delta(C_i)
-} {
-  \Gamma \semi \Sigma \vdash C^n(v_1,\cdots,v_n): \Delta(C)
-}
-\and
-\inferrule*[right=T-App] {
-  \Gamma \semi \Sigma \vdash e_1: A_1 \rightarrow A_2
-  \and
-  \Gamma \semi \Sigma \vdash e_2: A_1
-} {
-  \Gamma \semi \Sigma \vdash e_1\ e_2: A_2
-}
-\and
-\inferrule*[right=T-Ref] {
-  \Gamma \semi \Sigma \vdash e: A
-} {
-  \Gamma \semi \Sigma \vdash \eref{e}: \tref{A}
-}
-\and
-\inferrule*[right=T-Get] {
-  \Gamma \semi \Sigma \vdash e: \tref{A}
-} {
-  \Gamma \semi \Sigma \vdash \eget{e}: A
-}
-\and
-\inferrule*[right=T-Set] {
-  \Gamma \semi \Sigma \vdash e_1: \tref{A}
-  \and
-  \Gamma \semi \Sigma \vdash e_2: A
-} {
-  \Gamma \semi \Sigma \vdash \eset{e_1}{e_2}: \tone
-}
-\and
-\inferrule*[right=T-Case] {
-  \Gamma \semi \Sigma \vdash e: A_1
-  \and
-  (\forall C^n \in \Delta(A_1)) \quad
-  \Gamma, \num{x_j: \Delta(C_j)}
-  \semi \Sigma \vdash e_i: A_2
-} {
-  \Gamma \semi \Sigma \vdash \mf{case}\ e\ 
-  \{\num{C^n_i(x_1,\cdots,x_n) \Rightarrow e_i}\}: A_2
-}
-\end{mathpar}
-
-\subsection{Operational Semantics}
-
-TBD
-
-\section{$\lambda_\mf{tgt}$}
-
-A ``fine-grained'' target calculus: System F with sums, products, (equi)recursive types,
-existentials, and ML-style mutable references.
-
-\subsection{Syntax}
-
-\begin{align*}
-\text{Value } v &::= x \mid () \mid s \mid \lambda x.e \mid \Lambda \alpha . v
-\mid \epack{A}{v}{\alpha}{A}\\
-&\quad\mid \pair{v}{v} \mid \einl{v} \mid \einr{v} \mid \ell \\
-\text{Expression } e &::= v \mid \eref{e} \mid \eget{e} \mid \eset{e}{e}
-\mid \pair{e}{e} \mid \efst{e} \mid \esnd{e}
-\mid \einl{e} \mid \einr{e}\\
-&\quad\mid \ecase{e}{\einl{x}}{e}{\einr{x}}{e} \mid e\ e \mid e\ [A]\\
-&\quad\mid \epack{A}{e}{\alpha}{A} \mid \eunpack{\alpha}{x}{e}{e}\\
-\text{Type } \ptp &::= \alpha \mid \tone \mid \tstr \mid \ptp \rightarrow \ptp
-\mid A \times A \mid A + A\\
-&\quad\mid \forall \alpha . \ptp \mid \exists \alpha . \ptp
-\mid \mu \alpha . \ptp \mid \tref{A}
-\end{align*}
-\begin{align*}
-\text{Variable context } \Gamma &::= \cdot \mid \Gamma, x: A\\
-\text{Type context } \Delta &::= \cdot \mid \Delta, \alpha\\
-\text{Store context } \Sigma &::= \cdot \mid \Sigma, x: A\\
-\text{Evaluation context } E &::= [\cdot] \mid \eref{E} \mid \eget{E}
-\mid \eset{E}{e} \mid \eset{v}{E} \mid \pair{E}{e} \mid \pair{v}{E}\\
-&\quad\mid \efst{E} \mid \esnd{E} \mid \einl{E} \mid \einr{E}\\
-&\quad\mid \ecase{E}{\einl{x}}{e}{\einr{x}}{e} \mid E\ e \mid v\ E
-\mid E\ [A]\\
-&\quad\mid \epack{A}{E}{\alpha}{A} \mid \eunpack{\alpha}{x}{E}{e}\\
-\text{Store } \sigma &::= \cdot \mid \sigma, \ell \mapsto v
-\end{align*}
-
-\subsection{Typing Rules}
-
-Well-formed type judgment: $\ttp{\Delta}{A}$
-
-\begin{mathpar}
-\inferrule*[right=WF-Var] { } {
-  \ttp{\Delta, \alpha}{\alpha}
-}
-\and
-\inferrule*[right=WF-One] { } {
-  \ttp{\Delta}{\tone}
-}
-\and
-\inferrule*[right=WF-Str] { } {
-  \ttp{\Delta}{\tstr}
-}
-\and
-\inferrule*[right=WF-Fun] {
-  \ttp{\Delta}{A_1}
-  \and
-  \ttp{\Delta}{A_2}
-} {
-  \ttp{\Delta}{A_1 \rightarrow A_2}
-}
-\and
-\inferrule*[right=WF-Prod] {
-  \ttp{\Delta}{A_1}
-  \and
-  \ttp{\Delta}{A_2}
-} {
-  \ttp{\Delta}{A_1 \times A_2}
-}
-\and
-\inferrule*[right=WF-Sum] {
-  \ttp{\Delta}{A_1}
-  \and
-  \ttp{\Delta}{A_2}
-} {
-  \ttp{\Delta}{A_1 + A_2}
-}
-\and
-\inferrule*[right=WF-Forall] {
-  \ttp{\Delta,\alpha}{A}
-} {
-  \ttp{\Delta}{\forall \alpha.A}
-}
-\and
-\inferrule*[right=WF-Exists] {
-  \ttp{\Delta,\alpha}{A}
-} {
-  \ttp{\Delta}{\exists \alpha.A}
-}
-\and
-\inferrule*[right=WF-Mu] {
-  \ttp{\Delta,\alpha}{A}
-  \and
-  A \neq \alpha
-} {
-  \ttp{\Delta}{\mu \alpha.A}
-}
-\and
-\inferrule*[right=WF-Ref] {
-  \ttp{\Delta}{A}
-} {
-  \ttp{\Delta}{\tref{A}}
-}
-\end{mathpar}
-
-Typing judgment: $\ttgt{\Sigma}{\Delta}{\Gamma}{e}{A}$
-
-\begin{mathpar}
-\inferrule*[right=T-Var] { } {
-  \ttgt{\Sigma}{\Delta}{\Gamma, x: A}{x}{A}
-}
-\and
-\inferrule*[right=T-Unit] { } {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{()}{\tone}
-}
-\and
-\inferrule*[right=T-Str] { } {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{s}{\tstr}
-}
-\and
-\inferrule*[right=T-Lam] {
-  \ttgt{\Sigma}{\Delta}{\Gamma, x: A_1}{e}{A_2}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\lambda x.e}{A_1 \rightarrow A_2}
-}
-\and
-\inferrule*[right=T-App] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e_1}{A_1 \rightarrow A_2}
-  \and
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e_2}{A_1}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e_1\ e_2}{A_2}
-}
-\and
-\inferrule*[right=T-Loc] { } {
-  \ttgt{\Sigma, \ell: A}{\Delta}{\Gamma}{\ell}{A}
-}
-\and
-\inferrule*[right=T-TLam] {
-  \ttgt{\Sigma}{\Delta,\alpha}{\Gamma}{v}{A}
-  \and
-  \alpha \notin \Delta
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\Lambda \alpha.v}{\forall \alpha.A}
-}
-\and
-\inferrule*[right=T-TApp] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{\forall \alpha.A_2}
-  \and
-  \ttp{\Delta}{A_1}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e\ [A_1]}{A_2[A_1/\alpha]}
-}
-\and
-\inferrule*[right=T-Pack] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{A_2[A_1/\alpha]}
-  \and
-  \ttp{\Delta}{A_1}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\epack{A_1}{e}{\alpha}{A_2}}{\exists \alpha.A_2}
-}
-\and
-\inferrule*[right=T-Unpack] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e_1}{\exists \alpha.A_1}
-  \and
-  \ttgt{\Sigma}{\Delta,\alpha}{\Gamma,x:A_1}{e_2}{A_2}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\eunpack{\alpha}{x}{e_1}{e_2}}{A_2}
-}
-\and
-\inferrule*[right=T-Fold] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{A[\mu \alpha.A / \alpha]}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{\mu \alpha.A}
-}
-\and
-\inferrule*[right=T-Unfold] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{\mu \alpha.A}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{A[\mu \alpha.A / \alpha]}
-}
-\and
-\inferrule*[right=T-Pair] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e_1}{A_1}
-  \and
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e_2}{A_2}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\pair{e_1}{e_2}}{A_1 \times A_2}
-}
-\and
-\inferrule*[right=T-Fst] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{A_1 \times A_2}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\efst{e}}{A_1}
-}
-\and
-\inferrule*[right=T-Snd] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{A_1 \times A_2}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\esnd{e}}{A_2}
-}
-\and
-\inferrule*[right=T-InL] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{A_1}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\einl{e}}{A_1 + A_2}
-}
-\and
-\inferrule*[right=T-InR] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{A_2}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\einr{e}}{A_1 + A_2}
-}
-\and
-\inferrule*[right=T-Case] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e_1}{A_1 + A_2}
-  \\
-  \ttgt{\Sigma}{\Delta}{\Gamma,x:A_1}{e_2}{A}
-  \and
-  \ttgt{\Sigma}{\Delta}{\Gamma,x:A_2}{e_3}{A}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\ecase{e_1}{\einl{x}}{e_2}{\einr{x}}{e_3}}{A}
-}
-\and
-\inferrule*[right=T-Ref] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{A}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\eref{e}}{\tref{A}}
-}
-\and
-\inferrule*[right=T-Get] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e}{\tref{A}}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\eget{e}}{A}
-}
-\and
-\inferrule*[right=T-Set] {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e_1}{\tref{A}}
-  \and
-  \ttgt{\Sigma}{\Delta}{\Gamma}{e_2}{A}
-} {
-  \ttgt{\Sigma}{\Delta}{\Gamma}{\eset{e_1}{e_2}}{\tone}
-}
-\end{mathpar}
-
-\subsection{Operational Semantics}
-
-Judgment: $\estep{\sigma}{e}{e'}{\sigma'}$
-\begin{mathpar}
-\inferrule*[right=E-Ctx] {
-  \estep{\sigma}{e}{e'}{\sigma'}
-} {
-  \estep{\sigma}{E[e]}{E[e']}{\sigma'}
-}
-\end{mathpar}
-\begin{align*}
-\estep{\sigma}{(\lambda x.e)\ v&}{e[v/x]}{\sigma}
-&&\ts{E-App}\\
-\estep{\sigma}{(\Lambda \alpha.v)\ [A]&}{v[A/\alpha]}{\sigma}
-&&\ts{E-TApp}\\
-\estep{\sigma}{\eunpack{\alpha}{x}{(\epack{A}{v}{\_}{\_})}{e}&}{e[A/\alpha][v/x]}{\sigma}
-&&\ts{E-Upp}\\
-\estep{\sigma}{\efst{\pair{v_1}{v_2}}&}{v_1}{\sigma}
-&&\ts{E-Fst}\\
-\estep{\sigma}{\efst{\pair{v_1}{v_2}}&}{v_2}{\sigma}
-&&\ts{E-Snd}\\
-\estep{\sigma}{\ecase{\einl{v}}{\einl{x}}{e_1}{\einr{x}}{e_2}&}{e_1[v/x]}{\sigma}
-&&\ts{E-CaseL}\\
-\estep{\sigma}{\ecase{\einr{v}}{\einl{x}}{e_1}{\einr{x}}{e_2}&}{e_2[v/x]}{\sigma}
-&&\ts{E-CaseR}\\
-(\ell \notin \dom(\sigma))\qquad
-\estep{\sigma}{\eref{v}&}{\ell}{\sigma,\ell \mapsto v}
-&&\ts{E-Ref}\\
-\estep{\sigma}{\eget{\ell}&}{\sigma[\ell]}{\sigma}
-&&\ts{E-Get}\\
-\estep{\sigma}{\eset{\ell}{v}&}{()}{\sigma[\ell \mapsto v]}
-&&\ts{E-Set}\\
-\end{align*}
-
-\subsection{Abbreviations}
-
-We use meta-notation to define type operators, and we
-define data types and their constructors via Haskell-like syntax
-for GADTs when convenient. 
-For instance, we might declare the $\mf{List}$ type as follows:
-
-\begin{lstlisting}[language=Haskell,mathescape]
-data List a where
-  Nil :: List a
-  Cons :: a -> List a -> List a
-\end{lstlisting}
-which desugars to the following type:
-$$\mf{List}\ A = \mu \alpha. 1 + (A \times \alpha)$$
-and the following constructors:
-\begin{align*}
-\mf{Nil} &= \einl{()}\\
-\mf{Cons} &= \lambda hd.\; \lambda tl.\; \einr{\pair{hd}{tl}}
-\end{align*}
-
-(We also say $[A]$ to mean $\mf{List}\ A$.)
-
-Other abbreviations and definition relevant to our translation are as follows:
-
-\begin{lstlisting}[language=Haskell,mathescape]
-data Attr where
-  Attr :: Str -> Str -> Attr
-  OnClick :: (1 -> 1) -> Attr
-\end{lstlisting}
-
-\begin{lstlisting}[language=Haskell,mathescape]
-data View where
-  Text :: Str -> View
-  Tag :: [Attr] -> [View] -> View
-  Spec :: $\forall$ a. (a -> (Ref Bool * 1 -> View) * a) -> View
-\end{lstlisting}
-(Note that the LHS of the $\mf{Spec}$ constructor is \emph{existential}.)
-
-\begin{lstlisting}[language=Haskell,mathescape]
-data Tree where
-  Lit :: Str -> View
-  Node :: ID -> [Attr] -> [View] -> View
-  Path :: $\forall$ a. (a -> (Ref Bool * 1 -> View) * a)
-    -> (1 -> View) -> (Ref Tree) -> (Ref Bool) -> Tree
-\end{lstlisting}
-
-\section{Translation}
-
-From React-tRace Core to $\lambda_\mf{tgt}$.
-
-\subsection{Types}
-
+Types:
 \begin{align*}
 \llrr{\tone} &= \tone\\
 \llrr{\tstr} &= \tstr\\
-\llrr{A_1 \arrow{E} A_2} &= \llrr{A_1} \rightarrow \llrr{A_2}\\
-\llrr{\mf{List}\ A} &= \mf{List}\ \llrr{A}\\
+\llrr{A \xrightarrow{E} A} &= \llrr{A} \rightarrow \llrr{A}\\
+\llrr{[A]} &= [\llrr{A}]\\
 \llrr{\tview} &= \tview\\
 \llrr{\tattr} &= \tattr\\
-\llrr{\tcomp{A}} &= \llrr{A} \rightarrow \tview\\
-\llrr{\tset{A}} &= \llrr{A} \rightarrow \tone
+\mhl{\llrr{\tcomp{A}}} &= A \rightarrow \tref{\tbool} 
+\times (\tone \rightarrow \tview)\\
+\mhl{\llrr{\tset{A}}} &= A \rightarrow \tone
 \end{align*}
-
-\subsection{Values}
+Values:
 \begin{align*}
 \llrr{x} &= x\\
 \llrr{()} &= ()\\
 \llrr{s} &= s\\
 \llrr{\lambda x.e} &= \lambda x.\llrr{e}\\
 \llrr{[]} &= []\\
-\llrr{v :: v} &= \llrr{v} :: \llrr{v}\\
-\llrr{\C} &= \lambda x.\mf{Spec}(\pair{\C}{x})\\
-\llrr{\vtxt{v}} &= \mf{Text}\ \llrr{v}\\
-\llrr{\vtag{v_1, v_2}} &= \mf{Tag}\ \llrr{v_1}\ \llrr{v_2}\\
-\llrr{\vattr{v_1, v_2}} &= \mf{Attr}\ \llrr{v_1}\ \llrr{v_2}\\ 
-\llrr{\vclick{v}} &= \mf{OnClick}\ \llrr{v}\\
+\llrr{v_1 :: v_2} &= \llrr{v_1} :: \llrr{v_2}\\
+\mhl{\llrr{\C}} &= x_\C\\
+\llrr{\vtxt{v}} &= \vtxt{\llrr{v}}\\
+\llrr{\vtag{v_1}{v_2}} &= \vtag{\llrr{v_1}}{\llrr{v_2}}\\
+\llrr{\vattr{v_1}{v_2}} &= \vattr{\llrr{v_1}}{\llrr{v_2}}\\
+\llrr{\vclick{v}} &= \vclick{\llrr{v}}
 \end{align*}
-
-\subsection{Expressions}
+Expressions:
 \begin{align*}
-\llrr{\eret{v}} &= \llrr{v}\\
+\llrr{\eret{v}} &= \eret{\llrr{v}}\\
 \llrr{\elet{x}{e_1}{e_2}} &= \elet{x}{\llrr{e_1}}{\llrr{e_2}}\\
-\llrr{v_1\ v_2} &= \llrr{v_1}\ \llrr{v_2}\\
-\llrr{\ecase{v}{[]}{e_1&}{x_\mf{hd} :: x_\mf{tl}}{e_2}}\\
-= \ecase{\llrr{v}}{\einl{\_}}{\llrr{e_1}}{&\einr{\pair{x_\mf{hd}}{x_\mf{tl}}}}{\llrr{e_2}}\\
+\llrr{v\ v} &= \llrr{v}\llrr{v}\\
+\llrr{\ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}}
+&= \ecase{\llrr{v}}{[]}{\llrr{e_1}}{x_\mf{hd} :: x_\mf{tl}}{\llrr{e_2}}
+\end{align*}
+Bodies:
+
+We have two different translations on bodies,
+corresponding to their interpretations in different phases.
+In $\phi=\mf{Init}$, $\mf{useState}$ \emph{creates} a reference cell,
+while in $\phi=\mf{Succ}$, $\mf{useState}$ \emph{reads}
+from a (previously created) reference cell.
+
+In our translation, the $\mf{Init}$ phase initalizes all references
+and returns a \emph{thunk} which closes over those references.
+This thunk is then invoked by the runtime to render or re-render
+the component in question.
+
+We also track a boolean $\mf{flag}$, which corresponds to the
+$\mf{rerender}$ memory field in the source, and is closed
+over by any setters.
+\begin{align*}
+\mhl{\llrr{\hat{e}}} &= \elet{\mf{flag}}{\eref{\mf{false}}}
+{\llrr{\hat{e}}^\mf{Init}_{\hat{e}}}\\
+\llrr{\elet{x}{e}{\hat{e}}}^\mf{Init}_{\hat{e}_0}
+&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}}\\
+\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Init}_{\hat{e}_0}}
+&= \elet{x_\ell}{\eref{\llrr{v}}}{\\
+  &\quad\ \elet{x}{\eget{x_\ell}}{\\
+    &\quad\ \elet{x_\mf{set}}{\lambda y.(\eset{x_\ell}{y} 
+    \semi \eset{\mf{flag}}{\mf{true}})}{\\
+      &\quad\ \llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}}
+  }
+}\\
+\mhl{\llrr{e}^\mf{Init}_{\hat{e}_0}}
+&= (\mf{flag}, \lambda ().\llrr{\hat{e}_0}^\mf{Succ})\\
+\llrr{\elet{x}{e}{\hat{e}}}^\mf{Succ}
+&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Succ}}\\
+\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Succ}}
+&= \elet{x}{\eget{x_\ell}}{\llrr{\hat{e}}^\mf{Succ}}\\
+\llrr{e}^\mf{Succ} &= \llrr{e}
 \end{align*}
 
-\subsection{Bodies}
-
-We introduce two translation functions:
-$\llrr{\hat{e}}_\Xi$ and $\llrr{e}^*_\Xi$,
-where $\Xi ::= \emptyset \mid \Xi, \pair{x}{\ell}$.
-(The former \emph{builds} $\Xi$ and the latter \emph{unrolls} it.)
+Example:
 \begin{align*}
-\llrr{\elet{x}{e}{\hat{e}}}_\Xi &= \elet{x}{\llrr{e}}{\llrr{\hat{e}}_\Xi}\\
-\llrr{e}_\Xi &= \pair{\mf{flag}}{\lambda ().\llrr{e}^*_\Xi}\\
-\llrr{\estate{x}{\ell}{v}{\hat{e}}} &= \elet{\ell}{\eref{\llrr{v}}}{\\
-  &\quad\ \elet{x_\mf{set}}{\lambda y.(\eset{\ell}{y} \semi \eset{\mf{flag}}{\mf{true}})}{\\
-    &\quad\ \elet{x}{\eget{\ell}}{\llrr{\hat{e}}^*_{\Xi,\pair{x}{\ell}}}
+\llrr{
+  &\elet{x}{w * w}{\\
+    &\estate{y}{\ell_0}{x}{\\
+      &\elet{z}{y * y}{\\
+          &\eret{\vtag{[]}{\vtxt{z}}}
+      }
+    }
+  }
+}\\
+&\qquad=\\
+&\elet{\mf{flag}}{\eref{false}}{\\
+  &\elet{x}{w * w}{\\
+    &\elet{y_\ell}{\eref{x}}{\\
+      &\elet{y}{\eget{y_\ell}}{\\
+        &\elet{y_\mf{set}}{\lambda y.(\eset{x_\ell}{y} 
+    \semi \eset{\mf{flag}}{\mf{true}})}{\\
+          &\elet{z}{y * y}{\\
+            &(\mf{flag}, \lambda ().(\\
+              &\quad\elet{x}{w * w}{\\
+                &\quad\elet{y}{\eget{y_\ell}}{\\
+                  &\quad\elet{z}{y * y}{\\
+                    &\quad\eret{\vtag{[]}{\vtxt{z}}}\\
+                  }
+                }
+              }
+            &))
+          }
+        }
+      }
+    }
   }
 }
 \end{align*}
+
+Programs:
+
+This approach does \emph{not} allow for 
+mutual recursion between components;
+forbidding this capability from the source seems much easier
+than adding it to the translation/target.
+(e.g. \emph{morally} we want to move all the components 
+to a let-rec-and block,
+but this breaks FGCBV and messes with simulation correspondence.)
 \begin{align*}
-\llrr{e}^*_\emptyset &= \llrr{e}\\
-\llrr{e}^*_{\Xi,\pair{x}{\ell}} &= \elet{x}{\eget{\ell}}{\llrr{e}^*_\Xi}
+\llrr{\elet{x}{e}{P}}^P &= \elet{x}{e}{\llrr{P}^P}\\
+\mhl{\llrr{\elet{\C(x)}{\hat{e}}{P}}^P} &=
+\elet{x_\C}{\lambda x.\llrr{\hat{e}}}{\llrr{P}^P}\\
+\llrr{e}^P &= \llrr{e}
 \end{align*}
 
-\subsection{Programs}
+\subsection{Runtime and Context}
 
+The above translation does not let us reason about the
+\emph{intermediate stages} of a program's evaluation,
+which is necessary to prove a theorem of the form:
+$$\mf{if}\ e \mapsto e'\mf{, then}\ \llrr{e} \mapsto^* \llrr{e'}.$$
+
+For instance, how do we translate the (intermediate-only)
+value $\vset{\ell}{p}$?
+
+Consider rule \ts{EB-StI}, which says:
 \begin{align*}
-\llrr{\elet{x}{e}{P}} &= \elet{x}{\llrr{e}}{\llrr{P}}\\
-\llrr{\elet{\C(x)}{\hat{e}}{P}} &=
-\elet{\C}{\lambda x. (\elet{\mf{flag}}{\eref{\mf{false}}}
-{\llrr{\hat{e}}_\emptyset})}{\llrr{P}}
+\bstep{m}{\estate{x}{\ell}{v}{\hat{e}}&}{\mf{Init}}{p}
+{\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}]}{m'}
+&&\ts{EB-StI}\\
+(m' &= m \mid m[p].\mf{st}[\ell] = v)
+\end{align*}
+Putting aside the issue of translating $m$,
+and ignoring the rerender flag (which causes more problems!)
+for brevity, we translate
+the left-hand expression as follows (for some $\hat{e}_0$):
+\begin{align*}
+&\elet{x_\ell}{\eref{\llrr{v}}}{\\
+  &\elet{x}{\eget{x_\ell}}{\\
+    &\elet{x_\mf{set}}{\lambda y.\eset{x_\ell}{y}}{\\
+      &\llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}
+    }
+  }
+}
+\end{align*}
+To step this expression, by the semantics of the target language,
+$\eref{v}$ generates a \emph{fresh} name
+(call it $r$ to distinguish it from source-language labels $\ell$),
+and puts $v$ on the heap at $r$.
+We get the following:
+$$\llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}
+[r/x_\ell, v/x, \lambda y.\eset{r}{y}/x_\mf{set}]$$
+which we want to say is equivalent to 
+$\llrr{\hat{e}[v/x,\vset{\ell}{p}/x_\mf{set}]}^\mf{Init}_{\hat{e}_0}$.
+
+Now clearly, we need to draw \emph{some} kind of correspondence between
+$\llrr{\vset{\ell}{p}}$ and $\lambda y.\eset{r}{y}$.
+\emph{Morally}, the source location $(p, \ell)$
+agrees with the target location $r$,
+\emph{but since $r$ is freshly generated,
+we have no information linking the two.}
+There is no way of translating 
+$\llrr{\vset{\ell}{p}}=\lambda y.\eset{r}{y}$
+without some additional \emph{context}.
+
+We have a similar problem in translating the following rule:
+\begin{align*}
+\bstep{m}{\estate{x}{\ell}{v}{\hat{e}}&}{\mf{Succ}}{p}
+{\hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}]}{m}
+&&\ts{EB-StS}\\
+(v' &= m[p].\mf{st}[\ell])
+\end{align*}
+In this case, we don't even know how to translate the left-hand body:
+\begin{itemize}
+\item Our ``context-free'' translation 
+$\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Succ}
+= \elet{x}{\eget{x_\ell}}{\llrr{\hat{e}}^\mf{Succ}}$
+doesn't work, because it leaves $x_\ell$ free,
+but in order for this term to step, $x_\ell$ must be bound to
+a concrete reference $r$.
+\item Furthermore, we don't know \emph{which} such $r$ to use!
+Even if we had a map from $(p, \ell) \mapsto r$,
+we would \emph{also} need to parameterize our translation
+by $p$, since this is given by the operational context
+and not the term syntax.
+\end{itemize}
+
+\section{RTC-Deltaless}
+
+Removing $\Delta$ (and thus mutual component recursion)
+from the source language.
+
+Primary goal: bring source and target languages closer together
+by allowing components to be interpreted as let-bound functions,
+and avoiding mutual recursion.
+
+Secondary goal: should be strongly normalizing
+(although this might be hard to prove...)
+
+Tertiary goal: can \emph{maybe} remove ``program'' top-level,
+allowing for one less layer of indirection...
+and maybe anonymous components?
+Should also simplify metatheory (no $\Omega$...)
+
+\subsection{Syntax}
+
+Here, $\C$ is a \emph{syntactic keyword} (like $\lambda$)
+instead of a name.
+\begin{align*}
+\text{Value } v &::= x \mid () \mid s 
+\mid \lambda x.e \mid \mhl{\C(x).\hat{e}}
+\mid [] \mid v :: v\\
+&\quad\mid \vtxt{v} \mid \vtag{v}{v}
+\mid \vattr{v}{v} \mid \vclick{v}\\
+&\quad\mid \mgrey{\pair{v}{v}} \mid \mgrey{\vset{\ell}{p}}\\
+\text{Expression } e &::= \eret{v} \mid \elet{x}{e}{e} \mid v\ v \\
+&\quad\mid \ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}\\
+\text{Body }\hat{e} &::= e \mid \estate{x}{\ell}{v}{\hat{e}} \mid \elet{x}{e}{\hat{e}}\\
+\text{Type } \ptp &::= \tone \mid \tstr \mid \ptp \arrow{E} \ptp
+\mid [\ptp] \\
+&\quad\mid \tview \mid \tattr
+\mid \mhl{\tcomp{\ptp\ \Ell}} \mid \tset{\ptp}\\
+\text{Effect } E &::= \epsilon \mid \emut\\
+\text{Label-context }\Ell &::= \map{\ell}{\ptp}
 \end{align*}
 
-
-
-% \section{Big-Step Runtime (In Complete Disarray)}
-
-% \subsection{(Old) Runtime Typing}
-
-% \subsubsection{Trees}
-
-% \emph{\tb{Typing}}. Judgment: $\Pi \vdtree t$
-% \begin{mathpar}
-% \inferrule*[right=TTree-Lit] {
-%   \cdot \semi \Pi \vdval v: \tstr
-% } {
-%   \Pi \vdtree \mf{lit}\ v
-% }
-% \and
-% \inferrule*[right=TTree-Path] {
-%   p \in \dom(\Pi)
-% } {
-%   \Pi \vdtree p
-% }
-% \and
-% \inferrule*[right=TTree-Node] {
-%   \mf{id\ fresh}
-%   \and
-%   \cdot \semi \Pi \vdval v: \tstr
-%   \\
-%   (\forall i)\ \cdot \semi \Pi \vdval v_i: \mf{Attr}
-%   \and
-%   (\forall j)\ \Pi \vdtree t_j
-% } {
-%   \Pi \vdtree \mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})
-% }
-% \end{mathpar}
-
-% \emph{\tb{Well-Formedness}}.
-% In addition to our typing judgment on trees,
-% we have a \emph{well-formedness} judgment on trees
-% with respect to a concrete memory $m$ and definition set $\D$.
-% Informally, this says that all paths in a tree have been
-% "properly initialized".
-
-% Judgment: $\D \semi m \wf t$
-% \begin{mathpar}
-% \inferrule*[right=WF-Lit] { } {\D \semi m \wf \mf{lit}\ v}
-% \and
-% \inferrule*[right=WF-Node] {
-%   (\forall j)
-%   \quad
-%   \D \semi m \wf t_j
-% } {
-%   \D \semi m \wf \mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})
-% }
-% \and
-% \inferrule*[right=WF-Path] {
-%   m[p].\mf{spec} = \pair{\C}{v}
-%   \and
-%   \D[\C] = x.\hat{e}
-%   \\
-%   \mc{L}(\hat{e}) \subseteq \dom(m[p].\mf{st})
-%   \and
-%   \D \semi m \wf m[p].\mf{child}
-% } {
-%   \D \semi m \wf p
-% }
-% \end{mathpar}
-
-% \subsubsection{Component Context}
-% Define $\Delta \vDash \D$ to say that,
-% for all $\C \in \dom(\D)$
-% (such that $\D[\C] = x.\hat{e}$),
-% we have $[x \mapsto \Delta[\C]] \semi \cdot \semi \C \vdtop \hat{e}$.
-% (Implicitly, $\dom(\D) \subseteq \dom(\Delta)$).
-
-% \subsubsection{Memory}
-% We say $\Gamma \semi \Pi \vdm m$ if, for all $p \in \dom(m)$,
-% \begin{itemize}
-% \item for $m[p].\mf{spec}=\pair{\C}{v}$,
-% $\Pi[p] = \C$ and $\Gamma \semi \Pi \vdval v: \Delta[\C]$, and
-% \item for all $\ell$ in $m[p].\mf{st}$,
-% $\Gamma \semi \Pi \vdval m[p].\mf{st}[\ell] : \Delta[\C][\ell]$.
-% \item if $m[p].\mf{child}$ is defined, then $\Pi \vdtree m[p].\mf{child}$.
-% \end{itemize}
-
-% \subsubsection{Modes}
-
-% Judgment: $\Pi \vdmu \mu$
-% \begin{mathpar}
-% \inferrule*[right=TMode-Idle] { } {\Pi \vdmu \mf{idle}}
-% \and
-% \inferrule*[right=TMode-Search] { } {\Pi \vdmu \mf{search}(id)}
-% \and
-% \inferrule*[right=TMode-Start] {
-%   \cdot \semi \Pi \vdprog P
-% } {
-%   \Pi \vdmu \mf{start}(P)
-% }
-% \and
-% \inferrule*[right=TMode-HandleNil] { } {\Pi \vdmu \mf{handle}([])}
-% \and
-% \inferrule*[right=TMode-HandleCons] {
-%   \cdot \semi \Pi \vdexp e : \tone \mid E
-%   \and
-%   \Pi \vdmu \mf{handle}(es)
-% } {
-%   \Pi \vdmu \mf{handle}(e :: es)
-% }
-% \end{mathpar}
-
-% \subsubsection{Configurations}
-
-% Define a configuration $\four{\D}{m}{t}{\mu}$
-% to be well-typed via $\Pi \vdcfg \four{\D}{m}{t}{\mu}$ if:
-% \begin{itemize}
-% \item $\Delta \vDash \D$;
-% \item $\Pi \vdmu \mu$;
-% \item if $m$ is defined, then $\cdot \semi \Pi \vdm m$; and
-% \item if $t$ is defined, then both $\Pi \vdtree t$ and $\D \semi m \wf t$.
-% \end{itemize}
-
-% \subsection{Program Semantics}
-
-% Throughout the semantics, we use the notation $m \mid x = v$
-% to concisely denote nested map/record updates.
-% The above should be read as ``$m$ with field $x$ set to $v$''.
-% For instance, $m \mid m[p].\mf{st}[\ell] = v$ updates the
-% state field of $m$ at path $p$ and location $\ell$ to value $v$.
-
-% Again, we \hl{highlight} interesting rules.
-
-% \subsubsection{Expression Semantics}
-
-% Judgment: $m \semi e \mapsto e' \semi m'$
-% \begin{mathpar}
-% \inferrule*[right=E-Let] {
-%   m \semi e_1 \mapsto e_1' \semi m'
-% } {
-%   m \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi m'
-% }
-% \end{mathpar}
-% \begin{align*}
-% m \semi \elet{x}{\eret{v}}{e} &\mapsto e[v/x] \semi m
-% &&\ts{E-Ret}\\
-% m \semi (\lambda x.e) v &\mapsto e[v/x] \semi m
-% &&\ts{E-AppFun}\\
-% m \semi \C\ v &\mapsto \eret{\pair{\C}{v}} \semi m
-% &&\ts{\hl{E-AppC}}\\
-% m \semi \vset{\ell}{p}\ v &\mapsto \eret{()} \semi m'
-% &&\ts{\hl{E-AppSet}}\\
-% (m' = m \mid m[p].\mf{st}[\ell] &= v\ 
-%     \mf{and}\ m[p].\mf{rerender} = \mf{tt})\\
-% m \semi \eif{\mf{true}}{e_1}{e_2} &\mapsto e_1 \semi m
-% &&\ts{E-IfTrue}\\
-% m \semi \eif{\mf{false}}{e_1}{e_2} &\mapsto e_2 \semi m
-% &&\ts{E-IfFalse}
-% \end{align*}
-
-% \subsubsection{Top-Level Expression Semantics}
-
-% Judgment: $m \semi \hat{e} \topstep{\phi}{p} \hat{e}' \semi m'$
-% \begin{mathpar}
-% \inferrule*[right=E-Lift] {
-%   \cdot \semi e \mapsto e' \semi \cdot
-% } {
-%   m \semi e \topstep{\phi}{p} e' \semi m
-% }
-% \and
-% \inferrule*[right=E-LetTop] {
-%   \cdot \semi e \mapsto e' \semi \cdot
-% } {
-%   m \semi \elet{x}{e}{\hat{e}} \topstep{\phi}{p} \elet{x}{e'}{\hat{e}} \semi m
-% }
-% \end{mathpar}
-% \begin{align*}
-% m \semi \elet{x}{\eret{v}}{\hat{e}} &\topstep{\phi}{p} \hat{e}[v/x] \semi m
-% &&\ts{E-RetTop}\\
-% m \semi \estate{x}{\ell}{v}{\hat{e}}
-% &\topstep{\mf{Init}}{p}
-% \hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}] \semi m'
-% &&\ts{\hl{E-StInit}}\\
-% (m' &= m \mid m[p].\mf{st}[\ell] = v)\\
-% m \semi \estate{x}{\ell}{v}{\hat{e}}
-% &\topstep{\mf{Succ}}{p}
-% \hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}] \semi m
-% &&\ts{\hl{E-StSucc}}\\
-% (v' &= m[p].\mf{st}[\ell])
-% \end{align*}
-
-% \subsubsection{Program Expression Semantics}
-
-% Judgment: $\D \semi P \mapsto P' \semi \D'$
-% \begin{mathpar}
-% \inferrule*[right=P-Lift] {
-%   \cdot \semi e \mapsto e' \semi \cdot
-% } {
-%   \D \semi e \mapsto e \semi \D
-% }
-% \and
-% \inferrule*[right=P-Let] {
-%   \cdot \semi e \mapsto e' \semi \cdot
-% } {
-%   \D \semi \elet{x}{e}{P}
-%   \mapsto
-%   \elet{x}{e'}{P} \semi \D
-% }
-% \end{mathpar}
-% \begin{align*}
-% \D \semi \elet{x}{\eret{v}}{P}
-% &\mapsto
-% P[v/x] \semi \D
-% &&\ts{E-RetProg}\\
-% \D \semi \elet{\C(x)}{\hat{e}}{P}
-% &\mapsto
-% P \semi \D[\C \mapsto x.\hat{e}]
-% &&\ts{\hl{E-CompDef}}
-% \end{align*}
-
-% \subsection{Event-Loop Semantics}
-
-% Say $m \semi \hat{e} \Topstep{\phi}{p} v \semi m'$ 
-% if $m \semi \hat{e} \xmapsto{*}^{\phi}_{p} \eret{v} \semi m'$.
-% \pagebreak
-% \subsubsection{Initialization}
-
-% Judgment: $\D \vdash v \bsinit{n} \pair{t}{m}$.
-
-% Define $\pi_0(\C, v)$ as $
-% \{\mf{spec}: \pair{\C}{v}, \mf{st}: \emptyset, \mf{child}: \emptyset,
-% \mf{rerender}: \mf{ff}\}$.
-
-% \begin{mathpar}
-% \inferrule*[right=\ts{Init-Lit}] {
-%   n > 0
-% } {
-%   \D \vdash \mf{text}\ v 
-%   \bsinit{n}
-%   \pair{\mf{lit}\ v}{\cdot}
-% }
-% \and
-% \inferrule*[right=\ts{Init-Node}] {
-%   n > 0
-%   \and
-%   \mf{id\ fresh}
-%   \and
-%   (\forall j)
-%   \quad
-%   \D \vdash v_j
-%   \bsinit{n-1}
-%   \pair{t_j}{m_j}
-% } {
-%   \D \vdash \mf{tag}(v, \num{v_i}, \num{v_j})
-%   \bsinit{n}
-%   \pair{\mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})}{\bigcup_j m_j}
-% }
-% \and
-% \inferrule*[right=\ts{Init-Comp}] {
-%   n > 0
-%   \and
-%   p\ \mf{fresh}
-%   \and
-%   \D[\C] = x.\hat{e}
-%   \\
-%   [p \mapsto \pi_0(\C, v)] 
-%   \semi \hat{e}[v/x] \Topstep{\mf{Init}}{p} v' \semi m 
-%   \\
-%   \D \vdash v' \bsinit{n-1} \pair{t}{m'}
-% } {
-%   \D \vdash \pair{\C}{v}
-%   \bsinit{n}
-%   \pair{p}{m' \uplus (m \mid m[p].\mf{child} = t)}
-% }
-% \and
-% \inferrule*[right=\ts{Init-Div}] { } {
-%   \D \vdash \bsinit{0} \bot
-% }
-% \and
-% \inferrule*[right=\ts{Init-Node}$_\bot$] {
-%   n > 0
-%   \and
-%   (\exists j)
-%   \quad
-%   \D \vdash v_j \bsinit{n-1} \bot
-% } {
-%   \D \vdash \mf{node}(\mf{id}, v, \num{v_i}, \num{v_j}) \bsinit{n} \bot
-% }
-% \and
-% \inferrule*[right=\ts{Init-Comp}$_\bot$] {
-%   n > 0
-%   \and
-%   p\ \mf{fresh}
-%   \and
-%   \D[\C] = x.\hat{e}
-%   \\
-%   [p \mapsto \pi_0(\C, v)] 
-%   \semi \hat{e}[v/x] \Topstep{\mf{Init}}{p} v' \semi m 
-%   \\
-%   \D \vdash v' \bsinit{n-1} \bot
-% } {
-%   \D \vdash \pair{\C}{v}
-%   \bsinit{n}
-%   \pair{p}{m' \uplus (m \mid m[p].\mf{child} = t)}
-% }
-% \end{mathpar}
-
-% \subsubsection{Rerendering}
-
-% Judgment: $\D \semi m \vdash t \bssucc{n} m'$
-
-% \begin{mathpar}
-% \inferrule*[right=Check-Lit] { } {
-%   \D \semi m \vdash \mf{lit}\ v \bssucc{n} \cdot
-% }
-% \and
-% \inferrule*[right=Check-Node] {
-%   (\forall j) \quad
-%   \D \semi m \vdash t_j \bssucc{n} m_j
-% } {
-%   \D \semi m \vdash \mf{node}(\mf{id}, v, \num{v_i}, \num{t_j}) 
-%   \bssucc{n} \bigcup_{\forall j} m_j
-% }
-% \and
-% \inferrule*[right=\hl{Check-PathF}] {
-%   m[p].\mf{rerender} = \mf{ff}
-%   \\
-%   \D \semi m \vdash m[p].\mf{child} \bssucc{n} m'
-% } {
-%   \D \semi m \vdash p \bssucc{n} m'
-% }
-% \and
-% \inferrule*[right=\hl{Check-PathT}] { 
-%   m[p].\mf{rerender} = \mf{tt}
-%   \\
-%   m'[p].\mf{spec} = \pair{\C}{v}
-%   \and
-%   \D[\C] = x.\hat{e}
-%   \\
-%   m \semi \hat{e}[v/x] \Topstep{\mf{Succ}}{p} \eret{v'} \semi \_
-%   \\
-%   \D \semi m \vdash v' \bsinit{n} \pair{t}{m'}
-% } {
-%   \D \semi m \vdash p \bssucc{n} m' \mid 
-%   m'[p].\mf{child}=t\ \mf{and}\ m'[p].\mf{rerender}=\mf{ff}
-% }
-% \and
-% \inferrule*[right=\hl{Check-PathDiv}] { 
-%   m[p].\mf{rerender} = \mf{tt}
-%   \\
-%   m'[p].\mf{spec} = \pair{\C}{v}
-%   \and
-%   \D[\C] = x.\hat{e}
-%   \\
-%   m \semi \hat{e}[v/x] \Topstep{\mf{Succ}}{p} \eret{v'} \semi \_
-%   \\
-%   \D \semi m \vdash v' \bsinit{n} \bot
-% } {
-%   \D \semi m \vdash p \bssucc{n} \bot
-% }
-% \and
-% \inferrule*[right=Check-Node$_\bot$] {
-%   (\exists j)
-%   \quad
-%   \D \semi m \vdash t_j \bssucc{n} \bot
-% } {
-%   \D \semi m \vdash \mf{node}(\mf{id}, v, \num{v_i}, \num{t_j}) \bssucc{n} \bot
-% }
-% \and
-% \inferrule*[right=Check-PathF$_\bot$] {
-%   m[p].\mf{rerender} = \mf{ff}
-%   \\
-%   \D \semi m \vdash m[p].\mf{child} \bssucc{n} \bot
-% } {
-%   \D \semi m \vdash p \bssucc{n} \bot
-% }
-% \end{mathpar}
-
-% \subsubsection{Handler Search}
-
-% Judgment: $m \semi \mf{id} \vdash \mf{handlers}(t) = \num{v}$
-
-% \begin{mathpar}
-% \inferrule*[right=Handlers-Lit] { } {
-%   m \semi \mf{id} \vdash \mf{handlers}(\mf{lit}\ v) = \{\}
-% }
-% \and
-% \inferrule*[right=Handlers-Comp] {
-%   m \semi \mf{id} \vdash \mf{handlers}(m[p].\mf{child}) = \num{v}
-% } {
-%   m \semi \mf{id} \vdash \mf{handlers}(p) = \num{v}
-% }
-% \and
-% \inferrule*[right=Handlers-Tgt] { } {
-%   m \semi \mf{id} \vdash \mf{handlers}(\mf{node}(id, v, \num{v_i}, \num{v_j}))
-%   = \{v_h \mid \mf{onClick}\ v_h \in \num{v_i}\}
-% }
-% \and
-% \inferrule*[right=Handlers-Node] {
-%   \mf{id} \neq \mf{id}'
-%   \and
-%   (\forall j)\ 
-%   m \semi \mf{id}\vdash \mf{handlers}(v_j) = h_j
-% } {
-%   m \semi \mf{id} \vdash \mf{handlers}(\mf{node}(id', v, \num{v_i}, \num{v_j}))
-%   = \bigcup_{\forall j} h_j
-% }
-% \end{mathpar}
-
-% \subsubsection{Event Loop}
-
-% Judgment: $\four{\D}{m}{t}{\mu} \hookrightarrow \four{\D'}{m'}{t}{\mu'}$
-
-% \begin{mathpar}
-% \inferrule*[right=\hl{Loop-Start}] {
-%   \D \semi P \mapsto P' \semi \D'
-% } {
-%   \four{\D}{m}{t}{\mf{start}(P)} 
-%   \hookrightarrow
-%   \four{\D'}{m}{t}{\mf{start}(P')}
-% }
-% \and
-% \inferrule*[right=\hl{Loop-Init}] {
-%   (\forall n \in \mathbb{N})
-%   \quad
-%   \D \vdash v \bsinit{n} \pair{t}{m}
-% } {
-%   \four{\D}{\_}{\_}{\mf{start}(\eret{v})} 
-%   \hookrightarrow 
-%   \four{\D}{m}{t}{\mf{idle}}
-% }
-% \and
-% \inferrule*[right=\hl{Loop-Event}] { } {
-%   \four{\D}{m}{t}{\mf{idle}} 
-%   \hookrightarrow 
-%   \four{\D}{m}{t}{\mf{search}(id)}
-% }
-% \and
-% \inferrule*[right=\hl{Loop-Search}] {
-%   m \semi \mf{id} \vdash \mf{handlers}(t) = \num{v}
-% } {
-%   \four{\D}{m}{t}{\mf{search}(id)}
-%   \hookrightarrow
-%   \four{\D}{m}{t}{\mf{handle}(\num{v\ ()})}
-% }
-% \and
-% \inferrule*[right=\hl{Loop-HandleCong}] {
-%   m \semi e \mapsto e' \semi m'
-% } {
-%   \four{\D}{m}{t}{\mf{handle}(e :: es)}
-%   \hookrightarrow
-%   \four{\D}{m'}{t}{\mf{handle}(e' :: es)}
-% }
-% \and
-% \inferrule*[right=\hl{Loop-HandleNext}] { } {
-%   \four{\D}{m}{t}{\mf{handle}(\eret{()} :: es)}
-%   \hookrightarrow
-%   \four{\D}{m}{t}{\mf{handle}(es)}
-% }
-% \and
-% \inferrule*[right=\hl{Loop-Rerender}] {
-%   (\forall n \in \mathbb{N})
-%   \quad
-%   \D \semi m \vdash t \bssucc{n} m'
-% } {
-%   \four{\D}{m}{t}{\mf{handle}([])}
-%   \hookrightarrow
-%   \four{\D}{m'}{t}{idle}
-% }
-% \end{mathpar}
-
-% \subsection{(Old) Runtime Type Soundness}
-
-% \subsubsection{Initialization}
-
-% \begin{lemma}[Progress of initialization]
-% If $\Delta \vDash \D$ and $\cdot \semi \Pi \vdval v: \mf{View}$,
-% then, for all $n \in \mathbb{N}$,
-% either $\D \vdash v \divinit{n}$ or $\D \vdash v \bsinit{n} \pair{t}{m}$.
-% \end{lemma}
-
-% \begin{proof}
-% By induction on $n$.
-
-% In the base case, when $n=0$, we can always apply rule \ts{Init-Div}
-% to conclude that $\D \vdash v \divinit{0}$ and we are done.
-
-% In the inductive case, we have $n>0$ by assumption.
-% We apply the canonical forms lemma to the typing premise
-% and case-analyze the result.
-
-% \tb{Case} $v = \mf{text}\ v'$: 
-% We simply apply $\ts{Init-Lit}$ to get 
-% $\D \vdash \mf{text}\ v' \bsinit{n} \pair{\mf{lit}\ v'}{\cdot}$
-% and we are done.
-
-% \tb{Case} $v = \mf{tag}(v', \num{v_i}, \num{v_j})$: unfinished
-
-% \tb{Case} $v = \pair{\C}{v}$: unfinished
-
-% \end{proof}
-
-% \begin{lemma}[Preservation of initialization]
-% If \begin{enumerate}[label=(\roman*)]
-% \item $\Delta \vDash \D$, 
-% \item $\cdot \semi \Pi \vdval v: \mf{View}$, and
-% \item $\D \vdash v \bsinit{n} \pair{t}{m}$,
-% \end{enumerate}
-% then there exists some $\Pi'$ with \begin{enumerate}[label=(\roman*)]
-% \item $\Pi \po \Pi'$, 
-% \item $\cdot \semi \Pi' \vdm m$, and
-% \item $\Pi' \vdtree t$. We also have
-% \item $\D \semi m \wf t$.
-% \end{enumerate}
-% \end{lemma}
-
-% \begin{proof}
-% By induction on the derivation of the big-step judgment.
-% \end{proof}
-
-% \begin{theorem}[Progress of configurations]
-% If $\Pi \vdcfg \four{\D}{m}{t}{\mu}$, either:
-% \begin{enumerate}[label=(\roman*)]
-% \item $\mu = \mf{idle}$,
-% \item $\mu = \mf{start}(\eret{v})$ and $\D \vdash v \divinit{ }$,
-% \item $\mu = \mf{handle}([])$ and $\D \semi m \vdash t \divsucc{ }$, or
-% \item $\four{\D}{m}{t}{\mu} \hookrightarrow \four{\D'}{m'}{t'}{\mu'}$.
-% \end{enumerate}
-% \end{theorem}
-
-% \begin{theorem}[Preservation of configurations]
-% If $\Pi \vdcfg \four{\D}{m}{t}{\mu}$\\
-% and $\four{\D}{m}{t}{\mu} \hookrightarrow \four{\D'}{m'}{t'}{\mu'}$,
-% there exists some $\Pi'$ with $\Pi \po \Pi'$
-% and $\Pi' \vdcfg \four{\D'}{m'}{t'}{\mu'}$.
-    
-% \end{theorem}
-
-% \subsubsection{Initialization (Even Older)}
-
-% We first prove a number of lemmas which are necessary in our critical property.
-
-% \begin{lemma}[Path Preservation]
-% If $m \semi \hat{e} \topstep{\phi}{p} \hat{e}' \semi m'$
-% and $p \in \dom(m)$,
-% then $\dom(m) = \dom(m')$.
-% \end{lemma}
-
-% \begin{proof}
-% By induction on the derivation of the small-step judgment.
-
-% \tb{Case} \ts{E-StInit}: \begin{itemize}
-% \item We have
-% $m \semi \estate{x}{\ell}{v}{\hat{e}} \topstep{\mf{Init}}{p}
-% \hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}] \semi m'$
-% where $m' = m \mid m[p].\mf{st}[\ell] = v$.
-% \item Since we assumed $p \in \dom(m)$, the addition of $p$
-% to $m'$ does not change its domain, and therefore we have $\dom(m)=\dom(m')$.
-% \end{itemize}
-
-% \tb{All other cases} do not alter $m$, and the lemma holds trivially.
-
-% \end{proof}
-
-% \begin{corollary}
-% If $m \semi \hat{e} \Topstep{\phi}{p} v \semi m'$
-% and $p \in \dom(m)$,
-% then $\dom(m) = \dom(m')$.
-% \end{corollary}
-
-% \begin{proof}
-% Immediate from path preservation and definition of $\Topstep{\phi}{p}$.
-% \end{proof}
-
-% \begin{lemma}[Memory Freshness]
-% If $\D \vdash v \bsinit{n} \pair{t}{m}$,
-% then for all $p \in \dom(m)$, we have $p\ \mf{fresh}$.
-% \end{lemma}
-
-% \begin{proof}
-% By induction over the derivation of the big-step judgment.
-
-% \tb{Case} \ts{Init-Lit}: $m=\cdot$, so the conclusion holds trivially.
-
-% \tb{Case} \ts{Init-Node}: \begin{itemize}
-% \item We have
-% $\D \vdash \mf{tag}(v, \num{v_i}, \num{v_j}) 
-% \bsinit{n}
-% \pair{\mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})}{\bigcup_j m_j}$.
-% \item For all $j$, we also have $\D \vdash v_j \bsinit{n} \pair{t_j}{m_j}$.
-% \item We apply the inductive hypothesis to each, getting that
-% all $m_j$ only contain fresh $p$.
-% \item Therefore, their union $\bigcup_j m_j$ also only contains fresh $p$,
-% and we are done.
-% \end{itemize}
-
-% \tb{Case} \ts{Init-Comp}: \begin{itemize}
-% \item We start with $\D \vdash \pair{\C}{v} 
-% \bsinit{n} \pair{p}{m' \cup (m \mid m[p].\mf{child} = t)}$.
-% \item Let $\D[\C] = x.\hat{e}$ and
-% $m_0 = \{\mf{spec}: \pair{\C}{v_0}, \mf{st}: \emptyset, \mf{child}: \emptyset\}$.
-% \item We have the following premises:
-% \begin{enumerate}[label=(\alph*)]
-%   \item $p$ is fresh,
-%   \item $m_0 \semi \hat{e}[v_0/x] \Topstep{\mf{Init}}{p} v \semi m$, and
-%   \item $\D \vdash v \bsinit{n} \pair{t}{m'}$.
-% \end{enumerate}
-% \item By (a), clearly $m_0$ has all $p$ fresh.
-% \item By the path preservation corollary on (b), $m$ also has all $p$ fresh.
-% \item By inductive hypothesis on $c$, $m'$ also has all $p$ fresh.
-% \item Therefore, $m' \cup (m \mid m[p].\mf{child} = t)$
-% has all $p$ fresh and we are done.
-% \end{itemize}
-% \end{proof}
-
-% \begin{lemma}[Label Initialization]
-% If $m \semi \hat{e} \topstep{\mf{Init}}{p} \hat{e}' \semi m'$,
-% then $\mc{L}(\hat{e}) \setminus \mc{L}(\hat{e}') \subseteq \dom(m'[p].\mf{st})$.
-% \end{lemma}
-
-% \begin{proof}
-% By case-analysis of the small-step judgment. Note that if 
-% $\mc{L}(\hat{e}) \setminus \mc{L}(\hat{e}') = \emptyset$,
-% the conclusion holds trivially.
-
-% \tb{Case} \ts{E-Lift}: \begin{itemize}
-% \item We have $\cdot \semi e \mapsto e' \semi \cdot$.
-% \item By definition, $\mc{L}(e)=\emptyset=\mc{L}(e')$.
-% \item Clearly then $\mc{L}(e) \setminus \mc{L}(e')=\emptyset$ and we are done.
-% \end{itemize}
-
-% \tb{Case} \ts{E-LetTop}: \begin{itemize}
-% \item We have $m \semi \elet{x}{e}{\hat{e}} \topstep{\mf{Init}}{p} \elet{x}{e'}{\hat{e}} \semi m$,
-% with $\cdot \semi e \mapsto e' \semi \cdot$.
-% \item By definition, $\mc{L}(\elet{x}{e}{\hat{e}})=\mc{L}(\elet{x}{e'}{\hat{e}})=\mc{L}(\hat{e})$.
-% \item We get $\mc{L}(\elet{x}{e}{\hat{e}}) \setminus \mc{L}(\elet{x}{e'}{\hat{e}})=\emptyset$ and we are done.
-% \end{itemize}
-
-% \tb{Case} \ts{E-RetTop}: \begin{itemize}
-% \item We have $m \semi \elet{x}{\eret{v}}{\hat{e}} 
-% \topstep{\mf{Init}}{p} \hat{e}[v/x] \semi m$.
-% \item By definition, $\mc{L}(\elet{x}{\eret{v}}{\hat{e}})=\mc{L}(\hat{e})$.
-% \item By label preservation over substitution, 
-% $\mc{L}(\hat{e}[v/x])=\mc{L}(\hat{e})$.
-% \item We get $\mc{L}(\elet{x}{\eret{v}}{\hat{e}}) 
-% \setminus \mc{L}(\hat{e}[v/x])=\emptyset$ and we are done.
-% \end{itemize}
-
-% \tb{Case} \ts{E-StInit}: \begin{itemize}
-% \item We have $m \semi \estate{x}{\ell}{v}{\hat{e}} 
-% \topstep{\mf{Init}}{p} \hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}]
-% \semi m'$, where $m' = m \mid m[p].\mf{st}[\ell] = v$.
-% \item By definition, $\mc{L}(\estate{x}{\ell}{v}{\hat{e}}) 
-% = \{\ell\} \cup \mc{L}(\hat{e})$.
-% \item By label preservation over substitution,
-% $\mc{L}(\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}]) = \mc{L}(\hat{e})$.
-% \item We subcase on whether $\ell \in \mc{L}(\hat{e})$.
-% \item Subcase 1: $\ell \in \mc{L}(\hat{e})$.
-% \begin{itemize}
-%   \item It follows that $\mc{L}(\estate{x}{\ell}{v}{\hat{e}}) = \mc{L}(\hat{e})$.
-%   \item Thus, $\mc{L}(\estate{x}{\ell}{v}{\hat{e}}) \setminus
-% \mc{L}(\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}]) = \emptyset$ and we are done.
-% \end{itemize}
-% \item Subcase 2: $\ell \notin \mc{L}(\hat{e})$.
-% \begin{itemize}
-%   \item Then $\mc{L}(\estate{x}{\ell}{v}{\hat{e}}) \setminus \mc{L}(\hat{e}) = \{\ell\}$.
-%   \item Thus, we need to show $\ell \in m'[p].\mf{st}$.
-%   \item This is given by definition of $m'$, and we are done.
-% \end{itemize}
-% \end{itemize}
-
-% \tb{Case} \ts{E-StSucc}: Impossible, 
-% since this case requires $\phi=\mf{Succ}$,
-% which contradicts our assumption that $\phi=\mf{Init}$.
-
-% \end{proof}
-
-% \begin{corollary}
-% If $m \semi \hat{e} \Topstep{\mf{Init}}{p} v \semi m'$,
-% then $\mc{L}(\hat{e}) \subseteq \dom(m'[p].\mf{st})$.
-% \end{corollary}
-
-% \begin{proof}
-% Follows from label initialization and the fact that 
-% $\mc{L}(\eret{v})=\emptyset$, which means that 
-% $\mc{L}(\hat{e}) \setminus \mc{L}(\eret{v}) = \mc{L}(\hat{e})$.
-% \end{proof}
-
-% \begin{lemma}[Strong Disjoint Memory]
-% If \begin{enumerate}[label=(\roman*)]
-% \item $\Gamma \semi \Pi \semi \D \vdm m$,
-% \item $\Gamma \semi \Pi \semi \D \vdm m'$, and
-% \item $\dom(m) \cap \dom(m') = \emptyset$,
-% \end{enumerate}
-% then $\Gamma \semi \Pi \semi \D \vdm m \cup m'$.
-% \end{lemma}
-
-% \begin{proof}
-% Follows easily from definition of $\vdm$.
-% \end{proof}
-
-% \begin{theorem}[Critical Property of Initialization]
-% If \begin{enumerate}[label=(\roman*)]
-% \item $\D \vdash v \bsinit{n} \pair{t}{m}$,
-% \item $\Delta \vDash \D$, and
-% \item $\cdot \semi \Pi \vdval v: \mf{View}$,
-% \end{enumerate}
-% then there exists some $\Pi'$ such that: \begin{enumerate}[label=(\roman*)]
-% \item $\Pi \sqsubseteq \Pi'$,
-% \item $\Pi' \vdtree t$, and
-% \item $\cdot \semi \Pi' \semi \D \vdm m$.
-% \end{enumerate}
-% \end{theorem}
-
-% \begin{proof}
-% By induction on derivation of \emph{(i)}.
-
-% \tb{Case} \ts{Init-Lit}: \begin{itemize}
-% \item We have $\D \vdash \mf{text}\ v \bsinit{n} \pair{\mf{lit}\ v}{\cdot}$.
-% \item Choose $\Pi'=\Pi$; conclusions \emph{(i)} and \emph{(iii)} are trivial.
-% \item By premise \emph{(iii)} and \ts{TV-Text},\\
-% we have $\cdot \semi \Pi \vdval v: \tstr$.
-% \item We conclude via \ts{TTree-Lit} that $\Pi \vdtree \mf{lit}\ v$
-% and we are done. 
-% \end{itemize}
-
-% \tb{Case} \ts{Init-Node}: \begin{itemize}
-% \item We have $\D \vdash \mf{tag}(v, \num{v_i}, \num{v_j})
-%   \bsinit{n}
-%   \pair{\mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})}{\bigcup_j m_j}$.
-% \item Furthermore, for all $j$, we have (a) that $\D \vdash v_j \bsinit{n} \pair{t_j}{m_j}$.
-% \item By \emph{(iii)} and \ts{TV-Tag}, we have \begin{enumerate}[label=(\alph*)]
-%   \stepcounter{enumi}
-%   \item $\cdot \semi \Pi \vdval v: \tstr$,
-%   \item $\cdot \semi \Pi \vdval v_i: \mf{Attr}$ for all $i$, and
-%   \item $\cdot \semi \Pi \vdval v_j: \mf{View}$ for all $j$.
-% \end{enumerate}
-% \item We \emph{iteratively} apply the inductive hypothesis for each $j$.
-% \begin{itemize}
-%   \item Let $j$ range from $0$ to $n$ (exclusive).
-%   \item Let $\Pi_0=\Pi$.
-%   \item At step $j$, we weaken (d) to get (e) that $\cdot \semi \Pi_j \vdval v_j: \mf{View}$.
-%   \begin{itemize}
-%     \item That $\Pi \po \Pi_j$ is given by reflexivity at $j=0$, 
-%     or the previous conclusion (f) \& transitivity of $\po$ otherwise.
-%     (We have a chain $\Pi_0 \po \Pi_1 \po \cdots \po \Pi_j$).
-%   \end{itemize}
-%   \item We apply the inductive hypothesis using (a), (e), and premise \emph{(ii)}.
-%   \item We get some $\Pi_{j+1}$ with:
-%   \begin{enumerate}[label=(\alph*)]
-%     \setcounter{enumi}{5}
-%     \item $\Pi_j \po \Pi_{j+1}$,
-%     \item $\Pi_{j+1} \vdtree t_j$, and
-%     \item $\cdot \semi \Pi_{j+1} \semi \D \vdm m_{j}$.
-%   \end{enumerate}
-% \end{itemize}
-% \item Choose $\Pi'=\Pi_n$.
-% \item By (f) and transitivity of $\po$, we get $\Pi \po \Pi_n$, i.e. conclusion \emph{(i)}.
-% \item Since $\Pi_{j+1} \po \Pi_n$ for all $j$, weaken (g) and (h) to say
-% \begin{enumerate}[label=(\alph*')]
-%   \setcounter{enumi}{6}
-%   \item $\Pi_n \vdtree t_j$ and
-%   \item $\cdot \semi \Pi_{n} \semi \D \vdm m_j$.
-% \end{enumerate}
-% \item By the memory freshness lemma on (a), we get that all $p \in m_j$ are fresh,
-% i.e. all $m_j$ are disjoint.
-% \item Therefore, by the strong disjoint memory lemma,
-% we get by (h$'$) that
-% $\cdot \semi \Pi_n \vdm \bigcup_j m_j$, i.e. conclusion \emph{(iii)}.
-% \item Finally, we apply \ts{TTree-Node} using (b) and (c) weakened on $\Pi$,
-% as well as (g$'$),
-% to get $\Pi_n \vdtree \mf{node}(\mf{id}, v, \num{v_i}, \num{t_j})$, 
-% i.e conclusion \emph{(ii)}, and we are done.
-% \end{itemize}
-
-% \tb{Case} \ts{Init-Comp}: \begin{itemize}
-% \item We start with $\D \vdash \pair{\C}{v_0}
-%   \bsinit{n}
-%   \pair{p}{m' \cup (m \mid m[p].\mf{child} = t)}$.
-% \item Let $\D[\C] = x.\hat{e}$ and
-% $m_0 = \{\mf{spec}: \pair{\C}{v_0}, \mf{st}: \emptyset, \mf{child}: \emptyset\}$.
-% \item We have the following premises:
-% \begin{enumerate}[label=(\alph*)]
-%   \item $p$ is fresh,
-%   \item $m_0 \semi \hat{e}[v_0/x] \Topstep{\mf{Init}}{p} v \semi m$ (S3), and
-%   \item $\D \vdash v \bsinit{n} \pair{t}{m'}$.
-% \end{enumerate}
-% \item Let $\Pi_0=\Pi[p \mapsto \C]$; by freshness of $p$, $\Pi \po \Pi_0$.
-% Note that $\cdot \semi \Pi_0 \vdm m_0$ (S2) by definition.
-% \item By premise \emph{(ii)}, we get 
-% $[x \mapsto \Delta[\C]] \semi \cdot \semi \C \vdtop \hat{e}$.
-% \item Premise \emph{(iii)} gives the following derivation (bottom-up):
-% \begin{mathpar}
-% \inferrule*[right=TV-Spec] {
-%   \inferrule*[right=TV-Comp] {
-%     \inferrule*{(d)} {\Delta[\C] = \ptp}
-%   } {
-%     \cdot \semi \Pi \vdval \C: \mf{Component}\ \ptp
-%   }
-%   \and
-%   \inferrule*{(e)} {\cdot \semi \Pi \vdval v_0: \ptp}
-% } {
-%   \cdot \semi \Pi \vdval \pair{\C}{v_0} : \mf{View}
-% }
-% \end{mathpar}
-% \item By (d), $[x \mapsto \ptp] \semi \cdot \semi \C \vdtop \hat{e}$.
-% \item By (e), weakening, and substitution lemma,
-% $\cdot \semi \Pi \semi \C \vdtop \hat{e}[v/x]$.
-% \item We weaken this again to get $\cdot \semi \Pi_0 \semi \C \vdtop \hat{e}[v/x]$ (S1).
-% \item We can therefore apply the soundness of top-level expressions at initial phase
-% to (S1-3), and get that:
-% \begin{enumerate}[label=(\alph*)]
-%   \setcounter{enumi}{5}
-%   \item $\cdot \semi \Pi_0 \vdval v: \mf{View}$, and
-%   \item $\cdot \semi \Pi_0 \vdm m$.
-% \end{enumerate}
-% \item We then apply the inductive hypothesis to (c) and (f) to get some $\Pi_1$ with:
-% \begin{enumerate}[label=(\alph*)]
-%   \setcounter{enumi}{7}
-%   \item $\Pi_0 \po \Pi_1$,
-%   \stepcounter{enumi}
-%   \item $\Pi_1 \vdtree t$, and
-%   \item $\cdot \semi \Pi_1 \semi \D \vdm m'$.
-% \end{enumerate}
-% \item Choose this $\Pi_1$ as our $\Pi'$. We now need to show each of the conclusions.
-% \item That $\Pi \po \Pi'$ follows from (h), definition of $\Pi_0$,
-% and transitivity of $\po$. (Conclusion \emph{(i)} satisfied.)
-% \item That $\Pi' \vdtree p$ (conclusion \emph{(ii)}) 
-% is immediate from \ts{TTree-Path} and $\Pi_0 \po \Pi'$.
-% \item We then need to show conclusion \emph{(iii)}, that 
-% $\cdot \semi \Pi' \semi \D \vdm m' \cup (m \mid m[p].\mf{child} = t)$.
-% \item Let $m_1 = m \mid m[p].\mf{child} = t$.
-% By (k) and the strong disjoint memory lemma, it suffices to show
-% that $\cdot \semi \Pi' \semi \D \vdm m_1$.
-% \item By definition of $\vdm$, we need the following sub-conclusions:
-% \begin{enumerate}[label=(iii-\roman*)]
-%   \item $\cdot \semi \Pi' \vdm m_1$,
-%   \item $\Delta \vDash \D$,
-%   \item for all $p \in \dom(m_1)$, for $\D[\Pi[p]]=x.\hat{e}$,
-%   $\mc{L}(\hat{e}) \subseteq \dom(m_1[p].\mf{st})$, and
-%   \item for all $p \in \dom(m_1)$, $\Pi' \vdtree m_1[p].\mf{child}$.
-% \end{enumerate}
-% \item (\emph{iii}-a) follows from (g) and weakening via (h).
-% \item (\emph{iii}-b) is immediate by premise \emph{(ii)}.
-% \item For (\emph{iii}-c) and (\emph{iii}-d), we apply the path preservation lemma
-% to (b) to say that $\dom(m_0) = \dom(m)$.
-% \item By definition of each of $m_0$ and $m_1$, we get $\dom(m_1)=\{p\}$.
-% \item Therefore, (\emph{iii}-d) is satisfied by (j).
-% \item Finally, the label initialization corollary gives us that\\
-% $\mc{L}(\hat{e}) \subseteq \dom(m[p].\mf{st})$, 
-% i.e. sub-conclusion (\emph{iii}-c), and we are done.
-% \end{itemize}
-% \end{proof}
-
-% \section{$\lambda_{CC}$ (OLD)}
-
-% \subsection{Syntax}
-
-% Additions/changes from React-tRace Core are \hl{highlighted}.
-% Intermediate-only constructs are \grey{greyed}
-% \begin{align*}
-% \text{Value } v &::= x \mid () \mid \mf{true} \mid \mf{false} 
-% \mid s \mid \lambda x: \ptp.e\\
-% &\mid \mf{text}\ v \mid \mf{tag}(v, \num{v}, \num{v})
-% \mid \mf{attr}(v, v) \mid \mf{onClick}\ v \mid \mgrey{\ell}\\
-% \text{Expression } e &::= \eret{v} \mid \elet{x}{e}{e} 
-% \mid v\ v \mid \eif{v}{e}{e}\\
-% &\mid \mhl{\eref{v}} \mid \mhl{\eget{e}} \mid \mhl{\eset{v}{v}}\\
-% \text{Type } \ptp &::= \tone \mid \mf{Bool} \mid \mhl{\ptp \rightarrow \ptp}
-% \mid \mf{View} \mid \mf{Attr} \mid \mhl{\mf{Ref}\ \ptp}\\
-% \end{align*}
-% Internal representations:
-% \begin{align*}
-% \text{Type context } \Gamma &::= \map{x}{\ptp}\\
-% \text{Store } \sigma &::= \map{\ell}{v}\\
-% \text{Tree }t &::= \mf{lit}\ v \mid \mf{node}(id, v, \num{v}, \num{t})\\
-% \text{Mode }\mu &::= \mf{start}(e) \mid \mf{idle} \mid \mf{render}
-% \end{align*}
-
-% \subsection{Typing}
-
-% Non-standard rules are \hl{highlighted}, although on the whole,
-% they are the same as in React-tRace Core. (Most relevant are the omissions.)
-
-% \pagebreak
-
-% \subsubsection{Value Typing}
-
-% Judgment: $\Gamma \vdashv v: \ptp$
-
-% \begin{mathpar}
-% \inferrule*[right=TVal-Var] {
-%   x : \ptp \in \Gamma
-% } {
-%   \Gamma \vdashv x: \ptp
-% }
-% \and
-% \inferrule*[right=TVal-Unit] { } {
-%   \Gamma \vdashv () : \tone
-% }
-% \and
-% \inferrule*[right=TVal-True] { } {
-%   \Gamma \vdashv \mf{true} : \mf{Bool}
-% }
-% \and
-% \inferrule*[right=TVal-False] { } {
-%   \Gamma \vdashv \mf{false} : \mf{Bool}
-% }
-% \and
-% \inferrule*[right=TVal-Str] { } {
-%   \Gamma \vdashv s : \tstr
-% }
-% \and
-% \inferrule*[right=TVal-Lam] {
-%   \Gamma, x: \ptp_1 \vdashe e : \ptp_2
-% } {
-%   \Gamma \vdashv \lambda x: \ptp_1.e: \ptp_1 \rightarrow \ptp_2
-% }
-% \and
-% \inferrule*[right=\hl{TVal-Text}] {
-%   \Gamma \vdashv v: \ptp
-%   \and
-%   \ptp \in \{\mf{Bool},\tstr\}
-% } {
-%   \Gamma \vdashv \mf{text}\ v: \mf{View}
-% }
-% \and
-% \inferrule*[right=\hl{TVal-Tag}] {
-%   \Gamma \vdashv v: \tstr
-%   \and
-%   (\forall i) \
-%   \Gamma \vdashv v_i : \mf{Attr}
-%   \and
-%   (\forall j) \
-%   \Gamma \vdashv v_j: \mf{View}
-% }{
-%   \Gamma \vdashv \mf{tag}(v, \num{v_i}, \num{v_j}): \mf{View}
-% }
-% \and
-% \inferrule*[right=\hl{TVal-Attr}] {
-%   \Gamma \vdashv v_1: \tstr
-%   \and
-%   \Gamma \vdashv v_2: \tstr
-% } {
-%   \Gamma \vdashv \mf{attr}(v_1, v_2): \mf{Attr}
-% }
-% \and
-% \inferrule*[right=\hl{TVal-OnClick}] {
-%   \Gamma \vdashv v: \tone \rightarrow \tone
-% } {
-%   \Gamma \vdashv \mf{onClick}\ v: \mf{Attr}
-% }
-% \end{mathpar}
-
-% \pagebreak
-
-% \subsubsection{Expression Typing}
-
-% Additions relative to React-tRace core are \hl{highlighted},
-% although these are just standard rules for references.
-
-% A top-level program should have type $\tone \rightarrow \mf{View}$.
-
-% Judgment: $\Gamma \vdashe e: \ptp$
-
-% \begin{mathpar}
-% \inferrule*[right=TExp-Ret] {
-%   \Gamma \vdashv v: \ptp
-% } {
-%   \Gamma \vdashe \eret{v}: \ptp
-% }
-% \and
-% \inferrule*[right=TExp-Let] {
-%   \Gamma \vdashe e_1: \ptp_1
-%   \and
-%   \Gamma, x: \ptp_1 \vdashe e_2: \ptp_2
-% } {
-%   \Gamma \vdashe \elet{x}{e_1}{e_2}: \ptp_2
-% }
-% \and
-% \inferrule*[right=TExp-App] {
-%   \Gamma \vdashv v_1: \ptp_1 \rightarrow \ptp_2
-%   \and
-%   \Gamma \vdashv v_2: \ptp_2
-% } {
-%   \Gamma \vdashe v_1\ v_2: \ptp_2
-% }
-% \and
-% \inferrule*[right=TExp-If] {
-%   \Gamma \vdashv v : \mf{Bool}
-%   \and
-%   \Gamma \vdashe e_1 : \ptp
-%   \and
-%   \Gamma \vdashe e_2 : \ptp
-% } {
-%   \Gamma \vdashe \eif{v}{e_1}{e_2} : \ptp
-% }
-% \and
-% \inferrule*[right=\hl{TExp-Ref}] {
-%   \Gamma \vdashv v: \ptp
-% } {
-%   \Gamma \vdashe \eref{v}: \mf{Ref}\ \ptp
-% }
-% \and
-% \inferrule*[right=\hl{TExp-Get}] {
-%   \Gamma \vdashv v : \mf{Ref}\ \ptp
-% } {
-%   \Gamma \vdashe \eget{v} : \ptp
-% }
-% \and
-% \inferrule*[right=\hl{TExp-Set}] {
-%   \Gamma \vdashv v_1: \mf{Ref}\ \ptp
-%   \and
-%   \Gamma \vdashv v_2: \ptp
-% } {
-%   \Gamma \vdashe \eset{v_1}{v_2}: \tone
-% }
-% \end{mathpar}
-
-% \subsection{Operational Semantics}
-
-% \subsubsection{Expression Evaluation}
-
-% Judgment: $\sigma, e \mapsto e' \semi \sigma'$
-% \begin{mathpar}
-% \inferrule*[right=E-Let] {
-%   \sigma \semi e_1 \mapsto e_1' \semi \sigma'
-% } {
-%   \sigma \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi \sigma'
-% }
-% \end{mathpar}
-% \begin{align*}
-% \sigma \semi \elet{x}{\eret{v}}{e} 
-% &\mapsto e[v/x] \semi \sigma
-% &&\ts{E-Ret}\\
-% \sigma \semi (\lambda x.e) v
-% &\mapsto e[v/x] \semi \sigma
-% &&\ts{E-Beta}\\
-% \sigma \semi \eif{\mf{true}}{e_1}{e_2} 
-% &\mapsto e_1 \semi \sigma
-% &&\ts{E-IfTrue}\\
-% \sigma \semi \eif{\mf{false}}{e_1}{e_2} 
-% &\mapsto e_2 \semi \sigma
-% &&\ts{E-IfFalse}\\
-% \sigma \semi \eref{v} 
-% &\mapsto \eret{\ell} \semi \sigma[\ell \mapsto v] \quad (\ell \text{ fresh})
-% &&\ts{E-Ref}\\
-% \sigma \semi \eget{\ell}
-% &\mapsto \eret{\sigma[\ell]} \semi \sigma
-% &&\ts{E-Get}\\
-% \sigma \semi \eset{\ell}{v}
-% &\mapsto \eret{()} \semi \sigma[\ell \mapsto v]
-% &&\ts{E-Set}
-% \end{align*}
-
-% \subsubsection{Tree Annotation}
-
-% Judgment: $\mf{annotate}(v) = t$
-
-% \begin{mathpar}
-% \inferrule*[right=Annot-Text] { } {
-%   \mf{annotate}(\mf{text}\ v) = \mf{lit}\ v
-% }
-% \and
-% \inferrule*[right=Annot-Tag] {
-%     id \text{ fresh}
-%     \and
-%     (\forall j)\
-%     \mf{annotate}(v_j) = t_j
-% } {
-%   \mf{annotate}(\mf{tag}(v, \num{v_i}, \num{v_j})) 
-%   = \mf{node}(id, v, \num{v_i}, \num{t_j})\\
-% }
-% \end{mathpar}
-
-% \subsubsection{Handler Search}
-
-% Judgment: $\mf{handlers}(t, id) = \num{v}$
-
-% \begin{mathpar}
-% \inferrule*[right=Handlers-Lit] { } {
-%   m \vdash \mf{handlers}(\mf{lit}\ v, id) = \{\}
-% }
-% \and
-% \inferrule*[right=Handlers-Tgt] { } {
-%   m \vdash \mf{handlers}(\mf{node}(id, v, \num{v_i}, \num{v_j}), id)
-%   = \{v_h \mid \mf{onClick}\ v_h \in \num{v_i}\}
-% }
-% \and
-% \inferrule*[right=Handlers-Node] {
-%   id \neq id'
-%   \and
-%   (\forall j)\ 
-%   m \vdash \mf{handlers}(v_j, id) = h_j
-% } {
-%   m \vdash \mf{handlers}(\mf{node}(id', v, \num{v_i}, \num{v_j}), id)
-%   = \bigcup_{\forall j} h_j
-% }
-% \end{mathpar}
-
-% \subsubsection{Reactive Semantics}
-
-% Judgment: $\four{\sigma}{t}{v}{\mu} \hookrightarrow \four{\sigma'}{t'}{v'}{\mu'}$
-
-% \begin{mathpar}
-% \inferrule*[right=R-Start] {
-%   \cdot \semi e \mapsto^* \eret{v} \semi \sigma
-% } {
-%   \four{\cdot}{\cdot}{\cdot}{\mf{start}(e)}
-%   \hookrightarrow
-%   \four{\sigma}{\cdot}{v}{\mf{render}}
-% }
-% \and
-% \inferrule*[right=R-Render] {
-%   \sigma \semi v_r\; () \mapsto^* \eret{v} \semi \sigma'
-%   \and
-%   \mf{annotate}(v) = t
-% } {
-%   \four{\sigma}{\_}{v_r}{\mf{render}}
-%   \hookrightarrow
-%   \four{\sigma'}{t}{v_r}{\mf{idle}}
-% }
-% \and
-% \inferrule*[right=R-Event] {
-%   \exists id
-%   \and
-%   \mf{handlers}(t, id) = \num{v_i}
-%   \\
-%   (0 \leq i < n) \quad
-%   \sigma_i \semi v_i\; () \mapsto^* \eret{()} \semi \sigma_{i+1}
-% } {
-%   \four{\sigma_0}{t}{v_r}{\mf{idle}}
-%   \hookrightarrow
-%   \four{\sigma_n}{t}{v_r}{\mf{render}}
-% }
-% \end{mathpar}
-
-% \subsection{Type Soundness (Expressions)}
-
-% \subsubsection{Store Context}
-
-% We introduce the additional context $\Sigma=\map{\ell}{\ptp}$
-% to type standalone locations.
-
-% Define $\Gamma \semi \Sigma \vDash \sigma$ to say that 
-% $\mf{dom}(\Sigma) = \mf{dom}(\sigma)$ and
-% $\Gamma \semi \Sigma \vdashv \sigma[\ell]: \Sigma[\ell]$.
-
-% Further define $\Sigma \sqsubseteq \Sigma'$ to hold when,
-% for all $\ell \in \Sigma$, both $\ell \in \Sigma'$ and $\Sigma(\ell) = \Sigma'(\ell)$.
-% Overload $\sqsubseteq$ analogously for type contexts $\Gamma$.
-
-% \subsubsection{Typing Rules}
-
-% We extend all typing rules with $\Sigma$, and introduce
-% a new rule \ts{TVal-Loc} to use it.
-
-% Augmented value judgment: $\Gamma \semi \Sigma \vdashv v: \ptp$
-
-% \begin{mathpar}
-% \inferrule*[right=\hl{TVal-Loc}] {
-%   \ell : \ptp \in \Sigma
-% } {
-%   \Gamma \semi \Sigma \vdashv \ell: \mf{Ref}\ \ptp
-% }
-% \and
-% \inferrule*[right=TVal-Var] {
-%   x : \ptp \in \Gamma
-% } {
-%   \Gamma \semi \Sigma \vdashv x: \ptp
-% }
-% \and
-% \inferrule*[right=TVal-Unit] { } {
-%   \Gamma \semi \Sigma \vdashv () : \tone
-% }
-% \and
-% \inferrule*[right=TVal-True] { } {
-%   \Gamma \semi \Sigma \vdashv \mf{true} : \mf{Bool}
-% }
-% \and
-% \inferrule*[right=TVal-False] { } {
-%   \Gamma \semi \Sigma \vdashv \mf{false} : \mf{Bool}
-% }
-% \and
-% \inferrule*[right=TVal-Str] { } {
-%   \Gamma \semi \Sigma \vdashv s : \tstr
-% }
-% \and
-% \inferrule*[right=TVal-Lam] {
-%   \Gamma, x: \ptp_1 \semi \Sigma \vdashe e : \ptp_2
-% } {
-%   \Gamma \semi \Sigma \vdashv \lambda x: \ptp_1.e: \ptp_1 \rightarrow \ptp_2
-% }
-% \and
-% \inferrule*[right=TVal-Text] {
-%   \Gamma \semi \Sigma \vdashv v: \ptp
-%   \and
-%   \ptp \in \{\mf{Bool},\tstr\}
-% } {
-%   \Gamma \semi \Sigma \vdashv \mf{text}\ v: \mf{View}
-% }
-% \and
-% \inferrule*[right=TVal-Tag] {
-%   \Gamma \semi \Sigma \vdashv v: \tstr
-%   \\
-%   (\forall i) \
-%   \Gamma \semi \Sigma \vdashv v_i : \mf{Attr}
-%   \and
-%   (\forall j) \
-%   \Gamma \semi \Sigma \vdashv v_j: \mf{View}
-% }{
-%   \Gamma \semi \Sigma \vdashv \mf{tag}(v, \num{v_i}, \num{v_j}): \mf{View}
-% }
-% \and
-% \inferrule*[right=TVal-Attr] {
-%   \Gamma \semi \Sigma \vdashv v_1: \tstr
-%   \and
-%   \Gamma \semi \Sigma \vdashv v_2: \tstr
-% } {
-%   \Gamma \semi \Sigma \vdashv \mf{attr}(v_1, v_2): \mf{Attr}
-% }
-% \and
-% \inferrule*[right=TVal-OnClick] {
-%   \Gamma \semi \Sigma \vdashv v: \tone \rightarrow \tone
-% } {
-%   \Gamma \semi \Sigma \vdashv \mf{onClick}\ v: \mf{Attr}
-% }
-% \end{mathpar}
-
-% Augmented expression judgment: $\Gamma \semi \Sigma \vdashe e: \ptp$
-
-% \begin{mathpar}
-% \inferrule*[right=TExp-Ret] {
-%   \Gamma \semi \Sigma \vdashv v: \ptp
-% } {
-%   \Gamma \semi \Sigma \vdashe \eret{v}: \ptp
-% }
-% \and
-% \inferrule*[right=TExp-Let] {
-%   \Gamma \semi \Sigma \vdashe e_1: \ptp_1
-%   \and
-%   \Gamma, x: \ptp_1 \semi \Sigma \vdashe e_2: \ptp_2
-% } {
-%   \Gamma \semi \Sigma \vdashe \elet{x}{e_1}{e_2}: \ptp_2
-% }
-% \and
-% \inferrule*[right=TExp-App] {
-%   \Gamma \semi \Sigma \vdashv v_1: \ptp_1 \rightarrow \ptp_2
-%   \and
-%   \Gamma \semi \Sigma \vdashv v_2: \ptp_2
-% } {
-%   \Gamma \semi \Sigma \vdashe v_1\ v_2: \ptp_2
-% }
-% \and
-% \inferrule*[right=TExp-If] {
-%   \Gamma \semi \Sigma \vdashv v : \mf{Bool}
-%   \and
-%   \Gamma \semi \Sigma \vdashe e_1 : \ptp
-%   \and
-%   \Gamma \semi \Sigma \vdashe e_2 : \ptp
-% } {
-%   \Gamma \semi \Sigma \vdashe \eif{v}{e_1}{e_2} : \ptp
-% }
-% \and
-% \inferrule*[right=TExp-Ref] {
-%   \Gamma \semi \Sigma \vdashv v: \ptp
-% } {
-%   \Gamma \semi \Sigma \vdashe \eref{v}: \mf{Ref}\ \ptp
-% }
-% \and
-% \inferrule*[right=TExp-Get] {
-%   \Gamma \semi \Sigma \vdashv v : \mf{Ref}\ \ptp
-% } {
-%   \Gamma \semi \Sigma \vdashe \eget{v} : \ptp
-% }
-% \and
-% \inferrule*[right=TExp-Set] {
-%   \Gamma \semi \Sigma \vdashv v_1: \mf{Ref}\ \ptp
-%   \and
-%   \Gamma \semi \Sigma \vdashv v_2: \ptp
-% } {
-%   \Gamma \semi \Sigma \vdashe \eset{v_1}{v_2}: \tone
-% }
-% \end{mathpar}
-
-% \subsubsection{Unproved Lemmas}
-
-% We assume that the typical structural rules for intuitionistic calculi,
-% i.e. weakening, contraction, and exchange, hold on both $\Gamma$ and $\Sigma$.
-% For example:
-
-% \begin{lemma}[Weakening $\Gamma$ in $\vdashv$]
-% If $\Gamma \semi \Sigma \vdashv v: \ptp$
-% then $\Gamma' \semi \Sigma \vdashv v: \ptp$ 
-% for any $\Gamma'$ such that $\Gamma \sqsubseteq \Gamma'$.
-% \end{lemma}
-
-% \begin{proof}
-% By induction on the derivation of the typing judgment.
-% \end{proof}
-
-% We also assume the following canonical forms lemma on values:
-
-% \begin{lemma}[Canonical Forms]
-% If $\cdot \semi \Sigma \vdashv v: \ptp$, then
-% \begin{itemize}
-% \item If $\ptp=\mf{Bool}$, then $v=\mf{true}$ or $v=\mf{false}$.
-% \item If $\ptp=\tone$, then $v=()$.
-% \item If $\ptp=\tstr$, then $v=s$ for some string $s$.
-% \item If $\ptp=\ptp_1 \rightarrow \ptp_2$, then $v=\lambda x: \ptp_1.e$.
-% \item If $\ptp=\mf{Attr}$, then $v=\mf{attr}(v_1, v_2)$ or $v=\mf{onClick} v$.
-% \item If $\ptp=\mf{View}$, then $v=\mf{text}\ v$ or $v=\mf{tag}(v, \num{v_i}, \num{v_j})$. 
-% \item If $\ptp=\mf{Ref}\ \ptp'$, then $v=\ell$.
-% \end{itemize}
-% \end{lemma}
-
-% \subsubsection{Substitution}
-
-% \begin{lemma}[Type preservation under substitution]
-% If $\Gamma \semi \Sigma \vdashv v: \ptp$, then the following two conditionals hold:
-% \begin{enumerate}[label=(\roman*)]
-% \item If $\Gamma, x: \ptp \semi \Sigma \vdashv v': \ptp'$, 
-% then $\Gamma \semi \Sigma \vdashv v'[v/x]: \ptp'$.
-% \item If $\Gamma, x: \ptp \semi \Sigma \vdashe e: \ptp'$, 
-% then $\Gamma \semi \Sigma \vdashe e[v/x]: \ptp'$.
-% \end{enumerate}
-% \end{lemma}
-
-% \begin{proof}
-% By mutual induction on \emph{(i)} and \emph{(ii)}. For each,
-% we induct over the derivation of the respective typing judgment
-% in the antecedent.
-
-% \tb{Case} \ts{TVal-Var}:
-% We have $\Gamma, x: \ptp \semi \Sigma \vdashv x: \ptp'$.
-% Applying substitution, we want to show 
-% $\Gamma \semi \Sigma \vdashv v: \ptp'$, which is exactly our first premise
-% (with $\ptp'=\ptp$).
-
-% \tb{Case} \ts{TVal-Unit}:
-% We have $\Gamma, x: \ptp \semi \Sigma \vdashv (): \tone$.
-% Trivial, since $()[v/x]=()$ and $\Gamma \semi \Sigma \vdashv (): \tone$ axiomatically.
-% We elide analogous cases for boolean and string constants.
-
-% \tb{Case} \ts{TVal-Loc}:
-% We have $\Gamma, x: \ptp \semi \Sigma \vdashv \ell: \ptp$.
-% By inversion, $\ell: \ptp \in \Sigma$,
-% and since $\ell[v/x]=\ell$, we get $\Gamma \semi \Sigma \vdashv \ell: \ptp$.
-
-% \tb{Case} \ts{TVal-Lam}:
-% We have $\Gamma, x: \ptp \semi \Sigma \vdashv \lambda y.e : \ptp_1 \rightarrow \ptp_2$.
-% First suppose $y=x$: by definition of substitution, $(\lambda x.e)[v/x] = \lambda x.e$,
-% and the conclusion follows from inversion \& reapplication of \ts{TVal-Lam},
-% noting that $x: \ptp$ is overridden by $x: \ptp_1$ in the premise.
-
-% If $y \neq x$, then $(\lambda y.e)[v/x] = \lambda y.(e[v/x])$,
-% and inversion gives us $\Gamma, x: \ptp, y: \ptp_1 \semi \Sigma \vdashe e: \ptp_2$.
-% Applying case \emph{(ii)} of the inductive hypothesis, alongside exchange,
-% gives that $\Gamma, y: \ptp_1 \semi \Sigma \vdashe e[v/x]: \ptp_2$.
-% We conclude $\Gamma \semi \Sigma \vdashv (\lambda y.e) [v/x]: \ptp_1 \rightarrow \ptp_2$
-% by reapplication of \ts{TVal-Lam}.
-
-% \tb{Case} \ts{TVal-Tag}:
-% We have  $\Gamma, x: \ptp \semi \Sigma \vdashv 
-% \mf{tag}(v', \num{v_i}, \num{v_j}): \mf{View}$.
-% By inversion, $\Gamma, x: \ptp \semi \Sigma \vdashv v': \tstr$,
-% $\Gamma, x: \ptp \semi \Sigma \vdashv v_i: \mf{Attr}$,
-% and $\Gamma, x: \ptp \semi \Sigma \vdashv v_j: \mf{View}$
-% for all $i, j$.
-% We apply case \emph{(i)} of the inductive hypothesis to each, to obtain
-% $\Gamma \semi \Sigma \vdashv v'[v/x]: \tstr$,
-% $\Gamma \semi \Sigma \vdashv v_i[v/x]: \mf{Attr}$,
-% and $\Gamma \semi \Sigma \vdashv v_j[v/x]: \mf{View}$, respectively. 
-% By \ts{TVal-Tag} and definition of substitution on $\mf{tag}$,
-% we conclude $\Gamma \semi \Sigma \vdashv 
-% \mf{tag}(v', \num{v_i}, \num{v_j})[v/x]: \mf{View}$.
-% We elide the simpler but analogous cases for data constructors 
-% \textsf{text}, \textsf{attr}, and \textsf{onClick}.
-
-% \tb{Case} \ts{TExp-Ret}:
-% We have $\Gamma, x: \ptp \semi \Sigma \vdashe \eret{v'}: \ptp'$.
-% By inversion, $\Gamma, x: \ptp \semi \Sigma \vdashv v': \ptp'$.
-% Case \emph{(i)} of the inductive hypothesis gives $\Gamma \semi \Sigma \vdashv v'[v/x]: \ptp'$,
-% and reapplication \& definition of substitution let us conclude
-% $\Gamma \semi \Sigma \vdashe (\eret{v'})[v/x]: \ptp'$.
-
-% \tb{Case} \ts{TVal-Let}:
-% $\Gamma, x: \ptp \semi \Sigma \vdashe
-% \elet{y}{e_1}{e_2}: \ptp_2$. Inversion gives 
-% $\Gamma, x: \ptp \semi \Sigma \vdashe e_1: \ptp_1$.
-% We have two subcases, when $y=x$ and when not.
-% In either case, $\Gamma \semi \Sigma \vdashe e_1[v/x] : \ptp_1$
-% by inductive hypothesis.
-
-% If $y=x$, then $(\elet{y}{e_1}{e_2})[v/x]=\elet{y}{e_1[v/x]}{e_2}$.
-% We reapply \ts{TExp-Let} with the second premise obtained via inversion and
-% we are done. (Like the $\lambda$ case, we note the overwriting of $x: \ptp$ in
-% the second premise.)
-
-% If $y \neq x$, then we apply the inductive hypothesis to the second premise,
-% giving $\Gamma, x: \ptp, y: \ptp_1 \semi \Sigma \vdashe e_2: \ptp_2$, and
-% by inductive hypothesis and exchange, $\Gamma, y: \ptp_1 \vdashe e_2[v/x]: \ptp_2$.
-% Reapplication of \ts{TExpr-Let} and definition of substitution give
-% $\Gamma \semi \Sigma \vdashe (\elet{y}{e_1}{e_2})[v/x]: \ptp_2$.
-
-% We elide the remaining cases for expressions, which are analogous to the above.
-
-% \end{proof}
-
-% \subsubsection{Progress}
-
-% \begin{theorem}[Progress of expressions]
-% If $\cdot \semi \Sigma \vdashe e: \ptp$, then either:
-% \begin{enumerate}[label=(\roman*)]
-% \item $e = \eret{v}$, or
-% \item for all $\sigma$ such that $\cdot \semi \Sigma \vDash \sigma$, 
-% there exist some $e'$ and $\sigma'$ such that 
-% $\sigma \semi e \mapsto e' \semi \sigma'$.
-% \end{enumerate}
-% \end{theorem}
-
-% \begin{proof}
-% By induction on the derivation of the typing judgment.
-
-% \tb{Case} \ts{TExp-Ret}: 
-% We have $\cdot \semi \Sigma \vdashe \eret{v} \semi \ptp$.
-% The theorem holds trivially by case \emph{(i)}.
-
-% \tb{Case} \ts{TExp-Let}:
-% We have $\cdot \semi \Sigma \vdashe \elet{x}{e_1}{e_2}: \ptp_2$.
-% By inversion, $\cdot \semi \Sigma \vdashe e_1: \ptp_1$
-% and $x: \ptp_1 \semi \Sigma \vdashe e_2: \ptp_2$.
-% By inductive hypothesis on the first premise,
-% we have two subcases on $e_1$: either $e_1=\eret{v}$ 
-% or $\sigma \semi e_1 \mapsto e_1' \semi \sigma'$
-% (for $\cdot \semi \Sigma \vDash \sigma$).
-
-% If $e_1=\eret{v}$, then by \ts{E-Ret},
-% we have $\sigma, \elet{x}{\eret{v}}{e_2} \mapsto e_2[v/x] \semi \sigma$
-% for any $\sigma$.
-
-% If instead $\sigma \semi e_1 \mapsto e_1' \semi \sigma'$,
-% by \ts{E-Let}, we can conclude that 
-% $\sigma \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi \sigma'$.
-
-% Thus, in either subcase, $\elet{x}{e_1}{e_2}$ steps given a proper $\sigma$,
-% so the case holds.
-
-% \tb{Case} \ts{TExp-App}:
-% We have $\cdot \semi \Sigma \vdashe v_1\ v_2: \ptp_2$.
-% By inversion, $\cdot \semi \Sigma \vdashv v_1: \ptp_1 \rightarrow \ptp_2$
-% and $\cdot \semi \Sigma \vdashv v_2: \ptp_1$.
-% By the canonical forms lemma, $v_1=\lambda x.e$,
-% and so we apply rule \ts{E-Beta}, i.e.
-% $\sigma \semi (\lambda x.e) v_2 \mapsto e[v_2/x] \semi \sigma$ for
-% any $\sigma$ such that $\cdot \semi \Sigma \vDash \sigma$.
-
-% \tb{Case} \ts{TExp-If}:
-% We have $\cdot \semi \Sigma \vdashe \eif{v}{e_1}{e_2} : \ptp$.
-% By inversion, $\cdot \semi \Sigma \vdashv v: \mf{Bool}$,
-% and by canonical forms, either $v=\mf{true}$ or $v=\mf{false}$.
-% If $v=true$, then \ts{E-IfTrue} says 
-% $\sigma \semi \eif{v}{e_1}{e_2} \mapsto e_1 \semi \sigma$,
-% and if $v=false$, then $\sigma \semi \eif{v}{e_1}{e_2} \mapsto e_2 \semi \sigma$
-% by \ts{E-IfFalse}. In either case, we satisfy \emph{(ii)}.
-
-% \tb{Case} \ts{TExp-Ref}:
-% We have $\cdot \semi \Sigma \vdashe \eref{v} : \mf{Ref}\ \ptp$.
-% Immediately apply \ts{E-Ref} to get that 
-% $\sigma, \eref{v} \mapsto \eret{\ell} \semi \sigma[\ell \mapsto v]$,
-% which satisfies \emph{(ii)}.
-
-% \tb{Case} \ts{TExp-Get}:
-% We have $\cdot \semi \Sigma \vdashe \eget{v} : \ptp$.
-% By inversion, $\cdot \semi \Sigma \vdashv v: \mf{Ref}\ \ptp$,
-% and by canonical forms, $v=\ell$.
-% Again by inversion (on \ts{TVal-Loc}), $\ell: \ptp \in \Sigma$.
-% Since $\cdot \semi \Sigma \vDash \sigma$ for our arbitrary $\sigma$,
-% we have that $\sigma[\ell]$ exists.
-% Thus, we apply \ts{E-Get} to say
-% $\sigma \semi \eget{v} \mapsto \eret{\sigma[\ell]} \semi \sigma$.
-
-% \tb{Case} \ts{TExp-Set}:
-% We have $\cdot \semi \Sigma \vdashe \eset{v_1}{v_2}: \tone$.
-% By inversion, $\cdot \semi \Sigma \vdashv v_1: \mf{Ref}\ \ptp$,
-% and by canonical forms, $v=\ell$.
-% Applying \ts{E-Set} then gives 
-% $\sigma \semi \eset{v_1}{v_2} \mapsto \eret{()} \semi \sigma[\ell \mapsto v_2]$.
-
-% \end{proof}
-
-% \subsubsection{Preservation}
-
-% \begin{theorem}[Preservation of expressions]
-% If
-% \begin{enumerate}[label=(\roman*)]
-% \item $\Gamma \semi \Sigma \vdashe e: \ptp$,
-% \item $\Gamma \semi \Sigma \vDash \sigma$ for some $\sigma$, and
-% \item $\sigma \semi e \mapsto e' \semi \sigma'$ for some $e'$ and $\sigma'$,
-% \end{enumerate}
-% then there is some $\Sigma'$ such that:
-% \begin{itemize}
-% \item $\Sigma \sqsubseteq \Sigma'$,
-% \item $\Gamma \semi \Sigma' \vDash \sigma'$, and
-% \item $\Gamma \semi \Sigma' \vdashe e': \ptp$.
-% \end{itemize}
-% \end{theorem}
-
-% \begin{proof}
-% By induction on derivation of \emph{(iii)}.
-
-% \tb{Case} \ts{E-Let}:
-% We have $\sigma \semi \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2} \semi \sigma'$.
-% By inversion on \ts{E-Let}, we also have $\sigma \semi e_1 \mapsto e_1' \semi \sigma'$.
-% By inversion on \emph{(i)}, $\Gamma \semi \Sigma \vdashe e_1: \ptp_1$.
-% By inductive hypothesis, there exists some $\Sigma'$
-% with $\Gamma \semi \Sigma' \vDash \sigma'$
-% and $\Gamma \semi \Sigma' \vdashe e_1: \ptp$.
-% Since $\Sigma \sqsubseteq \Sigma'$, and $\Gamma, x: \ptp_1 \semi \Sigma \vdashe e_2: \ptp$,
-% we also get that $\Gamma, x: \ptp_1 \semi \Sigma' \vdashe e_2: \ptp_2$.
-% We apply \ts{E-Let} to get $\Gamma \semi \Sigma' \vdashe \elet{x}{e_1'}{e_2}: \ptp$.
-
-% \tb{Case} \ts{E-Ret}:
-% We have $\sigma \semi \elet{x}{\eret{v}}{e} \mapsto e[v/x] \semi \sigma$.
-% Inversion on \emph{(i)} gives that $\Gamma \semi \Sigma \vdashv v: \ptp_1$ and
-% $\Gamma, x: \ptp_1 \semi \Sigma \vdashe e: \ptp$. We conclude
-% $\Gamma \semi \Sigma \vdashe e[v/x]: \ptp$ via the substitution lemma.
-
-% \tb{Case} \ts{E-Beta}:
-% We have $\sigma \semi (\lambda x: \ptp_1.e)v \mapsto e[v/x] \semi \sigma$.
-% Inversion on \emph{(i)} gives $\Gamma, x: \ptp_1 \semi \Sigma \vdashe e: \ptp$
-% and $\Gamma \semi \Sigma \vdashv v: \ptp_1$. We again get
-% $\Gamma \semi \Sigma \vdashe e[v/x]: \ptp$ via the substitution lemma.
-
-% \tb{Case} \ts{E-IfTrue}:
-% We have $\sigma \semi \eif{\mf{true}}{e_1}{e_2} \mapsto e_1 \semi \sigma$.
-% Immediate by inversion on \emph{(i)}. Case for \ts{E-IfFalse} is analogous.
-
-% \tb{Case} \ts{E-Ref}:
-% We have $\sigma \semi \eref{v} \mapsto \eret{\ell} \semi \sigma[\ell \mapsto v]$
-% (for $\ell$ fresh).
-% By \emph{(i)} and enumeration of rules, 
-% $\Gamma \semi \Sigma \vdashe \eref{v}: \mf{Ref}\ \ptp$.
-% Inversion gives $\Gamma \semi \Sigma \vdashv v: \ptp$.
-
-% Choose $\Sigma' = \Sigma[\ell \mapsto \ptp]$; 
-% since $\ell$ is fresh, clearly $\Sigma \sqsubseteq \Sigma'$.
-% Since both $\Sigma'$ and $\sigma'$ are extensions of
-% $\Sigma$ and $\sigma$ by fresh label $\ell$, by definition of \emph{(ii)},
-% to show $\Gamma \semi \Sigma' \vDash \sigma'$,
-% it suffices to show $\cdot \semi \Sigma' \vdashv \sigma'[\ell]: \Sigma'[\ell]$.
-% Now since $\sigma'[\ell]=v$ and we said $\Sigma'[\ell] = \ptp$,
-% we need only apply the proposition from the previous paragraph.
-
-% We also need to show that $\Gamma \semi \Sigma' \vdashe \eret{\ell} : \ptp$.
-% This follows by \ts{TExp-Ret}, \ts{TVal-Loc}, and $\Sigma'[\ell] = \ptp$.
-
-% \tb{Case} \ts{E-Get}:
-% We have $\sigma \semi \eget{\ell} \mapsto \eret{\sigma[\ell]} \semi \sigma$.
-
-% Choose $\Sigma'=\Sigma$; 
-% trivially $\Gamma \semi \Sigma' \vDash \sigma$ and $\Sigma \sqsubseteq \Sigma'$.
-
-% By inversion on \emph{(i)}, $\Gamma \semi \Sigma \vdashv \ell: \mf{Ref}\ \ptp$
-% and $\ell: \ptp \in \Sigma$.
-% We can then apply \ts{TVal-Loc} and \ts{TExp-Ret}
-% to get $\Gamma \semi \Sigma \vdashe \eret{\ell}: \ptp$.
-
-% \tb{Case} \ts{E-Set}:
-% We have $\sigma \semi \eset{\ell}{v} \mapsto \eret{()} \semi \sigma[\ell \mapsto v]$.
-
-% Again choose $\Sigma'=\Sigma$. 
-% It is easy to show $\Gamma \semi \Sigma \vdashe \eret{()} : \tone$,
-% and by enumeration of rules and \emph{(i)} 
-% we have $\Gamma \semi \Sigma \vdashe \eset{\ell}{v}: \tone$.
-
-% We also need to show $\Gamma \semi \Sigma \vDash \sigma[\ell \mapsto v]$.
-% By \emph{(ii)}, this holds for all $\ell' \neq \ell$.
-% For $\ell$, we want to show $\cdot \semi \Sigma \vdashv \sigma'[\ell]: \Sigma[\ell]$,
-% i.e. that $\cdot \semi \Sigma \vdashv v: \Sigma[\ell]$.
-% Inversion on \emph{(i)} gives us both that $\Sigma[\ell] = \ptp$
-% and that $\Gamma \semi \Sigma \vdashv v: \ptp$.
-% \end{proof}
-
-% \subsubsection{Soundness}
-
-% \begin{theorem}[Type soundness for expressions]
-% If
-% \begin{itemize}
-% \item $\cdot \semi \Sigma \vdashe e: \ptp$,
-% \item $\Sigma \vDash \sigma$ for arbitrary $\sigma$,
-% \item $\sigma \semi e \mapsto^* e' \semi \sigma'$ for some $e'$ and $\sigma'$,
-% \item and $e' \not \mapsto$ (i.e. $e'$ cannot step further),
-% \end{itemize}
-% then $e' = \eret{v}$, and for some $\Sigma'$ with $\Sigma \subseteq \Sigma'$
-% and $\Sigma' \vDash \sigma'$, we get $\cdot \semi \Sigma' \vdashv v: \ptp$.
-% \end{theorem}
-
-% \begin{proof}
-% Follows directly from progess \& preservation.
-% \end{proof}
-
-% \begin{corollary}
-% If $\cdot \semi \cdot \vdashe e: \ptp$ 
-% and $\cdot \semi e \mapsto^* e' \semi \sigma$
-% (and $e' \not \mapsto$),
-% then $e' = \eret{v}$,
-% and for any $\Sigma$ with $\Sigma \vDash \sigma$,
-% we get $\cdot \semi \Sigma \vdashv v: \ptp$.
-% \end{corollary}
-
-% \subsection{Configuration Typing}
-
-% \section{Translation (OLD)}
-
-% From React-tRace Core into $\lambda_{CC}$.
-
-% This requires the addition of (mutual) recursion into $\lambda_{CC}$,
-% which is entirely standard.
-
-% \subsection{Types}
-% Judgment: $\llrr{\ptp_{RTC}} = \ptp_{CC}$
-
-% \begin{align*}
-% \llrr{\tone} &= \tone\\
-% \llrr{\mf{Bool}} &= \mf{Bool}\\
-% \llrr{\mf{View}} &= \tone \rightarrow \mf{View}\\
-% \llrr{\mf{Attr}} &= \mf{Attr}\\
-% \llrr{\ptp_1 \xrightarrow{E} \ptp_2} &= \llrr{\ptp_1} \rightarrow \llrr{\ptp_2}\\
-% \llrr{\mf{Component}\ \ptp} &= \llrr{\ptp} \rightarrow \llrr{\mf{View}}\\
-% \llrr{\mf{Setter}\ \ptp} &= \llrr{\ptp} \rightarrow \tone
-% \end{align*}
-
-% \subsection{Values}
-
-% Judgment: $\llrr{v_{RTC}} = v_{CC}$
-% \begin{align*}
-% \llrr{x} &= x\\
-% \llrr{()} &= ()\\
-% \llrr{\mf{true}} &= \mf{true}\\
-% \llrr{\mf{false}} &= \mf{false}\\
-% \llrr{s} &= s\\
-% \llrr{\lambda x: \ptp . e} & = \lambda x: \llrr{\ptp}.\llrr{e}\\
-% \llrr{\mf{text}\ v} &= \mf{text}\ \llrr{v}\\
-% \llrr{\mf{tag}(v, \num{v_i}, \num{v_j})} 
-% &= \mf{tag}(\llrr{v}, \num{\llrr{v_i}}, \num{\llrr{v_j}})\\
-% \llrr{\mf{attr}(v_1, v_2)} &= \mf{attr}(\llrr{v_1}, \llrr{v_2})\\
-% \llrr{\mf{onClick}\ v} &= \mf{onClick}\ \llrr{v}\\
-% \llrr{\C} &= x_\C
-% \end{align*}
-
-% \subsection{Expressions}
-% Judgment: $\llrr{e_{RTC}} = e_{CC}$
-% \begin{align*}
-% \llrr{\eret{v}} &= \eret{\llrr{v}}\\
-% \llrr{\elet{x}{e_1}{e_2}} &= \elet{x}{\llrr{e_1}}{\llrr{e_2}}\\
-% \llrr{v_1\ v_2} &= \llrr{v_1}\ \llrr{v_2}\\
-% \llrr{\eif{v}{e_1}{e_2}} &= \eif{\llrr{v}}{\llrr{e_1}}{\llrr{e_2}}\\
-% \end{align*}
-
-% \subsection{Top-level Expressions}
-% Judgment: $\Theta \vdash \llrr{\hat{e}_{RTC}} = \hat{e}_{CC}$
-% where $\Theta ::= \cdot \mid (x, \ell), \Theta$
-
-% Also define $\Theta - x = \Theta \setminus \{x, \ell\}$ for any $\ell$
-% \begin{mathpar}
-% \inferrule*{
-%   \Theta - x \vdash \llrr{\hat{e}} = e'
-% } {
-%   \Theta \vdash \llrr{\elet{x}{e}{\hat{e}}} = \elet{x}{e}{e'}
-% }
-% \and
-% \inferrule*{
-%   \ell_x\ \mf{fresh}
-%   \and
-%   \Theta, (x, \ell_x) \vdash \llrr{\hat{e}} = e'
-% } {
-%   \Theta \vdash \llrr{\estate{x}{\ell}{v}{\hat{e}}} =\\
-%   \elet{\ell_x}{\eref{\llrr{v}}}{
-%     \elet{x_\mf{set}}{\lambda y: ?.\eset{\ell_x}{y}}{e'}
-%   }
-% }
-% \and
-% \inferrule*{
-%   \Theta \vdash \mf{deref}(\llrr{e}) = e'
-% } {
-%   \Theta \vdash \llrr{\hat{e}} = e'
-% }
-% \and
-% \inferrule*{
-%   \Theta \vdash \mf{deref}(e)
-% } {
-%   \Theta, (x, \ell_x) \vdash \mf{deref}(e) 
-%   = \elet{x}{\eget{\ell_x}}{e'}
-% }
-% \and
-% \inferrule*{ } {
-%   \cdot \vdash \mf{deref}(e) = e
-% }
-% \end{mathpar}
-
-% \subsection{Programs}
-% Judgment: $\Omega \vdash \llrr{P} = e$ 
-% where $\Omega = \cdot \mid \four{\C}{x}{\ptp}{\hat{e}}, \Omega$
-% \begin{mathpar}
-% \inferrule*{
-%   \Omega \vdash \llrr{P} = e'
-% } {
-%   \Omega \vdash \llrr{\elet{x}{e}{P}} = \elet{x}{\llrr{e}}{e'}
-% }
-% \and
-% \inferrule*{
-%   \Omega, \four{\C}{x}{\ptp}{\hat{e}} \vdash \llrr{P} = e'
-% } {
-%   \Omega \vdash \llrr{\elet{\C(x: \ptp)}{\hat{e}}{P}} = e'
-% }
-% \and
-% \inferrule*{
-%   \forall \four{\C_i}{x_i}{\ptp_i}{\hat{e}_i} \in \Omega
-%   \qquad
-%   \cdot \vdash \llrr{\hat{e}_i} = e_i
-% } {
-%   \Omega \vdash \erun{e} 
-%   = \eletrec{\num{\C_i: \llrr{\mf{Component}\ \ptp_i}}}
-%   {\num{\lambda x_i: \llrr{\ptp_i} . e_i}}{\llrr{e}}
-% }
-% \end{mathpar}
+\subsection{Typing}
+
+\subsubsection{Value Typing}
+
+Judgment: $\Gamma \semi \Pi \vdash v: \ptp$
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  \Gamma[x] = \ptp
+} {
+  \Gamma \semi \Pi \vdash x: \ptp
+}
+\and
+\inferrule*[right=TV-Unit] { } {
+  \Gamma \semi \Pi \vdash (): \tone
+}
+\and
+\inferrule*[right=TV-Str] { } {
+  \Gamma \semi \Pi \vdash s: \tstr
+}
+\and
+\inferrule*[right=TV-Lam] {
+  \Gamma, x: \ptp_1 \semi \Pi \vdash e: \ptp_2 \mid E
+} {
+  \Gamma \semi \Pi \vdash \lambda x.e: \ptp_1 \xrightarrow{E} \ptp_2
+}
+\and
+\inferrule*[right=TV-Comp] {
+  \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+} {
+  \Gamma \semi \Pi \vdash \C(x).\hat{e} : \tcomp{\ptp\ \Ell}
+}
+\and
+\inferrule*[right=TV-Nil] { } {
+  \Gamma \semi \Pi \vdash []: [\ptp]
+}
+\and
+\inferrule*[right=TV-Cons] {
+  \Gamma \semi \Pi \vdash v_1: \ptp
+  \and
+  \Gamma \semi \Pi \vdash v_2: [\ptp]
+} {
+  \Gamma \semi \Pi \vdash v_1 :: v_2: [\ptp]
+}
+\and
+\inferrule*[right=TV-Text] {
+  \Gamma \semi \Pi \vdash v: \tstr
+} {
+  \Gamma \semi \Pi \vdash \vtxt{v}: \tview
+}
+\and
+\inferrule*[right=TV-Tag] {
+  \Gamma \semi \Pi \vdash v_1: [\tattr]
+  \and
+  \Gamma \semi \Pi \vdash v_2: [\tview]
+} {
+  \Gamma \semi \Pi \vdash \vtag{v_1}{v_2}: \tview
+}
+\and
+\inferrule*[right=TV-Attr] {
+  \Gamma \semi \Pi \vdash v_1: \tstr
+  \and
+  \Gamma \semi \Pi \vdash v_2: \tstr
+} {
+  \Gamma \semi \Pi \vdash \vattr{v_1}{v_2}: \tattr
+}
+\and
+\inferrule*[right=TV-Click] {
+  \Gamma \semi \Pi \vdash v: \tone \arrow{E} \tone
+} {
+  \Gamma \semi \Pi \vdash \vclick{v}: \tattr
+}
+\and
+\inferrule*[right=\grey{TV-Spec}] {
+  \Gamma \semi \Pi \vdash v_1: \tcomp{\ptp\ \Ell}
+  \and
+  \Gamma \semi \Pi \vdash v_2: \ptp
+} {
+  \Gamma \semi \Pi \vdash \pair{v_1}{v_2}: \tview
+}
+\and
+\inferrule*[right=\grey{TV-Set}] {
+  \Gamma \semi \Pi \vdash \Pi[p]: \tcomp{\ptp\ \Ell}
+  \and
+  \ell \in \Pi[p].\mf{labs}
+} {
+  \Gamma \semi \Pi \vdash \vset{\ell}{p}: \Ell[\ell]
+}
+\end{mathpar}
+
+\subsubsection{Expression Typing}
+
+Judgment: $\Gamma \semi \Pi \vdash e: \ptp \mid E$
+\begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \Gamma \semi \Pi \vdash v: \ptp
+} {
+  \Gamma \semi \Pi \vdash \eret{v}: \ptp \mid \epsilon
+}
+\and
+\inferrule*[right=TE-Let] {
+  \Gamma \semi \Pi \vdash e_1: \ptp_1 \mid E
+  \and
+  \Gamma, x: \ptp_1 \semi \Pi \vdash e_2: \ptp_2 \mid E
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e_1}{e_2}: \ptp_2 \mid E
+}
+\and
+\inferrule*[right=TE-AppL] {
+  \Gamma \semi \Pi \vdash v_1: \ptp_1 \arrow{E} \ptp_2
+  \and
+  \Gamma \semi \Pi \vdash v_2: \ptp_1
+} {
+  \Gamma \semi \Pi \vdash v_1\ v_2: \ptp_2 \mid E
+}
+\and
+\inferrule*[right=TE-AppC] {
+  \Gamma \semi \Pi \vdash v_1: \tcomp{\ptp\ \Ell}
+  \and
+  \Gamma \semi \Pi \vdash v_2: \ptp
+} {
+  \Gamma \semi \Pi \vdash v_1\ v_2: \tview \mid \epsilon
+}
+\and
+\inferrule*[right=TE-AppS] {
+  \Gamma \semi \Pi \vdash v_1: \tset{\ptp}
+  \and
+  \Gamma \semi \Pi \vdash v_2: \ptp
+} {
+  \Gamma \semi \Pi \vdash v_1\ v_2: \tone \mid \emut
+}
+\and
+\inferrule*[right=TE-Case] {
+  \Gamma \semi \Pi \vdash v: [\ptp_1]
+  \and
+  \Gamma \semi \Pi \vdash e_1: \ptp_2 \mid E
+  \\
+  \Gamma, x_\mf{hd}: \ptp_1, x_\mf{tl}: [\ptp_1] \semi \Pi
+  \vdash e_2: \ptp_2 \mid E
+} {
+  \Gamma \semi \Pi \vdash
+  \ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}: \ptp_2 \mid E
+}
+\and
+\inferrule*[right=TE-Sub] {
+  \Gamma \semi \Pi \vdash e: \ptp \mid \epsilon
+} {
+  \Gamma \semi \Pi \vdash e: \ptp \mid \emut
+}
+\end{mathpar}
+
+\subsubsection{Body Typing}
+
+Judgment: $\Gamma \semi \Pi \vdash \hat{e}: \Ell$
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \Gamma \semi \Pi \vdash e: \tview \mid \epsilon
+} {
+  \Gamma \semi \Pi \vdash e: \emptyset
+}
+\and
+\inferrule*[right=TB-Let] {
+  \Gamma \semi \Pi \vdash e: \ptp \mid \epsilon
+  \and
+  \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e}{\hat{e}}: \emptyset
+}
+\and
+\inferrule*[right=TB-State] {
+  \Gamma \semi \Pi \vdash v: \ptp
+  \and
+  \Gamma, x: \ptp, x_\mf{set}: \tset{\ptp} \semi \Pi
+  \vdash \hat{e}: \Ell
+} {
+  \Gamma \semi \Pi \vdash \estate{x}{\ell}{v}{\hat{e}}: \Ell, \ell: \ptp
+}
+\end{mathpar}
+
+\subsection{Runtime}
+
+\subsubsection{Syntax}
+
+\begin{align*}
+\text{Runtime values } u
+&::= x \mid () \mid [] \mid u :: u
+\mid \elit{v} \mid \enode{id}{v}{u}
+\mid p\\
+\text{Runtime expressions } \rho
+&::= \eret{u} \mid \elet{x}{\rho}{\rho}\\
+&\quad\mid \einit{v} \mid \einits{v} \mid \escan{v} \mid \escans{v}\\
+&\quad\mid \echk{u} \mid \echks{u}
+\mid \esearch{id}{u} \mid \esearches{id}{u}\\
+&\quad\mid \eeval{\phi}{p}{\hat{e}} \mid \enew{\phi}{p}{u}
+\mid \ehdl{e} \mid \eprog{e}\\
+\text{Runtime type } \rtp &::= \tone \mid \ttree
+\mid [\ttree]
+\end{align*}
+
+\subsubsection{Typing}
+
+Values:
+\begin{mathpar}
+\inferrule*[right=TR-Var] {
+  \Gamma[x] = \rtp
+} {
+  \Gamma \semi \Pi \Vdash x: \rtp
+}
+\and
+\inferrule*[right=TR-Unit] { } {
+  \Gamma \semi \Pi \Vdash (): \tone
+}
+\and
+\inferrule*[right=TR-Nil] { } {
+  \Gamma \semi \Pi \Vdash []: [\ttree]
+}
+\and
+\inferrule*[right=TR-Lit] {
+  \Gamma \semi \Pi \vdash v: \tstr
+} {
+  \Gamma \semi \Pi \Vdash \elit{v}: \ttree
+}
+\and
+\inferrule*[right=TR-Cons] {
+  \Gamma \semi \Pi \Vdash u_1: \ttree
+  \and
+  \Gamma \semi \Pi \Vdash u_2: [\ttree]
+} {
+  \Gamma \semi \Pi \Vdash u_1 :: u_2: [\ttree]
+}
+\and
+\inferrule*[right=TR-Node] {
+  \Gamma \semi \Pi \vdash v: [\tattr]
+  \and
+  \Gamma \semi \Pi \Vdash u: [\ttree]
+} {
+  \Gamma \semi \Pi \Vdash \enode{id}{v}{u}: \ttree
+}
+\and
+\inferrule*[right=TR-Path] {
+  \Pi[p].\mf{tree} = \tt
+} {
+  \Gamma \semi \Pi \Vdash p: \ttree
+}
+\end{mathpar}
+
+Expressions:
+\begin{mathpar}
+\inferrule*[right=TR-Ret] {
+  \Gamma \semi \Pi \Vdash u: \rtp
+} {
+  \Gamma \semi \Pi \Vdash_\rho \eret{u}: \rtp
+}
+\and
+\inferrule*[right=TR-Let] {
+  \Gamma \semi \Pi \Vdash_\rho \rho_1: \rtp_1
+  \and
+  \Gamma, x: \rtp_1 \semi \Pi \Vdash_\rho \rho_2: \rtp_2
+} {
+  \Gamma \semi \Pi \Vdash_\rho \elet{x}{\rho_1}{\rho_2}: \rtp_2
+}
+\and
+\inferrule*[right=TR-Init] {
+  \Gamma \semi \Pi \vdash v: \tview
+} {
+  \Gamma \semi \Pi \Vdash_\rho \einit{v}: \ttree
+}
+\and
+\inferrule*[right=TR-Inits] {
+  \Gamma \semi \Pi \vdash v: [\tview]
+} {
+  \Gamma \semi \Pi \Vdash_\rho \einits{v}: [\ttree]
+}
+\and
+\inferrule*[right=TR-Scan] {
+  \Gamma \semi \Pi \vdash v: \tview
+} {
+  \Gamma \semi \Pi \Vdash_\rho \escan{v}: \tone
+}
+\and
+\inferrule*[right=TR-Scans] {
+  \Gamma \semi \Pi \vdash v: [\tview]
+} {
+  \Gamma \semi \Pi \Vdash_\rho \escans{v}: \tone
+}
+\and
+\inferrule*[right=TR-Chk] {
+  \Gamma \semi \Pi \Vdash u: \ttree
+} {
+  \Gamma \semi \Pi \Vdash_\rho \echk{v}: \tone
+}
+\and
+\inferrule*[right=TR-Chks] {
+  \Gamma \semi \Pi \Vdash u: [\ttree]
+} {
+  \Gamma \semi \Pi \Vdash_\rho \echks{v}: \tone
+}
+\and
+\inferrule*[right=TR-Sr] {
+  \Gamma \semi \Pi \Vdash u: \ttree
+} {
+  \Gamma \semi \Pi \Vdash_\rho \esearch{id}{v}: \tone
+}
+\and
+\inferrule*[right=TR-Srs] {
+  \Gamma \semi \Pi \Vdash u: [\ttree]
+} {
+  \Gamma \semi \Pi \Vdash_\rho \esearches{id}{v}: \tone
+}
+\and
+\inferrule*[right=TR-EvalI] {
+  \Gamma \semi \Pi \vdash \Pi[p]: \tcomp{\ptp\ \Ell_0}
+  \and
+  \Gamma \semi \Pi \vdash \hat{e}: \Ell
+  \and
+  \Ell_0 = \Ell \cup \Pi[p].\mf{labs}
+} {
+  \Gamma \semi \Pi \Vdash_\rho \eeval{\mf{Init}}{p}{\hat{e}}: \tview
+}
+\and
+\inferrule*[right=TR-EvalS] {
+  \Gamma \semi \Pi \vdash \Pi[p]: \tcomp{\ptp\ \Ell_0}
+  \and
+  \Gamma \semi \Pi \vdash \hat{e}: \Ell
+  \and
+  \Ell \subseteq \Pi[p].\mf{labs} = \Ell_0
+} {
+  \Gamma \semi \Pi \Vdash_\rho \eeval{\mf{Succ}}{p}{\hat{e}}: \tone
+}
+\and
+\inferrule*[right=TR-NewI] {
+  \Gamma \semi \Pi \vdash \Pi[p]: \tcomp{\ptp\ \Ell_0}
+  \and
+  \Gamma \semi \Pi \Vdash u: \ttree
+  \and
+  \Ell_0 = \Pi[p].\mf{labs}
+} {
+  \Gamma \semi \Pi \Vdash_\rho \enew{\mf{Init}}{p}{u}: \tview
+}
+\and
+\inferrule*[right=TR-NewS] {
+  \Gamma \semi \Pi \vdash \Pi[p]: \tcomp{\ptp\ \Ell_0}
+  \and
+  \Gamma \semi \Pi \Vdash u: \ttree
+  \and
+  \Ell_0 = \Pi[p].\mf{labs}
+} {
+  \Gamma \semi \Pi \Vdash_\rho \enew{\mf{Succ}}{p}{u}: \tone
+}
+\and
+\inferrule*[right=TR-Hdl] {
+  \Gamma \semi \Pi \vdash e: \tone \mid E
+} {
+  \Gamma \semi \Pi \Vdash_\rho \ehdl{e}: \tone
+}
+\and
+\inferrule*[right=TR-Prog] {
+  \Gamma \semi \Pi \vdash e: \tview \mid \epsilon
+} {
+  \Gamma \semi \Pi \Vdash_\rho \eprog{e}: \tone
+}
+\end{mathpar}
+
+\subsubsection{FGCBV Semantics}
+
+Admin:
+\begin{mathpar}
+\inferrule*[right=ER-Let] {
+  m \semi \rho_1 \hookrightarrow \rho_1' \semi m'
+} {
+  m \semi \elet{x}{\rho_1}{\rho_2}
+  \hookrightarrow
+  \elet{x}{\rho_1'}{\rho_2} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \elet{x}{\eret{u}}{\rho}
+&\hookrightarrow
+\rho[u/x] \semi m
+&&\ts{ER-Ret}\\
+\end{align*}
+
+Initialization:
+\begin{mathpar}
+\inferrule*[right=ER-ITag] {
+  x\ \mf{fresh}
+  \and
+  \mf{id}\ \mf{fresh}
+} {
+  m \semi \einit{\vtag{v_1}{v_2}}
+  \hookrightarrow
+  \elet{x}{\einits{v_2}}{\eret{\enode{id}{v_1}{x}}} \semi m
+}
+\and
+\inferrule*[right=ER-ISpec] {
+  p\ \mf{fresh}
+  \\
+  m'=m[p \mapsto \{
+    \mf{spec}=\pair{\C(x).\hat{e}}{v}, 
+    \mf{st}: \cdot, 
+    \mf{tree}: \cdot, 
+    \mf{rerender}: \mf{ff}
+  \}]
+} {
+  m \semi \einit{\pair{\C(x).\hat{e}}{v}}
+  \hookrightarrow
+  \eeval{\mf{Init}}{p}{\hat{e}[v/x]} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \einit{\vtxt{v}}
+&\hookrightarrow
+\eret{\elit{v}} \semi m
+&&\ts{ER-ILit}\\
+m \semi \einits{[]}
+&\hookrightarrow
+\eret{[]} \semi m
+&&\ts{ER-INil}\\
+m \semi \einits{v :: vs}
+&\hookrightarrow
+(\elet{x}{\einit{v}}{\\&\quad
+  \elet{xs}{\einits{vs}}{&&\ts{ER-ICons}\\&\quad
+    \eret{x :: xs}
+  }
+}) \semi m
+\end{align*}
+
+Component Evaluation:
+\begin{mathpar}
+\inferrule*[right=ER-Eval] {
+  \bstep{m}{\hat{e}}{\phi}{p}{\hat{e}'}{m'}
+} {
+  m \semi \eeval{\phi}{p}{\hat{e}}
+  \hookrightarrow
+  \eeval{\phi}{p}{\hat{e}'} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \eeval{\phi}{p}{\eret{v}}
+&\hookrightarrow
+\elet{x}{\einit{v}}{\enew{\phi}{p}{x}} \semi m
+&&\ts{ER-New}\\
+m \semi \enew{\mf{Init}}{p}{u}
+&\hookrightarrow
+p \semi m \mid m[p].\mf{tree} = u
+&&\ts{ER-NewI}\\
+m \semi \enew{\mf{Succ}}{p}{u}
+&\hookrightarrow
+() \semi m \mid m[p].\mf{tree} = u
+&&\ts{ER-NewS}\\
+\end{align*}
+
+Event Handling:
+\begin{align*}
+m \semi \esearch{id}{\elit{v}}
+&\hookrightarrow
+\eret{()} \semi m
+&&\ts{ER-SLit}\\
+m \semi \esearch{id}{p}
+&\hookrightarrow
+\esearch{id}{m[p].\mf{tree}} \semi m
+&&\ts{ER-SPath}\\
+m \semi \esearch{id}{\enode{id'}{v}{u}}
+&\hookrightarrow
+\esearches{id}{u} \semi m\quad (\mf{id} \neq \mf{id}')
+&&\ts{ER-SNodeF}\\
+m \semi \esearch{id}{\enode{id}{v}{u}}
+&\hookrightarrow
+\elet{\_}{\escans{v}}{\esearches{id}{u}} \semi m
+&&\ts{ER-SNodeT}\\
+m \semi \esearches{id}{[]}
+&\hookrightarrow
+\eret{()} \semi m
+&&\ts{ER-SNil}\\
+m \semi \esearches{id}{u :: us}
+&\hookrightarrow
+\elet{\_}{\esearch{id}{u}}{\esearch{id}{us}} \semi m
+&&\ts{ER-SCons}\\
+\end{align*}
+\begin{align*}
+m \semi \escan{\vattr{v_1}{v_2}}
+&\hookrightarrow
+\eret{()} \semi m
+&&\ts{ER-ScAttr}\\
+m \semi \escan{\vclick{v}}
+&\hookrightarrow
+\ehdl{v\ ()} \semi m
+&&\ts{ER-ScClick}\\
+m \semi \escans{[]}
+&\hookrightarrow
+\eret{()} \semi m
+&&\ts{ER-ScNil}\\
+m \semi \escans{u :: us}
+&\hookrightarrow
+\elet{\_}{\escan{u}}{\escans{us}} \semi m
+&&\ts{ER-ScCons}\\
+\end{align*}
+\begin{mathpar}
+\inferrule*[right=ER-Hdl] {
+  \estep{m}{e}{e'}{m'}
+} {
+  m \semi \ehdl{e} \hookrightarrow \ehdl{e'} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \ehdl{\eret{()}} 
+&\hookrightarrow
+\eret{()} \semi m
+&&\ts{ER-HDone}\\
+\end{align*}
+
+Checking:
+\begin{mathpar}
+\inferrule*[right=ER-ChkPF] {
+  m[p].\mf{rerender} = \ff
+} {
+  m \semi \echk{p}
+  \hookrightarrow
+  \echk{m[p].\mf{tree}} \semi m
+}
+\and
+\inferrule*[right=ER-ChkPT] {
+  m[p].\mf{rerender} = \tt
+  \and
+  m[p].\mf{spec} = \pair{\C(x).\hat{e}}{v}
+} {
+  m \semi \echk{p}
+  \hookrightarrow
+  \eeval{\mf{Succ}}{p}{\hat{e}[v/x]}
+  \semi m \mid m[p].\mf{rerender} = \ff
+}
+\end{mathpar}
+\begin{align*}
+m \semi \echk{\elit{v}}
+&\hookrightarrow
+\eret{()} \semi m
+&&\ts{ER-ChkLit}\\
+m \semi \echk{\enode{id}{v}{u}}
+&\hookrightarrow
+\echks{u} \semi m
+&&\ts{ER-ChkNode}\\
+m \semi \echks{[]} &\hookrightarrow \eret{()} \semi m
+&&\ts{ER-ChkNil}\\
+m \semi \echks{u :: us}
+&\hookrightarrow
+\elet{\_}{\echk{u}}{\echks{us}}
+&&\ts{ER-ChkCons}
+\end{align*}
+
+Programs:
+\begin{mathpar}
+\inferrule*[right=ER-Prog] {
+  \cdot \semi e \mapsto e' \semi \cdot
+} {
+  \cdot \semi \eprog{e} \mapsto \eprog{e'} \semi \cdot
+}
+\and
+\inferrule*[right=ER-PDone] {
+  m' = m[p_0 \mapsto \{\mf{spec}: \pair{\C(\_).\eret{v}}{()},
+  \mf{st}: \cdot,
+  \mf{tree}: \cdot, \mf{rerender}: \mf{ff}\}]
+} {
+  m \semi \eprog{\eret{v}}
+  \hookrightarrow
+  \elet{x}{\einit{v}}{\enew{\mf{Succ}}{p_0}{x}}
+  \semi m'
+}
+\end{mathpar}
+
+Top-Level:
+\begin{mathpar}
+\inferrule*[right=ER-Top] {
+  m \semi \rho \hookrightarrow \rho' \semi m'
+} {
+  m \semi \rho \hookrightarrow_0 \rho' \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \eret{()} 
+&\hookrightarrow
+\elet{\_}{\esearch{id}{p_0}}{\echk{p_0}} \semi m
+&&\ts{ER-Event}
+\end{align*}
+
+\section{Reference-Abstract Translation}
+
+\subsection{Interpretations}
+
+We define our translation with respect to a series of
+\emph{reference interpretation functions},
+which let us map between memory locations
+in the source and target languages.
+
+Each such function is a \emph{partial} map
+from some domain in the source language
+to the set of locations in the target language.
+
+In particular, we have four such functions
+(where $P$, $L$, and $R$ are the domains
+of paths, labels, and target-langauge references,
+respectively):
+\begin{itemize}
+\item $\mathbb{S} : P \rightharpoonup R$ maps paths to ``specs''
+(of type $\tref{\tone \rightarrow \tview}$),
+\item $\mathbb{T}  : P \rightharpoonup R$ maps paths to trees
+(of type $\tref{\ttree}$),
+\item $\mathbb{B}  : P \rightharpoonup R$ maps paths to rerender flags
+(of type $\tref{\tbool}$), and
+\item $\mathbb{L} : P \times L \rightharpoonup R$ maps path/label pairs
+to the corresponding state cell (of varying type).
+\end{itemize}
+
+Call the four-tuple
+$\mathbb{I}=\four{\mathbb{S}}{\mathbb{T}}{\mathbb{L}}{\mathbb{B}}$
+an \emph{interpretation}. We implicitly parametrize all of our
+translations by an interpretation.
+
+Furthermore, call $\mathbb{I}$ a \emph{valid} interpretation
+(of a particular translation- e.g. $\llrr{v}$, $\llrr{\Pi}$, etc.)
+if all instances of interpretation functions are well-defined.
+For instance, if $\mathbb{L}(p, \ell)$ appears in the translation,
+then $\mathbb{L}(p, \ell) \neq \bot$.
+
+We can now state theorems such as the following:
+
+\begin{theorem}[Type preservation, values.]
+If $\Gamma \semi \Pi \vdash v: A$,
+then, for any valid interpretation $\mathbb{I}$,
+we get $\llrr{\Gamma} \semi \llrr{\Pi} \vdash \llrr{v}: \llrr{A}$.
+\end{theorem}
+
+\subsection{Translation}
+
+Types:
+\begin{align*}
+\llrr{\tone} &= \tone\\
+\llrr{\tstr} &= \tstr\\
+\llrr{A \xrightarrow{E} A} &= \llrr{A} \rightarrow \llrr{A}\\
+\llrr{[A]} &= [\llrr{A}]\\
+\llrr{\tview} &= \tview\\
+\llrr{\tattr} &= \tattr\\
+\mhl{\llrr{\tcomp{A\ \Ell}}} &= A \rightarrow \tref{\tbool} 
+\times (\tone \rightarrow \tview)\\
+\mhl{\llrr{\tset{A}}} &= A \rightarrow \tone
+\end{align*}
+Values:
+\begin{align*}
+\llrr{x} &= x\\
+\llrr{()} &= ()\\
+\llrr{s} &= s\\
+\llrr{\lambda x.e} &= \lambda x.\llrr{e}\\
+\mhl{\llrr{\C(x).\hat{e}}} &= 
+\lambda x.\llrr{\hat{e}}^\top\\
+\llrr{[]} &= []\\
+\llrr{v_1 :: v_2} &= \llrr{v_1} :: \llrr{v_2}\\
+\llrr{\vtxt{v}} &= \vtxt{\llrr{v}}\\
+\llrr{\vtag{v_1}{v_2}} &= \vtag{\llrr{v_1}}{\llrr{v_2}}\\
+\llrr{\vattr{v_1}{v_2}} &= \vattr{\llrr{v_1}}{\llrr{v_2}}\\
+\llrr{\vclick{v}} &= \vclick{\llrr{v}}\\
+\mhl{\llrr{\pair{v_1}{v_2}}} 
+&= \mf{spec}\ \lambda().\llrr{v_1} \llrr{v_2}\\
+\mhl{\llrr{\vset{\ell}{p}}}
+&= \lambda x. \eset{\mathbb{L}(p, \ell)}{x}
+\semi \eset{\mathbb{B}(p)}{\mf{true}}
+\end{align*}
+Expressions:
+\begin{align*}
+\llrr{\eret{v}} &= \eret{\llrr{v}}\\
+\llrr{\elet{x}{e_1}{e_2}} &= \elet{x}{\llrr{e_1}}{\llrr{e_2}}\\
+\llrr{v\ v} &= \llrr{v}\llrr{v}\\
+\llrr{\ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}}
+&= \ecase{\llrr{v}}{[]}{\llrr{e_1}}{x_\mf{hd} :: x_\mf{tl}}{\llrr{e_2}}
+\end{align*}
+Bodies (contextless):
+\begin{align*}
+\mhl{\llrr{\hat{e}}}^\top &= \elet{\mf{flag}}{\eref{\mf{false}}}
+{\llrr{\hat{e}}^\mf{Init}_{\hat{e}}}\\
+\llrr{\elet{x}{e}{\hat{e}}}^\mf{Init}_{\hat{e}_0}
+&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}}\\
+\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Init}_{\hat{e}_0}}
+&= \elet{x_\ell}{\eref{\llrr{v}}}{\\
+  &\quad\ \elet{x}{\eget{x_\ell}}{\\
+    &\quad\ \elet{x_\mf{set}}{\lambda y.(\eset{x_\ell}{y} 
+    \semi \eset{\mf{flag}}{\mf{true}})}{\\
+      &\quad\ \llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}}
+  }
+}\\
+\mhl{\llrr{e}^\mf{Init}_{\hat{e}_0}}
+&= (\mf{flag}, \lambda ().\llrr{\hat{e}_0}^\mf{Succ})\\
+\llrr{\elet{x}{e}{\hat{e}}}^\mf{Succ}
+&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Succ}}\\
+\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Succ}}
+&= \elet{x}{\eget{x_\ell}}{\llrr{\hat{e}}^\mf{Succ}}\\
+\llrr{e}^\mf{Succ} &= \llrr{e}
+\end{align*}
+Bodies (context-sensitive) \hl{IN PROGRESS}:
+\begin{align*}
+\llrr{\elet{x}{e}{\hat{e}}}^{\mf{Init}(\hat{e}_0)}_p
+&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)}_p}\\
+\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Init}(\hat{e}_0)}_p}
+&= \elet{x_\ell}{\eref{\llrr{v}}}{\\
+  &\quad\ \elet{x}{\eget{x_\ell}}{\\
+    &\quad\ \elet{x_\mf{set}}{\lambda y.\\
+      &\qquad(\eset{x_\ell}{y} \semi \eset{\mathbb{B}(p)}{\mf{true}})
+      \\&\quad\ 
+    }{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)}_p}
+  }
+}\\
+\mhl{\llrr{e}^{\mf{Init}(\hat{e}_0)}_p}
+&= (\mathbb{B}(p), \lambda ().\llrr{\hat{e}_0}^\mf{Succ}_p)\\
+\llrr{\elet{x}{e}{\hat{e}}}^\mf{Succ}_p
+&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Succ}_p}\\
+\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Succ}_p}
+&= \elet{x}{\eget{\mathbb{L}(p, \ell)}}{\llrr{\hat{e}}^\mf{Succ}}\\
+\llrr{e}^\mf{Succ} &= \llrr{e}
+\end{align*}
+
+Runtime values:
+\begin{align*}
+\llrr{x} &= x\\
+\llrr{()} &= ()\\
+\llrr{[]} &= []\\
+\llrr{u :: u} &= \llrr{u} :: \llrr{u}\\
+\llrr{\elit{v}} &= \elit{\llrr{v}}\\
+\llrr{\enode{id}{v}{u}} &= \enode{id}{\llrr{v}}{\llrr{u}}\\
+\mhl{\llrr{p}} &= \mf{path}(\mathbb{S}(p), \mathbb{T}(p), \mathbb{B}(p))
+\end{align*}
+
+Runtime expressions \hl{IN PROGRESS}:
+\begin{align*}
+\llrr{\eret{u}} &= \eret{\llrr{u}}\\
+\llrr{\elet{x}{\rho}{\rho}} &= \elet{x}{\llrr{\rho}}{\llrr{\rho}}\\
+\llrr{\einit{v}} &= \mf{init}\ \llrr{v}\\
+\llrr{\einits{v}} &= \mf{map}\ \mf{init}\ \llrr{v}\\
+\llrr{\escan{v}} &= \mf{scan}\ \llrr{v}\\
+\llrr{\escans{v}} &= \mf{iter}\ \mf{scan}\ \llrr{v}\\
+\llrr{\echk{u}} &= \mf{check}\ \llrr{u}\\
+\llrr{\echks{u}} &= \mf{iter}\ \mf{check}\ \llrr{u}\\
+\llrr{\esearch{id}{u}} &= \mf{search}\ \mf{id}\ \llrr{u}\\
+\llrr{\esearches{id}{u}} &= \mf{iter}\ (\mf{search}\ \mf{id})\ \llrr{u}\\
+\llrr{\eeval{\mf{Init}}{p}{\hat{e}}}
+&= \elet{\mf{view}}{\llrr{\hat{e}}^{\mf{Init}(\mhl{\hat{e}_0})}_p}{\\
+  &\quad\ \elet{\mf{tree}}{\mf{init}\ \mf{view}}{
+    \llrr{\enew{\mf{Init}}{p}{\mf{tree}}}
+  }
+}\\
+\llrr{\eeval{\mf{Succ}}{p}{\hat{e}}}
+&= \elet{\mf{view}}{\llrr{\hat{e}}^{\mf{Succ}}_p}{\\
+  &\quad\ \elet{\mf{tree}}{\mf{init}\ \mf{view}}{
+    \llrr{\enew{\mf{Succ}}{p}{\mf{tree}}}
+  }
+}\\
+\llrr{\enew{\mf{Init}}{p}{u}}
+&= \eset{\mathbb{T}(p)}{\llrr{u}} \semi \eret{\llrr{p}}\\
+\llrr{\enew{\mf{Succ}}{p}{u}}
+&= \eset{\mathbb{T}(p)}{\llrr{u}}\\
+\llrr{\ehdl{e}} &= \llrr{e}\\
+\llrr{\eprog{e}} &= \elet{\mf{view}}{\llrr{e}}{\\
+  &\quad\ \elet{b}{\eref{\mf{false}}}{\\
+    &\quad\ \elet{s}{\eref{\lambda ().\llrr{e}}}{\\
+      &\quad\ \elet{t}{\eref{\mf{view}}}{
+        \mhl{()}
+      }
+    }
+  }
+}
+\end{align*}
+
+Memory:
+
+\begin{align*}\llrr{\pi}^p &= \{\mathbb{B}(p) \mapsto \llrr{\pi.\mf{rerender}}\}
+\cup \bigcup_{\ell} \{\mathbb{L}(p, \ell) \mapsto \llrr{\pi.\mf{st}[\ell]}\}\\
+&\quad\cup \begin{cases}
+\{\mathbb{S}(p) \mapsto \llrr{\pi.\mf{spec}},
+  \mathbb{T}(p) \mapsto \llrr{\pi.\mf{tree}}
+\} &\pi.\mf{tree}\ \text{defined}\\
+\emptyset &\text{otherwise}
+\end{cases}\\
+\llrr{m} &= \bigcup_p \llrr{m[p]}^p
+\end{align*}
+
+Memory typing:
+\begin{align*}
+\llrr{\Pi} &= \bigcup_p \{\mathbb{B}(p) \mapsto \tbool\}
+\cup \bigcup_\ell \{\mathbb{L}(p, \ell) \mapsto \llrr{\Ell[\ell]}\}\\
+&\quad\cup \begin{cases}
+\{\mathbb{S}(p) \mapsto \tone \rightarrow \tview,
+  \mathbb{T}(p) \mapsto \ttree
+\} &\pi.\mf{tree}\ \text{defined}\\
+\emptyset &\text{otherwise}
+\end{cases}\\
+&\qquad(\text{where}\ \Pi[p].\mf{spec} = \pair{A}{\Ell})
+\end{align*}
 
 \end{document}
