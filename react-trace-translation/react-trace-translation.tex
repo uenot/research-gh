@@ -6996,21 +6996,201 @@ For the runtime language, we assume a FGCBV formulation
 \mid [\ttree]
 \end{align*}
 
+\subsection{Target Language}
+
 The following target language is sufficient to translate 
 user-level programs (but not the runtime language):
 \begin{align*}
 \text{Target values } v
 &::= x \mid () \mid s \mid \mf{true} \mid \mf{false} \mid
-\lambda x.e \mid [] \mid v :: v \mid \ell \mid (v, v)\\
+\lambda x.e \mid [] \mid v :: v \mid r \mid (v, v)\\
 &\quad\mid \vtxt{v} \mid \vtag{v}{v} \mid \vattr{v}{v} \mid \vclick{v}\\
 \text{Target expressions } e
 &::= \eret{v} \mid \elet{x}{e}{e} \mid v\ v\\
 &\quad\mid \eref{v} \mid \eget{v} \mid \eset{v}{v}\\
 &\quad\mid \ecase{v}{[]}{e_1}{x :: x}{e_2}\\
 \text{Target type } A &::= \tone \mid \tstr \mid A \rightarrow A \mid [A]
-\mid \tview \mid \tattr \mid \tref{A} \mid A \times A
+\mid \tview \mid \tattr\\
+&\quad\mid \tref{A} \mid A \times A \mid \tbool
 \end{align*}
-Typing rules and operational semantics are entirely standard.
+Typing rules and operational semantics are entirely standard:
+\begin{mathpar}
+\inferrule*[right=T-Var] {
+  x: A \in \Gamma
+} {
+  \Gamma \semi \Sigma \vdash_v x: A
+}
+\and
+\inferrule*[right=T-Unit] { } {
+  \Gamma \semi \Sigma \vdash_v (): \tone
+}
+\and
+\inferrule*[right=T-Str] { } {
+  \Gamma \semi \Sigma \vdash_v s: \tstr
+}
+\and
+\inferrule*[right=T-True] { } {
+  \Gamma \semi \Sigma \vdash_v \mf{true}: \tbool
+}
+\and
+\inferrule*[right=T-False] { } {
+  \Gamma \semi \Sigma \vdash_v \mf{false}: \tbool
+}
+\and
+\inferrule*[right=T-Lam] {
+  \Gamma, x: A_1 \semi \Sigma \vdash_e e: A_2
+} {
+  \Gamma \semi \Sigma \vdash_v \lambda x.e: A_1 \rightarrow A_2
+}
+\and
+\inferrule*[right=T-Nil] { } {
+  \Gamma \semi \Sigma \vdash_v []: [A]
+}
+\and
+\inferrule*[right=T-Cons] {
+  \Gamma \semi \Sigma \vdash_v v_1: A
+  \and
+  \Gamma \semi \Sigma \vdash_v v_2: [A]
+} {
+  \Gamma \semi \Sigma \vdash_v v_1 :: v_2: [A]
+}
+\and
+\inferrule*[right=T-Loc] {
+  r: A \in \Sigma
+} {
+  \Gamma \semi \Sigma \vdash_v r: \tref{A}
+}
+\and
+\inferrule*[right=T-Pair] {
+  \Gamma \semi \Sigma \vdash_v v_1: A_1
+  \and
+  \Gamma \semi \Sigma \vdash_v v_2: A_2
+} {
+  \Gamma \semi \Sigma \vdash_v (v_1, v_2): A_1 \times A_2
+}
+\and
+\inferrule*[right=T-Text] {
+  \Gamma \semi \Sigma \vdash_v v: \tstr
+} {
+  \Gamma \semi \Sigma \vdash_v \vtxt{v}: \tview
+}
+\and
+\inferrule*[right=T-Tag] {
+  \Gamma \semi \Sigma \vdash_v v_1: [\tattr]
+  \and
+  \Gamma \semi \Sigma \vdash_v v_2: [\tview]
+} {
+  \Gamma \semi \Sigma \vdash_v \vtag{v_1}{v_2}: \tview
+}
+\and
+\inferrule*[right=T-Attr] {
+  \Gamma \semi \Sigma \vdash_v v_1: \tstr
+  \and
+  \Gamma \semi \Sigma \vdash_v v_2: \tstr
+} {
+  \Gamma \semi \Sigma \vdash_v \vattr{v_1}{v_2}: \tattr
+}
+\and
+\inferrule*[right=T-Click] {
+  \Gamma \semi \Sigma \vdash_v v: \tone \rightarrow \tone
+} {
+  \Gamma \semi \Sigma \vdash_v \vclick{v}: \tattr
+}
+\end{mathpar}
+\begin{mathpar}
+\inferrule*[right=T-Ret] {
+  \Gamma \semi \Sigma \vdash_v v: A
+} {
+  \Gamma \semi \Sigma \vdash_e \eret{v}: A
+}
+\and
+\inferrule*[right=T-Let] {
+  \Gamma \semi \Sigma \vdash_e e_1: A_1
+  \and
+  \Gamma, x: A_1 \semi \Sigma \vdash_e e_2: A_2
+} {
+  \Gamma \semi \Sigma \vdash_e \elet{x}{e_1}{e_2}: A_2
+}
+\and
+\inferrule*[right=T-App] {
+  \Gamma \semi \Sigma \vdash_v v_1: A_1 \rightarrow A_2
+  \and
+  \Gamma \semi \Sigma \vdash_v v_2: A_1
+} {
+  \Gamma \semi \Sigma \vdash_e v_1\ v_2: A_2
+}
+\and
+\inferrule*[right=T-New] {
+  \Gamma \semi \Sigma \vdash_v v: A
+} {
+  \Gamma \semi \Sigma \vdash_e \eref{v}: \tref{A}
+}
+\and
+\inferrule*[right=T-Get] {
+  \Gamma \semi \Sigma \vdash_v v: \tref{A}
+} {
+  \Gamma \semi \Sigma \vdash_e \eget{v}: A
+}
+\and
+\inferrule*[right=T-Set] {
+  \Gamma \semi \Sigma \vdash_v v_1: \tref{A}
+  \and
+  \Gamma \semi \Sigma \vdash_v v_2: A
+} {
+  \Gamma \semi \Sigma \vdash_e \eset{v_1}{v_2}: \tone
+}
+\and
+\inferrule*[right=T-Case] {
+  \Gamma \semi \Sigma \vdash_v v: [A]
+  \and
+  \Gamma \semi \Sigma \vdash_e e_1: A'
+  \and
+  \Gamma, x: A, xs: [A] \semi \Sigma \vdash_e e_2: A'
+} {
+  \Gamma \semi \Sigma \vdash_e \ecase{v}{[]}{e_1}{x :: xs}{e_2}: A'
+}
+\end{mathpar}
+
+\begin{mathpar}
+\inferrule*[right=E-Let] {
+  \sigma \semi e_1 \mapsto e_1' \semi \sigma'
+} {
+  \sigma \semi \elet{x}{e_1}{e_2} 
+  \mapsto 
+  \elet{x}{e_1'}{e_2} \semi \sigma'
+}
+\end{mathpar}
+\begin{align*}
+\sigma \semi \elet{x}{\eret{v}}{e}
+&\mapsto
+e[v/x] \semi \sigma
+&&\textsc{E-Ret}\\
+\sigma \semi (\lambda x.e)\ v
+&\mapsto
+e[v/x] \semi \sigma
+&&\textsc{E-App}\\
+\sigma \semi \eref{v}
+&\mapsto
+r \semi \sigma[r \mapsto v]
+\quad (r\ \mf{fresh})
+&&\textsc{E-App}\\
+\sigma \semi \eget{r}
+&\mapsto
+\sigma(r) \semi \sigma
+&&\textsc{E-Get}\\
+\sigma \semi \eset{r}{v}
+&\mapsto
+\eret{()} \semi \sigma[r \mapsto v]
+&&\textsc{E-Set}\\
+\sigma \semi \ecase{[]}{[]}{e_1}{x :: xs}{e_2}
+&\mapsto
+e_1 \semi \sigma
+&&\textsc{E-CaseN}\\
+\sigma \semi \ecase{v :: vs}{[]}{e_1}{x :: xs}{e_2}
+&\mapsto
+e_2[v/x, vs/xs] \semi \sigma
+&&\textsc{E-CaseC}\\
+\end{align*}
 
 \subsection{Context-Free Translation}
 
@@ -7150,7 +7330,8 @@ but this breaks FGCBV and messes with simulation correspondence.)
 The above translation does not let us reason about the
 \emph{intermediate stages} of a program's evaluation,
 which is necessary to prove a theorem of the form:
-$$\mf{if}\ e \mapsto e'\mf{, then}\ \llrr{e} \mapsto^* \llrr{e'}.$$
+$$\mf{if}\ m \semi e \mapsto e' \semi m'
+\mf{, then}\ \llrr{m} \semi \llrr{e} \mapsto^* \llrr{e'} \semi \llrr{m'}.$$
 
 For instance, how do we translate the (intermediate-only)
 value $\vset{\ell}{p}$?
@@ -7224,20 +7405,21 @@ from the source language.
 
 Primary goal: bring source and target languages closer together
 by allowing components to be interpreted as let-bound functions,
-and avoiding mutual recursion.
+and avoiding mutual recursion. Gets rid of ``program'' top-level,
+whose encoding is not straightforward
+and which distracts from the point of useState/components.
 
-Secondary goal: should be strongly normalizing
+Secondary benefits:
+\begin{itemize}
+\item ``anonymous components'' allow for new expressive patterns
+\item should be strongly normalizing
 (although this might be hard to prove...)
-
-Tertiary goal: can \emph{maybe} remove ``program'' top-level,
-allowing for one less layer of indirection...
-and maybe anonymous components?
-Should also simplify metatheory (no $\Omega$...)
+\end{itemize}
 
 \subsection{Syntax}
 
-Here, $\C$ is a \emph{syntactic keyword} (like $\lambda$)
-instead of a name.
+Here, $\C$ is a \emph{syntactic token} (like $\lambda$)
+instead of a name like before.
 \begin{align*}
 \text{Value } v &::= x \mid () \mid s 
 \mid \lambda x.e \mid \mhl{\C(x).\hat{e}}
