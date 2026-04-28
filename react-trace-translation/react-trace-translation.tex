@@ -39,7 +39,7 @@
 \newcommand{\arrow}[1]{\xrightarrow{#1}}
 
 \newcommand{\ptp}{A}
-\newcommand{\rtp}{\alpha}
+\newcommand{\rtp}{\tau}
 
 \newcommand{\tval}[4]{#1 \semi #2 \vdash_\Delta #3 : #4}
 \newcommand{\texp}[5]{#1 \semi #2 \vdash_\Delta #3 : #4 \mid #5}
@@ -113,6 +113,7 @@
 \newcommand{\D}{\mc{D}}
 \newcommand{\E}{\mc{E}}
 \newcommand{\Ell}{\mc{L}}
+\newcommand{\I}{\mathbb{I}}
 
 \newcommand{\elet}[3]{\mf{let}\ #1 = #2\ \mf{in}\ #3}
 \newcommand{\eletrec}[3]{\mf{let}\ \mf{rec}\ #1 = #2\ \mf{in}\ #3}
@@ -2180,15 +2181,6 @@ Judgment: $\cstep{\D}{m}{\rho}{\D}{m}{\rho}$
 \cstep{\D}{m}{\echks{\rho :: \rho s}&}{\D}{m}{\echk{\rho} \semi \echks{\rho s}}
 &&\ts{ER-ChkCons}
 \end{align*}
-
-% order on paths (topsort?)
-% condition on memory typing
-
-% memory is linear in the places?
-% linear ctx in memory, split over all places
-
-% to prove DAG->terminate:
-% measure=lex (# of p's we have left, size of tree)
 
 \subsubsection{Events}
 
@@ -7519,7 +7511,7 @@ Judgment: $\Gamma \semi \Pi \vdash v: \ptp$
 }
 \and
 \inferrule*[right=\grey{TV-Set}] {
-  \Gamma \semi \Pi \vdash \Pi[p]: \tcomp{\ptp\ \Ell}
+  \Pi[p].\mf{spec} = \pair{\ptp}{\Ell}
   \and
   \ell \in \Pi[p].\mf{labs}
 } {
@@ -7603,7 +7595,7 @@ Judgment: $\Gamma \semi \Pi \vdash \hat{e}: \Ell$
   \and
   \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
 } {
-  \Gamma \semi \Pi \vdash \elet{x}{e}{\hat{e}}: \emptyset
+  \Gamma \semi \Pi \vdash \elet{x}{e}{\hat{e}}: \Ell
 }
 \and
 \inferrule*[right=TB-State] {
@@ -8050,27 +8042,29 @@ to the corresponding state cell (of varying type).
 \end{itemize}
 
 Call the four-tuple
-$\mathbb{I}=\four{\mathbb{S}}{\mathbb{T}}{\mathbb{L}}{\mathbb{B}}$
+$\I=\four{\mathbb{S}}{\mathbb{T}}{\mathbb{L}}{\mathbb{B}}$
 an \emph{interpretation}. We implicitly parametrize all of our
 translations by an interpretation.
 
-Furthermore, call $\mathbb{I}$ a \emph{valid} interpretation
-(of a particular translation- e.g. $\llrr{v}$, $\llrr{\Pi}$, etc.)
-if all instances of interpretation functions are well-defined.
-For instance, if $\mathbb{L}(p, \ell)$ appears in the translation,
-then $\mathbb{L}(p, \ell) \neq \bot$.
+Define $\Pi \vDash \mathbb{B}$ to hold when
+$\mathbb{B}(p)$ is well-defined iff $p \in \dom(\Pi)$.
 
-We can now state theorems such as the following:
+Define $\Pi \vDash \mathbb{L}$ to hold when
+$\mathbb{L}(p, \ell)$ is well-defined iff $\ell \in \Pi[p].\mf{labs}$.
 
-\begin{theorem}[Type preservation, values.]
-If $\Gamma \semi \Pi \vdash v: A$,
-then, for any valid interpretation $\mathbb{I}$,
-we get $\llrr{\Gamma} \semi \llrr{\Pi} \vdash \llrr{v}: \llrr{A}$.
-\end{theorem}
+Define $\Pi \vDash \mathbb{S}$ to hold when
+$\mathbb{S}(p)$ is well-defined iff $\Pi[p].\mf{tree} = \tt$.
+
+Define $\Pi \vDash \mathbb{T}$ to hold when
+$\mathbb{T}(p)$ is well-defined iff $\Pi[p].\mf{tree} = \tt$.
+
+Finally, define $\Pi \vDash \I$ to hold when
+$\Pi \vDash \mathbb{L}$, $\Pi \vDash \mathbb{B}$,
+$\Pi \vDash \mathbb{S}$, and $\Pi \vDash \mathbb{T}$.
 
 \subsection{Translation}
 
-Types:
+Types (user-level and runtime):
 \begin{align*}
 \llrr{\tone} &= \tone\\
 \llrr{\tstr} &= \tstr\\
@@ -8078,9 +8072,9 @@ Types:
 \llrr{[A]} &= [\llrr{A}]\\
 \llrr{\tview} &= \tview\\
 \llrr{\tattr} &= \tattr\\
-\mhl{\llrr{\tcomp{A\ \Ell}}} &= A \rightarrow \tref{\tbool} 
-\times (\tone \rightarrow \tview)\\
-\mhl{\llrr{\tset{A}}} &= A \rightarrow \tone
+\mhl{\llrr{\tcomp{A\ \Ell}}} &= \llrr{A} \rightarrow \tview\\
+\mhl{\llrr{\tset{A}}} &= \llrr{A} \rightarrow \tone\\
+\llrr{\ttree} &= \ttree
 \end{align*}
 Values:
 \begin{align*}
@@ -8088,8 +8082,9 @@ Values:
 \llrr{()} &= ()\\
 \llrr{s} &= s\\
 \llrr{\lambda x.e} &= \lambda x.\llrr{e}\\
-\mhl{\llrr{\C(x).\hat{e}}} &= 
-\lambda x.\llrr{\hat{e}}^\top\\
+\mhl{\llrr{\C(x).\hat{e}}} &= \lambda x.\mf{spec}(
+  \lambda ().\llrr{\hat{e}}
+)\\
 \llrr{[]} &= []\\
 \llrr{v_1 :: v_2} &= \llrr{v_1} :: \llrr{v_2}\\
 \llrr{\vtxt{v}} &= \vtxt{\llrr{v}}\\
@@ -8103,55 +8098,105 @@ Values:
 \semi \eset{\mathbb{B}(p)}{\mf{true}}
 \end{align*}
 Expressions:
+
+In the source language, we have three different ways
+to type the same syntax (i.e. we are \emph{not syntax-directed}):
+the left-hand side of application
+($v_1\ v_2$) can be a lambda, setter, or component.
+
+Component application has substantially different semantics
+from function and setter application,
+so to distinguish between them
+in the translation, we assume an \emph{elaboration pass}
+that inserts $@^\C$ in between application operands
+(e.g. $v @^\C v$) where
+the left-hand operand is (typed as) a component.
+
+(It would be equivalent, but more verbose,
+to define a type-directed translation.)
 \begin{align*}
 \llrr{\eret{v}} &= \eret{\llrr{v}}\\
 \llrr{\elet{x}{e_1}{e_2}} &= \elet{x}{\llrr{e_1}}{\llrr{e_2}}\\
-\llrr{v\ v} &= \llrr{v}\llrr{v}\\
+\llrr{v_1\ v_2} &= \llrr{v_1}\llrr{v_2}\\
+\llrr{v_1 @^\C v_2} &= (\lambda x.\eret{
+  \mf{spec}\ \lambda ().\llrr{v_1}\:x
+}) \llrr{v_2}\\
+&(x\ \mf{fresh})\\
 \llrr{\ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}}
 &= \ecase{\llrr{v}}{[]}{\llrr{e_1}}{x_\mf{hd} :: x_\mf{tl}}{\llrr{e_2}}
 \end{align*}
-Bodies (contextless):
+
+Bodies:
+
+Intuitively, component bodies have two different interpretations:
+under $\phi=\mf{Init}$, $\mf{useState}$ \emph{initializes}
+a reference, and under $\phi=\mf{Succ}$, $\mf{useState}$
+\emph{accesses} a reference.
+
+To model this in a safe way, the translation of $\phi=\mf{Init}$
+\emph{returns} the translation of $\phi=\mf{Succ}$,
+such that the latter can \emph{close over} the locations
+initialized by the former.
+
+A lot of machinery is necessary to achieve this in a way
+such that we can reason about intermediate stages of body evaluation.
+For instance, due to the introduction of fresh variables,
+we parameterize by a context
+$$\delta ::= \emptyset \mid \delta, \ell \mapsto x 
+\mid \delta, \mf{flag} \mapsto x$$
+and define an auxiliary function as follows:
+\[\delta(p, \ell) = \begin{cases}
+  x & \text{if}\ \ell \mapsto x \in \delta\\
+  \mathbb{L}(p, \ell) & \text{otherwise}
+\end{cases}\]
+\[\delta(p, \mf{flag}) = \begin{cases}
+  x & \text{if}\ \mf{flag} \mapsto x \in \delta\\
+  \mathbb{B}(p) & \text{otherwise}
+\end{cases}\]
+Intuitively, if a variable is in the range of $\delta$,
+it was bound previously in the translation;
+if not, then we have some raw location (given by $\I$)
+instead.
+
+% lambda-MVU: nondet step rule
+% function from (event, state) -> state
+% reduction rule to introduce event
+
+% or: await-event primitive
+
+% (can i change runtime terms into functions
+% that accept new events to continue?)
+
 \begin{align*}
-\mhl{\llrr{\hat{e}}}^\top &= \elet{\mf{flag}}{\eref{\mf{false}}}
-{\llrr{\hat{e}}^\mf{Init}_{\hat{e}}}\\
-\llrr{\elet{x}{e}{\hat{e}}}^\mf{Init}_{\hat{e}_0}
-&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}}\\
-\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Init}_{\hat{e}_0}}
+\mhl{\llrr{\hat{e}}}^\top &= \elet{x_f}{\eref{\mf{false}}}
+{\llrr{\hat{e}}^{\mf{Init}(\hat{e})/p}_{\mf{flag} \mapsto x_f}}\\
+\llrr{\elet{x}{e}{\hat{e}}}^{\mf{Init}(\hat{e}_0)/p}_{\delta}
+&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_\delta}\\
+\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Init}(\hat{e}_0)/p}_\delta}
 &= \elet{x_\ell}{\eref{\llrr{v}}}{\\
-  &\quad\ \elet{x}{\eget{x_\ell}}{\\
-    &\quad\ \elet{x_\mf{set}}{\lambda y.(\eset{x_\ell}{y} 
-    \semi \eset{\mf{flag}}{\mf{true}})}{\\
-      &\quad\ \llrr{\hat{e}}^\mf{Init}_{\hat{e}_0}}
-  }
-}\\
-\mhl{\llrr{e}^\mf{Init}_{\hat{e}_0}}
-&= (\mf{flag}, \lambda ().\llrr{\hat{e}_0}^\mf{Succ})\\
-\llrr{\elet{x}{e}{\hat{e}}}^\mf{Succ}
-&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Succ}}\\
-\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Succ}}
-&= \elet{x}{\eget{x_\ell}}{\llrr{\hat{e}}^\mf{Succ}}\\
-\llrr{e}^\mf{Succ} &= \llrr{e}
-\end{align*}
-Bodies (context-sensitive) \hl{IN PROGRESS}:
-\begin{align*}
-\llrr{\elet{x}{e}{\hat{e}}}^{\mf{Init}(\hat{e}_0)}_p
-&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)}_p}\\
-\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Init}(\hat{e}_0)}_p}
-&= \elet{x_\ell}{\eref{\llrr{v}}}{\\
-  &\quad\ \elet{x}{\eget{x_\ell}}{\\
+  (x_\ell\ \mf{fresh})\quad&\quad\ \elet{x}{\eget{x_\ell}}{\\
     &\quad\ \elet{x_\mf{set}}{\lambda y.\\
-      &\qquad(\eset{x_\ell}{y} \semi \eset{\mathbb{B}(p)}{\mf{true}})
+      &\qquad(\eset{x_\ell}{y} \semi \eset{\delta(p, \mf{flag})}{\mf{true}})
       \\&\quad\ 
-    }{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)}_p}
+    }{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\delta,\ell \mapsto x_\ell}}
   }
 }\\
-\mhl{\llrr{e}^{\mf{Init}(\hat{e}_0)}_p}
-&= (\mathbb{B}(p), \lambda ().\llrr{\hat{e}_0}^\mf{Succ}_p)\\
-\llrr{\elet{x}{e}{\hat{e}}}^\mf{Succ}_p
-&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^\mf{Succ}_p}\\
-\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^\mf{Succ}_p}
-&= \elet{x}{\eget{\mathbb{L}(p, \ell)}}{\llrr{\hat{e}}^\mf{Succ}}\\
-\llrr{e}^\mf{Succ} &= \llrr{e}
+\mhl{\llrr{e}^{\mf{Init}(\hat{e}_0)/p}_\delta}
+&= \eret{(\delta(p, \mf{flag}), 
+\lambda ().\llrr{\hat{e}_0}^{\mf{Succ}/p}_\delta)}\\
+\llrr{\elet{x}{e}{\hat{e}}}^{\mf{Succ}/p}_\delta
+&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^{\mf{Succ}/p}_\delta}\\
+\mhl{\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Succ}/p}_\delta}
+&= \elet{x}{\eget{\delta(p, \ell)}}{\\
+    &\quad\ \elet{x_\mf{set}}{\eret{\lambda y.\\
+      &\qquad(\eset{\delta(p, \ell)}{y} 
+        \semi 
+        \eset{\delta(p, \mf{flag})}{\mf{true}}
+      )\\&\quad\
+    }}
+  \llrr{\hat{e}}^{\mf{Succ}/p}_\delta}
+\\
+\llrr{e}^{\mf{Succ}/p}_\delta &= \llrr{e}
 \end{align*}
 
 Runtime values:
@@ -8165,24 +8210,26 @@ Runtime values:
 \mhl{\llrr{p}} &= \mf{path}(\mathbb{S}(p), \mathbb{T}(p), \mathbb{B}(p))
 \end{align*}
 
-Runtime expressions \hl{IN PROGRESS}:
+Runtime expressions:
 \begin{align*}
-\llrr{\eret{u}} &= \eret{\llrr{u}}\\
-\llrr{\elet{x}{\rho}{\rho}} &= \elet{x}{\llrr{\rho}}{\llrr{\rho}}\\
-\llrr{\einit{v}} &= \mf{init}\ \llrr{v}\\
-\llrr{\einits{v}} &= \mf{map}\ \mf{init}\ \llrr{v}\\
-\llrr{\escan{v}} &= \mf{scan}\ \llrr{v}\\
-\llrr{\escans{v}} &= \mf{iter}\ \mf{scan}\ \llrr{v}\\
-\llrr{\echk{u}} &= \mf{check}\ \llrr{u}\\
-\llrr{\echks{u}} &= \mf{iter}\ \mf{check}\ \llrr{u}\\
-\llrr{\esearch{id}{u}} &= \mf{search}\ \mf{id}\ \llrr{u}\\
-\llrr{\esearches{id}{u}} &= \mf{iter}\ (\mf{search}\ \mf{id})\ \llrr{u}\\
-\llrr{\eeval{\mf{Init}}{p}{\hat{e}}}
-&= \elet{\mf{view}}{\llrr{\hat{e}}^{\mf{Init}(\mhl{\hat{e}_0})}_p}{\\
+\llrr{\eret{u}}_m &= \eret{\llrr{u}}\\
+\llrr{\elet{x}{\rho_1}{\rho}}_m &= 
+\elet{x}{\llrr{\rho_1}_m}{\llrr{\rho_2}_m}\\
+\llrr{\einit{v}}_m &= \mf{init}\ \llrr{v}\\
+\llrr{\einits{v}}_m &= \mf{map}\ \mf{init}\ \llrr{v}\\
+\llrr{\escan{v}}_m &= \mf{scan}\ \llrr{v}\\
+\llrr{\escans{v}}_m &= \mf{iter}\ \mf{scan}\ \llrr{v}\\
+\llrr{\echk{u}}_m &= \mf{check}\ \llrr{u}\\
+\llrr{\echks{u}}_m &= \mf{iter}\ \mf{check}\ \llrr{u}\\
+\llrr{\esearch{id}{u}}_m &= \mf{search}\ \mf{id}\ \llrr{u}\\
+\llrr{\esearches{id}{u}}_m &= \mf{iter}\ (\mf{search}\ \mf{id})\ \llrr{u}\\
+\llrr{\eeval{\mf{Init}}{p}{\hat{e}}}_m
+&= \elet{\mf{view}}{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_\emptyset}{\\
   &\quad\ \elet{\mf{tree}}{\mf{init}\ \mf{view}}{
     \llrr{\enew{\mf{Init}}{p}{\mf{tree}}}
   }
 }\\
+&(m[p].\mf{spec} = \pair{\C(x).\hat{e}_0}{v})\\
 \llrr{\eeval{\mf{Succ}}{p}{\hat{e}}}
 &= \elet{\mf{view}}{\llrr{\hat{e}}^{\mf{Succ}}_p}{\\
   &\quad\ \elet{\mf{tree}}{\mf{init}\ \mf{view}}{
@@ -8198,7 +8245,7 @@ Runtime expressions \hl{IN PROGRESS}:
   &\quad\ \elet{b}{\eref{\mf{false}}}{\\
     &\quad\ \elet{s}{\eref{\lambda ().\llrr{e}}}{\\
       &\quad\ \elet{t}{\eref{\mf{view}}}{
-        \mhl{()}
+        \text{\hl{EVENT LOOP}}
       }
     }
   }
@@ -8221,7 +8268,7 @@ Memory:
 Memory typing:
 \begin{align*}
 \llrr{\Pi} &= \bigcup_p \{\mathbb{B}(p) \mapsto \tbool\}
-\cup \bigcup_\ell \{\mathbb{L}(p, \ell) \mapsto \llrr{\Ell[\ell]}\}\\
+\cup \bigcup_{\ell \in \pi.\mf{labs}} \{\mathbb{L}(p, \ell) \mapsto \llrr{\Ell[\ell]}\}\\
 &\quad\cup \begin{cases}
 \{\mathbb{S}(p) \mapsto \tone \rightarrow \tview,
   \mathbb{T}(p) \mapsto \ttree
@@ -8230,5 +8277,5661 @@ Memory typing:
 \end{cases}\\
 &\qquad(\text{where}\ \Pi[p].\mf{spec} = \pair{A}{\Ell})
 \end{align*}
+
+\section{Translation Proofs}
+
+We begin with a couple of auxiliary definitions:
+
+Define (in the source language) $\Ell \subseteq \Ell'$ to hold if,
+$\forall \ell \in \dom \Ell$, we have $\Ell[\ell] = \Ell'[\ell]$.
+(Type equality is defined in the obvious inductive way.)
+
+Define $\Ell \vDash \delta: \Delta$ to hold when:
+\begin{itemize}
+\item if $\ell \mapsto x_\ell \in \delta$ and $\ell \in \Ell$,
+then $x_\ell: \tref{\llrr{\Ell[\ell]}} \in \Delta$, and
+\item if $\mf{flag} \mapsto x_f \in \delta$,
+then $x_f: \tref{\tbool} \in \Delta$.
+\end{itemize}
+
+\begin{theorem}[Type preservation, values.]
+\label{thm:oldtprezval}
+If $\Gamma \semi \Pi \vdash v: A$,
+then\\$\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v}: \llrr{A}$.
+
+\begin{Proof}
+By induction over the typing derivation.
+(This induction is \emph{mutual} 
+with the other type preservation theorems.)
+
+\tb{Case} \ts{TV-Var}: We have \begin{mathpar}
+\inferrule*[right=TV-Var] {
+  \inferrule* {(1)} {\Gamma[x] = \ptp}
+} {
+  \Gamma \semi \Pi \vdash x: \ptp
+}
+\end{mathpar}
+By (1) and definition of $\llrr{\Gamma}$, we get (2) that
+$\llrr{\Gamma}[x]=\llrr{\ptp}$. Since $\llrr{x}=x$, we derive
+the conclusion as follows:
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  \inferrule*[right=(2)] { } {\llrr{\Gamma}[x] = \llrr{\ptp}}
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{x}: \llrr{\ptp}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Unit}: $\llrr{()}=()$ and $\llrr{\tone}=\tone$,
+so the conclusion is easy:
+\begin{mathpar}
+\inferrule*[right=TV-Unit] { } {
+  \Gamma \semi \Pi \vdash (): \tone
+}
+\and
+\inferrule*[right=TV-Unit] { } {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{()}: \llrr{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Str}: $\llrr{s}=s$ and $\llrr{\tstr}=\tstr$,
+so the conclusion is easy:
+\begin{mathpar}
+\inferrule*[right=TV-Str] { } {
+  \Gamma \semi \Pi \vdash s: \tstr
+}
+\and
+\inferrule*[right=TV-Str] { } {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{s}: \llrr{\tstr}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Lam}: We have 
+$\llrr{\lambda x.e}=\lambda x.\llrr{e}$
+and $\llrr{\ptp_1 \arrow{E} \ptp_2} 
+= \llrr{\ptp_1} \rightarrow \llrr{\ptp_2}$,
+and: \begin{mathpar}
+\inferrule*[right=TV-Lam] {
+  \inferrule* {(1)} {
+    \Gamma, x: \ptp_1 \semi \Pi \vdash e: \ptp_2 \mid E
+  }
+} {
+  \Gamma \semi \Pi \vdash \lambda x.e: \ptp_1 \arrow{E} \ptp_2
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis (\thref{thm:oldtprezexp}) on (1),
+we get that $\llrr{\Gamma, x: \ptp_1} \semi \llrr{\Pi} 
+\vdash_e \llrr{e}: \llrr{\ptp_2}$.
+\item By definition, this is equivalent to (2) that
+$\llrr{\Gamma}, x: \llrr{\ptp_1} \semi \llrr{\Pi} 
+\vdash_e \llrr{e}: \llrr{\ptp_2}$.
+\item We can derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Lam] {
+  \inferrule*[right=(2)] { } {
+    \llrr{\Gamma}, x: \llrr{\ptp_1} \vdash_e \llrr{e}: \llrr{\ptp_2}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \lambda x.\llrr{e}: 
+  \llrr{\ptp_1} \rightarrow \llrr{\ptp_2}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Comp}: We have 
+$\llrr{\C(x).e}=\lambda x.\llrr{\hat{e}}^\top$
+and $\llrr{\tcomp{A\ \Ell}} 
+= \llrr{A} \rightarrow (\tref{\tbool} \times (\tone \rightarrow \tview))$,
+and: \begin{mathpar}
+\inferrule*[right=TV-Comp] {
+  \inferrule*{(1)} {\Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell}
+} {
+  \Gamma \semi \Pi \vdash \C(x).\hat{e} : \tcomp{\ptp\ \Ell}
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis on (1) (Theorem \hl{REF}),
+we get that $\llrr{\Gamma, x: \ptp} \semi \llrr{\Pi} 
+\vdash_e \llrr{\hat{e}}^\top: 
+\tref{\tbool} \times (\tone \rightarrow \tview)$.
+\item By definition, this is equivalent to (2) that
+$\llrr{\Gamma}, x: \llrr{\ptp} \semi \llrr{\Pi} 
+\vdash_e \llrr{\hat{e}}^\top: 
+\tref{\tbool} \times (\tone \rightarrow \tview)$.
+\item We can derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Lam] {
+  \inferrule*[right=(2)] { } {
+    \Gamma, x: \llrr{\ptp} \semi \Pi 
+    \vdash \llrr{\hat{e}}^\top: 
+    \tref{\tbool} \times (\tone \rightarrow \tview)
+  }
+} {
+  \Gamma \semi \Pi \vdash \lambda x.\llrr{\hat{e}}^\top 
+  : \ptp \rightarrow (\tref{\tbool} \times (\tone \rightarrow \tview))
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Nil}: $\llrr{[]}=[]$ and $\llrr{[\ptp]}=[\llrr{\ptp}]$,
+so the conclusion is easy:
+\begin{mathpar}
+\inferrule*[right=TV-Nil] { } {
+  \Gamma \semi \Pi \vdash []: [\ptp]
+}
+\and
+\inferrule*[right=TV-Nil] { } {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{[]}: \llrr{[\ptp]}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Cons}: We have 
+$\llrr{v :: vs} = \llrr{v} :: \llrr{vs}$ 
+and $\llrr{[\ptp]}=[\llrr{\ptp}]$, and:
+\begin{mathpar}
+\inferrule*[right=TV-Cons] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash v_1: \ptp}
+  \and
+  \inferrule* {(2)} {\Gamma \semi \Pi \vdash v_2: [\ptp]}
+} {
+  \Gamma \semi \Pi \vdash v_1 :: v_2: [\ptp]
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on each of (1) and (2),
+we get (3) that $\llrr{\Gamma} \semi \llrr{\Pi} 
+\vdash_v \llrr{v_1}: \llrr{\ptp}$
+and (4) that $\llrr{\Gamma} \semi \llrr{\Pi} 
+\vdash_v \llrr{v_2}: [\llrr{\ptp}]$ respectively.
+\item We then derive the conclusion:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Cons] {
+  \inferrule*[right=(3)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v_1}: \llrr{\ptp}
+  }
+  \and
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v v_2: [\llrr{\ptp}]
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} 
+  \vdash_v \llrr{v_1} :: \llrr{v_2}: [\llrr{\ptp}]
+}
+\end{mathpar}
+
+\tb{Cases} \ts{TV-Text}, \ts{TV-Tag},
+\ts{TV-Attr}, \ts{TV-Click}: elided for the moment.
+
+\tb{Case} \ts{TV-Spec}: We have
+$\llrr{\pair{v_1}{v_2}} = \mf{spec}(\lambda ().\llrr{v_1}\llrr{v_2})$
+and $\llrr{\tview} = \tview$, and:
+\begin{mathpar}
+\inferrule*[right=TV-Spec] {
+  \inferrule* {(1)} {
+    \Gamma \semi \Pi \vdash v_1: \tcomp{\ptp\ \Ell}
+  }
+  \and
+  \inferrule* {(2)} {\Gamma \semi \Pi \vdash v_2: \ptp}
+} {
+  \Gamma \semi \Pi \vdash \pair{v_1}{v_2}: \tview
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and (2),
+we get (3) that $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v_1}: 
+\llrr{\ptp} \rightarrow (\tref{\tbool} \times (\tone \rightarrow \tview))$
+and (4) that $\llrr{\Gamma} \semi \llrr{\Pi} 
+\vdash_v \llrr{v_2}: \llrr{A}$, respectively.
+\item We derive the conclusion as follows 
+(let $B=\tref{\tbool} \times (\tone \rightarrow \tview)$):
+\end{itemize}
+\begin{mathpar}
+\inferrule* {
+  \inferrule* {
+    \inferrule*[right=TE-App] {
+      \inferrule*[right=(3)] { } {
+        \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+        \llrr{v_1}: \llrr{A} \rightarrow B
+      }
+      \inferrule*[right=(4)] { } {
+        \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+        \llrr{v_2}: \llrr{A}
+      }
+    } {
+      \llrr{\Gamma} \semi \llrr{\Pi} \vdash_e
+      \llrr{v_1}\llrr{v_2}: B
+    }
+  } {
+    \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+    \lambda ().\llrr{v_1}\llrr{v_2}: \tone \rightarrow B
+    \and
+    \ts{\small{TV-Lam}}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+  \mf{spec}(\lambda ().\llrr{v_1}\llrr{v_2}) : \tview
+  \and
+  \ts{\small{TV-Spec}}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Set}: We have
+$\llrr{\vset{\ell}{p}} = \lambda x. \eset{\mathbb{L}(p, \ell)}{x}
+\semi \eset{\mathbb{B}(p)}{\mf{true}}$,
+$\llrr{\tset{A}} = \llrr{A} \rightarrow \tone$,
+and: \begin{mathpar}
+\inferrule*[right=TV-Set] {
+  \inferrule* {(1)} {\Pi[p].\mf{spec} = \pair{\ptp'}{\Ell}}
+  \and
+  \inferrule* {(2)} {\ell \in \Pi[p].\mf{labs}}
+} {
+  \Gamma \semi \Pi \vdash \vset{\ell}{p}: \Ell[\ell]
+}
+\end{mathpar}
+\begin{itemize}
+\item By (1), (2), and definition of $\llrr{\Pi}$,
+we get (3) that $\mathbb{L}(p, \ell) : \llrr{A} \in \llrr{\Pi}$.
+\item We also know, e.g. from (1), that 
+(4) $\mathbb{B}(p) : \tbool \in \llrr{\Pi}$.
+\item We can now derive the conclusion:
+\end{itemize}
+\begin{mathpar}
+\inferrule* {
+  \inferrule*[right=TV-Loc] {
+    \inferrule*[right=(3)] { } {
+      \mathbb{L}(p, \ell): \llrr{A} \in \llrr{\Pi}
+    }
+  } {
+    \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_v
+    \mathbb{L}(p, \ell): \tref{\llrr{A}}
+  }
+  \
+  \inferrule* { } {
+    \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_v x: \llrr{A}
+  }
+} {
+  (5)\quad \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_e 
+  \eset{\mathbb{L}(p, \ell)}{x}: \tone
+  \quad \ts{\small{TE-Set}}
+}
+\and
+\inferrule* {
+  \inferrule*[right=TV-Loc] {
+    \inferrule*[right=(4)] { } {
+      \mathbb{B}(p): \tbool \in \llrr{\Pi}
+    }
+  } {
+    \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_v
+    \mathbb{B}(p): \tref{\tbool}
+  }
+  \
+  \inferrule* { } {
+    \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} 
+    \vdash_v \mf{true}: \tbool
+  }
+} {
+  (6)\quad \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_e 
+  \eset{\mathbb{B}(p)}{\mf{true}}: \tone
+  \quad \ts{\small{TE-Set}}
+}
+\and
+\inferrule*[right=TV-Lam] {
+  \inferrule*[right=TE-Let] {
+    (5)
+    \and
+    (6)
+  } {
+    \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_e
+    \eset{\mathbb{L}(p, \ell)}{x}
+    \semi \eset{\mathbb{B}(p)}{\mf{true}} : \tone
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v 
+  \lambda x. \eset{\mathbb{L}(p, \ell)}{x}
+  \semi \eset{\mathbb{B}(p)}{\mf{true}} : \llrr{A} \rightarrow \tone
+}
+\end{mathpar}
+\end{Proof}
+\end{theorem}
+
+\begin{theorem}[Type preservation, expressions.]
+\label{thm:oldtprezexp}
+If $\Gamma \semi \Pi \vdash e: A \mid E$,
+then $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_e \llrr{e}: \llrr{A}$.
+
+\begin{Proof}
+By induction over the typing derivation.
+(This induction is \emph{mutual} 
+with the other type preservation theorems.)
+
+\tb{Case} \ts{TE-Ret}: We have
+$\llrr{\eret{v}} = \eret{\llrr{v}}$ and:
+\begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash v: \ptp}
+} {
+  \Gamma \semi \Pi \vdash \eret{v}: \ptp \mid \epsilon
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis (\thref{thm:oldtprezval}) on (1),
+we get (2) that 
+$\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v}: \llrr{\ptp}$.
+\item The conclusion follows easily:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \inferrule*[right=(2)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v}: \llrr{A}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_e \eret{\llrr{v}}: \llrr{\ptp}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TE-Let}: We have
+$\llrr{\elet{x}{e_1}{e_2}} = \elet{x}{\llrr{e_1}}{\llrr{e_2}}$ and:
+\begin{mathpar}
+\inferrule*[right=TE-Let] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash e_1: \ptp_1 \mid E}
+  \and
+  \inferrule* {(2)} {
+    \Gamma, x: \ptp_1 \semi \Pi \vdash e_2: \ptp_2 \mid E
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e_1}{e_2}: \ptp_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and (2),
+we get (3) that
+$\llrr{\Gamma} \semi \llrr{\Pi} \vdash_e \llrr{e_1}: \llrr{\ptp_1}$
+and (4) that
+$\llrr{\Gamma}, x: \llrr{\ptp_1} \semi \llrr{\Pi} 
+\vdash_e \llrr{e_2}: \llrr{\ptp_2}$, respectively.
+\item The conclusion again follows easily:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-Let] {
+  \inferrule*[right=(3)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi} \vdash_e \llrr{e_1}: \llrr{\ptp_1}
+  }
+  \and
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma}, x: \llrr{\ptp_1} \semi \llrr{\Pi} 
+    \vdash_e \llrr{e_2}: \llrr{\ptp_2}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_e
+  \elet{x}{\llrr{e_1}}{\llrr{e_2}}: \llrr{\ptp_2}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TE-AppL}: We have
+$\llrr{v_1\ v_2}=\llrr{v_1}\llrr{v_2}$,
+$\llrr{\ptp_1 \arrow{E} \ptp_2}=\llrr{\ptp_1} \rightarrow \llrr{\ptp_2}$,
+and: \begin{mathpar}
+\inferrule*[right=TE-AppL] {
+  \inferrule* {(1)} {
+    \Gamma \semi \Pi \vdash v_1: \ptp_1 \arrow{E} \ptp_2
+  }
+  \and
+  \inferrule* {(2)} {
+    \Gamma \semi \Pi \vdash v_2: \ptp_1
+  }
+} {
+  \Gamma \semi \Pi \vdash v_1\ v_2: \ptp_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis (\thref{thm:oldtprezval})
+on each of (1) and (2), we get (3) that
+$\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v_1}: 
+\llrr{\ptp_1} \rightarrow \llrr{\ptp_2}$
+and (4) that $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v_2}:
+\llrr{\ptp_1}$, respectively.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-App] {
+  \inferrule*[right=(3)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v_1}: 
+    \llrr{\ptp_1} \rightarrow \llrr{\ptp_2}
+  }
+  \and
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v_2}:
+    \llrr{\ptp_1}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_e
+  \llrr{v_1}\llrr{v_2}: \llrr{\ptp_2}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TE-AppC}: We have
+$\llrr{v_1 @^\C v_2}=(\lambda x.\eret{
+  \mf{spec}\ \lambda ().\llrr{v_1}\:x
+}) \llrr{v_2}$,
+$\llrr{\tview}=\tview$, and:
+\begin{mathpar}
+\inferrule*[right=TE-AppC] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash v_1: \tcomp{\ptp\ \Ell}}
+  \and
+  \inferrule* {(2)} {\Gamma \semi \Pi \vdash v_2: \ptp}
+} {
+  \Gamma \semi \Pi \vdash v_1 @^\C v_2: \tview \mid \epsilon
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis (\thref{thm:oldtprezval})
+on (1),
+we get (3) that $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+\llrr{v_1}: \llrr{A} \rightarrow B$ 
+(since $\llrr{\tcomp{\ptp\ \Ell}}=\llrr{A} \rightarrow B$),
+where $B=\tref{\tbool} \times (\tone \rightarrow \tview)$.
+\item Again by inductive hypothesis on (2),
+we get (4) that $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+\llrr{v_2}: \llrr{A}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[Right=TV-Lam] {
+  \inferrule*[Right=TE-Ret] {
+    \inferrule*[Right=TV-Spec] {
+      \inferrule*[Right=TV-Lam] {
+        \inferrule*[Right=TE-App] {
+          \inferrule*[Right=(3)] { } {
+            \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} 
+            \vdash_v \llrr{v_1}: \llrr{A} \rightarrow B
+          }
+          \and
+          \inferrule*[Right=TV-Var] { } {
+            \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} 
+            \vdash_v x: \llrr{A}
+          }
+        } {
+          \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} 
+          \vdash_e \llrr{v_1}\:x: B
+        }
+      } {
+        \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} 
+        \vdash_v \lambda ().\llrr{v_1}\:x: \tone \rightarrow B
+      }
+    } {
+      \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} 
+      \vdash_v \mf{spec}\ \lambda ().\llrr{v_1}\:x: \tview
+    }
+  } {
+    \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} 
+    \vdash_e \eret{\mf{spec}\ \lambda ().\llrr{v_1}\:x}: \tview
+  }
+} {
+  (5)\quad
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \lambda x.\eret{
+    \mf{spec}\ \lambda ().\llrr{v_1}\:x
+  }: \llrr{A} \rightarrow \tview
+}
+\and
+\inferrule*[right=TE-App] {
+  (5)
+  \and
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+    \llrr{v_2}: \llrr{A}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_e (\lambda x.\eret{
+    \mf{spec}\ \lambda ().\llrr{v_1}\:x
+  }) \llrr{v_2}: \mf{View}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TE-AppS}: We have 
+$\llrr{v_1\ v_2}=\llrr{v_1}\llrr{v_2}$,
+$\llrr{\tone}=\tone$, and:
+\begin{mathpar}
+\inferrule*[right=TE-AppS] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash v_1: \tset{\ptp}}
+  \and
+  \inferrule* {(2)} {\Gamma \semi \Pi \vdash v_2: \ptp}
+} {
+  \Gamma \semi \Pi \vdash v_1\ v_2: \tone \mid \emut
+}   
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis (\thref{thm:oldtprezval}) on (1), 
+since $\llrr{\tset{\ptp}}=\llrr{\ptp} \rightarrow \tone$,
+we get (3) that $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+v_1: \llrr{\ptp} \rightarrow \tone$.
+\item Again by mutual inductive hypothesis on (2),
+we get (4) that $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+v_2: \llrr{\ptp}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-App] {
+  \inferrule*[right=(3)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v_1}: 
+    \llrr{A} \rightarrow \tone
+  }
+  \and
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v_2}: 
+    \llrr{A}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_e
+  \llrr{v_1}\llrr{v_2}: \llrr{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TE-Case}: We have
+$\llrr{\ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}}
+= \ecase{\llrr{v}}{[]}{\llrr{e_1}}{x_\mf{hd} :: x_\mf{tl}}{\llrr{e_2}}$
+and:
+\begin{mathpar}
+\inferrule*[right=TE-Case] {
+  (1) \and (2) \and (3)
+} {
+  \Gamma \semi \Pi \vdash
+  \ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}: \ptp_2 \mid E
+}
+\end{mathpar}
+where:
+\begin{enumerate}[label=(\arabic*)]
+\item $\Gamma \semi \Pi \vdash v: [\ptp_1]$,
+\item $\Gamma \semi \Pi \vdash e_1: \ptp_2 \mid E$, and
+\item $\Gamma, x_\mf{hd}: \ptp_1, x_\mf{tl}: [\ptp_1] \semi \Pi
+  \vdash e_2: \ptp_2 \mid E$.
+\end{enumerate}
+\begin{itemize}
+\item By inductive hypothesis on each of (2) and (3),
+we get:
+\end{itemize}
+\begin{enumerate}[resume,label=(\arabic*)]
+\item $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_e \llrr{e_1}: \llrr{\ptp_2}$
+and
+\item $\llrr{\Gamma}, x_\mf{hd}: \llrr{\ptp_1}, 
+  x_\mf{tl}: [\llrr{\ptp_1}] \semi \llrr{\Pi}
+  \vdash_e \llrr{e_2}: \llrr{\ptp_2}$.
+\end{enumerate}
+\begin{itemize}
+\item By mutual inductive hypothesis (\thref{thm:oldtprezval}) on (1), 
+we also get (6) that
+$\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v}: [\llrr{\ptp_1}]$.
+\item We can now derive the conclusion directly:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-CaseL] {
+  (6) \and (4) \and (5)
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_e
+  \ecase{\llrr{v}}
+    {[]}{\llrr{e_1}}
+    {x_\mf{hd} :: x_\mf{tl}}{\llrr{e_2}}
+  : \llrr{\ptp_2}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TE-Sub}: We have
+\begin{mathpar}
+\inferrule*[right=TE-Sub] {
+  \Gamma \semi \Pi \vdash e: \ptp \mid \epsilon
+} {
+  \Gamma \semi \Pi \vdash e: \ptp \mid \emut
+}
+\end{mathpar}
+The conclusion is immediate by inductive hypothesis
+on the (more conservative) typing premise.
+\end{Proof}
+\end{theorem}
+
+\begin{theorem}[Type preservation, bodies, successor phase.]
+\label{thm:oldtprezsucc}
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$,
+\item $\Pi \vDash \I$,
+\item $\Ell \vDash \delta: \Delta$,
+\item for all $\ell \in \dom(\Ell)$, either: 
+  \begin{enumerate}[label=(iv-\alph*)]
+  \item $\ell \mapsto x_\ell \in \delta$ or
+  \item $\ell \in \Pi[p].\mf{labs}$ and
+  $\Ell \subseteq \Ell_p$, where $\Pi[p].\mf{spec}=\pair{A_p}{\Ell_p}$,
+  \end{enumerate}
+\item and either:
+  \begin{enumerate}[label=(v-\alph*)]
+  \item $\mf{flag} \mapsto x_f \in \delta$ or
+  \item $p \in \dom(\Pi)$,
+  \end{enumerate}
+\end{enumerate}
+then $\llrr{\Gamma}, \Delta \semi \llrr{\Pi} 
+\vdash_e
+\llrr{\hat{e}}^{\mf{Succ}/p}_\delta: \mf{View}$.
+
+\begin{Proof}
+By induction on the derivation of \emph{(i)}.
+(This induction is \emph{mutual} 
+with the other type preservation theorems.)
+
+\tb{Case} \ts{TB-Lift}: We have that
+$\llrr{e}^{\mf{Succ}/p}_\delta=\llrr{e}$ and:
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \inferrule* {(1)} {
+    \Gamma \semi \Pi \vdash e: \tview \mid \epsilon
+  }
+} {
+  \Gamma \semi \Pi \vdash e: \emptyset
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis (\thref{thm:oldtprezexp}) on (1),
+we get (2) that $\llrr{\Gamma} \semi \llrr{\Pi} 
+\vdash_e
+\llrr{e}: \mf{View}$.
+\item We weaken $\llrr{\Gamma}$ with $\Delta$
+to arrive at the conclusion.
+\end{itemize}
+
+\tb{Case} \ts{TB-Let}: We have that
+$\llrr{\elet{x}{e}{\hat{e}}}^{\mf{Succ}/p}_\delta
+= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^{\mf{Succ}/p}_\delta}$
+and:
+\begin{mathpar}
+\inferrule*[right=TB-Let] {
+  \inferrule*[right=(1)] { } {
+    \Gamma \semi \Pi \vdash e: \ptp \mid \epsilon
+  }
+  \and
+  \inferrule*[right=(2)] { } {
+    \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e}{\hat{e}}: \Ell
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis (\thref{thm:oldtprezexp}) on (1),
+we get (3) that $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_e
+\llrr{e}: \llrr{\ptp}$.
+\item By inductive hypothesis on (2)
+using premises \emph{(ii)}-\emph{(v)},
+we get (4) that $\llrr{\Gamma}, x: \llrr{A}, \Delta \semi \llrr{\Pi}
+\vdash_e \llrr{\hat{e}}^{\mf{Succ}/p}_\delta: \tview$.
+\item We derive the conclusion as follows,
+weakening (3) by $\Delta$:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[Right=TE-Let] {
+  \inferrule*[right=(3)] { } {
+    \llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+    \vdash_e
+    \llrr{e}: \llrr{\ptp}
+  }
+  \
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma}, x: \llrr{A}, \Delta \semi \llrr{\Pi}
+    \vdash_e
+    \llrr{\hat{e}}^{\mf{Succ}/p}_\delta: \tview
+  }
+} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+  \vdash_e
+  \elet{x}{\llrr{e}}{\llrr{\hat{e}}^{\mf{Succ}/p}_\delta}: \tview
+}
+\end{mathpar}
+
+\tb{Case} \ts{TB-State}: We have
+\begin{align*}
+\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Succ}/p}_\delta
+&= \elet{x}{\eget{\delta(p, \ell)}}{\\
+    &\quad\ \elet{x_\mf{set}}{\eret{\lambda y.\\
+      &\qquad(\eset{\delta(p, \ell)}{y} 
+        \semi 
+        \eset{\delta(p, \mf{flag})}{\mf{true}}
+      )\\&\quad\
+    }}
+  \llrr{\hat{e}}^{\mf{Succ}/p}_\delta}
+\end{align*}
+and:
+\begin{mathpar}
+\inferrule*[right=TB-State] {
+  \Gamma \semi \Pi \vdash v: \ptp
+  \and
+  \inferrule* {(1)} {
+    \Gamma, x: \ptp, x_\mf{set}: \tset{\ptp} \semi \Pi
+    \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \estate{x}{\ell}{v}{\hat{e}}: \Ell, \ell: \ptp
+}
+\end{mathpar}
+\begin{itemize}
+\item By premise (\emph{iv}), we have two subcases on $\delta(p, \ell)$:
+\begin{itemize}
+\item If (\emph{iv-a}) holds, then we have 
+$\delta(p, \ell) = x_\ell$.
+\item By premise \emph{(iii)}, we know
+$x_\ell : \tref{\llrr{\ptp}} \in \Delta$.
+\item We conclude (3) as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  \delta(p, \ell) : \tref{\llrr{\ptp}} \in \Delta
+} {
+  (3)\quad \llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+  \vdash_v
+  \delta(p, \ell): \tref{\llrr{\ptp}}
+}
+\end{mathpar}
+\begin{itemize}
+\item If instead (\emph{iv-b}) holds, then we have that
+$\delta(p, \ell) = \mathbb{L}(p, \ell)$
+and $\ell \in \Pi[p].\mf{labs}$. (The latter, alongside
+premise \emph{(ii)}, implies that
+$\mathbb{L}(p, \ell)$ is well-defined.)
+\item Then by definition of $\llrr{\Pi}$, we have 
+$\mathbb{L}(p, \ell): \llrr{\Ell_p[\ell]} \in \llrr{\Pi}$.
+\item Since $\Ell, \ell: A \subseteq \Ell_p$, we get that
+$\mathbb{L}(p, \ell): \llrr{A} \in \llrr{\Pi}$.
+\item We conclude (3) as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Loc] {
+  \delta(p, \ell) : \llrr{\ptp} \in \llrr{\Pi}
+} {
+  (3)\quad \llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+  \vdash_v
+  \delta(p, \ell): \tref{\llrr{\ptp}}
+}
+\end{mathpar}
+\item Thus, in any case,
+premise \emph{(iv)} entails (3) that 
+$\llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+\vdash_v
+\delta(p, \ell): \tref{\llrr{\ptp}}$.
+\item We apply analogous logic to premise \emph{(v)}
+to get (4) that $\llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+\vdash_v
+\delta(p, \mf{flag}): \tref{\tbool}$:
+\begin{itemize}
+\item If (\emph{v-a}) holds, then we have 
+$\delta(p, \mf{flag}) = x_f$.
+\item By premise \emph{(iii)},
+$x_f : \tref{\tbool} \in \Delta$.
+\item We conclude (4) as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  \delta(p, \ell) : \tref{\tbool} \in \Delta
+} {
+  (4)\quad \llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+  \vdash_v
+  \delta(p, \ell): \tref{\tbool}
+}
+\end{mathpar}
+\begin{itemize}
+\item If instead (\emph{v-b}) holds, then we have
+$\delta(p, \mf{flag}) = \mathbb{B}(p)$
+and $p \in \dom(\Pi)$. By the latter and premise \emph{(ii)},
+$\mathbb{B}(p)$ is well-defined.
+\item By definition of $\llrr{\Pi}$, we have 
+$\mathbb{B}(p): \tbool \in \llrr{\Pi}$.
+\item We conclude (4) as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Loc] {
+  \delta(p, \mf{flag}) : \tbool \in \llrr{\Pi}
+} {
+  (4)\quad \llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+  \vdash_v
+  \delta(p, \mf{flag}): \tref{\tbool}
+}
+\end{mathpar}
+\item We perform the following intermediate derivations,
+crucially showing (5) and (8):
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-Get] {
+  (3)
+} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi} 
+  \vdash_e
+  \eget{\delta(p, \ell)}: \llrr{\ptp} \quad (5)
+}
+\and
+\inferrule*[right=TE-Set] {
+  (3)
+  \and
+  \inferrule*[right=TV-Var] { } {
+    \llrr{\Gamma}, \Delta, y: \llrr{\ptp} \semi \llrr{\Pi} 
+    \vdash_v y : \llrr{\ptp}
+  }
+} {
+  \llrr{\Gamma}, \Delta, y: \llrr{\ptp} \semi \llrr{\Pi} 
+  \vdash_e
+  \eset{\delta(p, \ell)}{y}
+  : \tone \quad (6)
+}
+\and
+\inferrule*[Right=TE-Set] {
+  (4)
+  \and
+  \inferrule*[Right=TV-True] { } {
+    \llrr{\Gamma}, \Delta \semi \llrr{\Pi} 
+    \vdash_v \mf{true} : \tbool
+  }
+} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi} 
+  \vdash_e
+  \eset{\delta(p, \mf{flag})}{\mf{true}}
+  : \tone \quad (7)
+}
+\and
+\inferrule*[Right=TE-Ret] {
+  \inferrule*[Right=TV-Lam] {
+    \inferrule*[Right=TE-Let] {
+      (6) \and (7)
+    } {
+      \llrr{\Gamma}, \Delta, y: \llrr{\ptp} \semi \llrr{\Pi} 
+      \vdash_e
+      \eset{\delta(p, \ell)}{y} 
+      \semi \eset{\delta(p, \mf{flag})}{\mf{true}}
+      : \tone
+      }
+  } {
+    \llrr{\Gamma}, \Delta \semi \llrr{\Pi} 
+    \vdash_v
+    \lambda y. \eset{\delta(p, \ell)}{y} 
+      \semi \eset{\delta(p, \mf{flag})}{\mf{true}}
+    : \llrr{\ptp} \rightarrow \tone
+  }
+} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi} 
+  \vdash_e
+  \eret{\lambda y. \eset{\delta(p, \ell)}{y} 
+    \semi \eset{\delta(p, \mf{flag})}{\mf{true}}
+  }: \llrr{\ptp} \rightarrow \tone \quad (8)
+}
+\end{mathpar}
+\begin{itemize}
+\item We apply the inductive hypothesis to (1)
+using premises \emph{(ii)}-\emph{(v)}
+(noting that premise \emph{(iv)} still holds, 
+since $\Ell \subseteq \Ell, \ell: A$).
+\item We get (9) that
+$\llrr{\Gamma}, \Delta, x: \llrr{A}, x_\mf{set}: \llrr{\tset{A}} 
+\semi \llrr{\Pi} \vdash_e
+\llrr{\hat{e}}^{\mf{Succ}/p}_\delta : \tview$.
+\item We can now derive the conclusion, noting
+that $\llrr{\tset{\ptp}} = \llrr{\ptp} \rightarrow \tone$:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[Right=TE-Let] {
+  (5)
+  \and
+  \inferrule*[Right=TE-Let] {
+    (8)
+    \and
+    (9)
+  } {
+    \llrr{\Gamma}, \Delta, x: \llrr{A} \semi \llrr{\Pi}
+    \vdash_e
+    \elet{x_\mf{set}}{\eret{\lambda y.\cdots}}
+    {\llrr{\hat{e}}^{\mf{Succ}/p}_\delta}: \tview
+  }
+} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+  \vdash_e
+  \elet{x}{\eget{\delta(p, \ell)}}{\cdots}: \tview
+}
+\end{mathpar}
+\
+\end{Proof}
+\end{theorem}
+
+\begin{corollary}[Type preservation, bodies (successor), complete.]
+\label{thm:cprezsucc}
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$,
+\item $\Pi \vDash \I$, and
+\item $\dom(\Ell) \subseteq \Pi[p].\mf{labs} = \Ell_p$, 
+where $\Pi[p].\mf{spec} = \pair{A_p}{\Ell_p}$,
+\end{enumerate}
+then $\llrr{\Gamma} \semi \llrr{\Pi}
+\vdash_e
+\llrr{\hat{e}}^{\mf{Succ}/p}_\emptyset: \mf{View}$.
+\end{corollary}
+
+\begin{corollary}[Type preservation, bodies (successor), static.]
+\label{thm:sprezsucc}
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \cdot \vdash \hat{e}: \Ell$,
+\item $\Ell \vDash \delta: \Delta$,
+\item for all $\ell \in \dom(\Ell)$, $\ell \mapsto x_\ell \in \delta$,
+\item and $\mf{flag} \mapsto x_f \in \delta$,
+\end{enumerate}
+then $\llrr{\Gamma}, \Delta \semi \cdot
+\vdash_e
+\llrr{\hat{e}}^{\mf{Succ}/p}_\delta: \mf{View}$.
+\end{corollary}
+
+\begin{theorem}[Type preservation, bodies, initial phase.]
+\label{thm:oldtprezinit}
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$,
+\item $\Gamma_0 \semi \Pi \vdash \hat{e}_0: \Ell_0$ 
+(with $\Ell \subseteq \Ell_0$ and $\Gamma_0 \subseteq \Gamma$),
+\item $\Pi \vDash \I$,
+\item $\Ell_0 \vDash \delta: \Delta$,
+\item for all $\ell \in \dom(\Ell_0) \setminus \dom(\Ell)$, either: 
+  \begin{enumerate}[label=(v-\alph*)]
+  \item $\ell \mapsto x_\ell \in \delta$ or
+  \item $\ell \in \Pi[p].\mf{labs}$ and
+  $\Ell_0 = \Ell_p$, where $\Pi[p].\mf{spec}=\pair{A_p}{\Ell_p}$,
+  \end{enumerate}
+\item and either:
+  \begin{enumerate}[label=(vi-\alph*)]
+  \item $\mf{flag} \mapsto x_f \in \delta$ or
+  \item $p \in \dom(\Pi)$,
+  \end{enumerate}
+\end{enumerate}
+then $\llrr{\Gamma}, \Delta \semi \llrr{\Pi} 
+\vdash_e
+\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_\delta: 
+\tref{\tbool} \times (\tone \rightarrow \tview)$.
+
+\begin{Proof}
+Let $B = \tref{\tbool} \times (\tone \rightarrow \tview)$.
+
+We proceed by induction on the derivation of \emph{(i)}.
+(This induction is \emph{mutual} 
+with the other type preservation theorems.)
+
+\tb{Case} \ts{TB-Lift}: We have
+$\llrr{e}^{\mf{Init}(\hat{e}_0)/p}_\delta
+= \eret{(\delta(p, \mf{flag}), 
+\lambda ().\llrr{\hat{e}_0}^{\mf{Succ}/p}_\delta)}$
+and:
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \Gamma \semi \Pi \vdash e: \tview \mid \epsilon
+} {
+  \Gamma \semi \Pi \vdash e: \emptyset
+}
+\end{mathpar}
+\begin{itemize}
+\item Since $\Ell=\emptyset$, 
+premise \emph{(v)} holds
+for all $\ell \in \Ell_0$.
+\item Thus, by mutual inductive hypothesis (\thref{thm:oldtprezsucc})
+using premises \emph{(ii)}-\emph{(vi)},
+we get (1) that 
+$\llrr{\Gamma_0}, \Delta \semi \llrr{\Pi}
+\vdash_e \llrr{\hat{e}_0}^{\mf{Succ}/p}_\delta: \tview$.
+\item Since $\Gamma_0 \subseteq \Gamma$, we can weaken (1) to (2)
+that $\llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+\vdash_e \llrr{\hat{e}_0}^{\mf{Succ}/p}_\delta: \tview$.
+\item We case-analyze on premise \emph{(vi)} as follows:\\
+\hl{TODO: pull this out into a lemma}
+\begin{itemize}
+\item If (\emph{vi-a}) holds, then we have 
+$\delta(p, \mf{flag}) = x_f$.
+\item By premise \emph{(iv)},
+$x_f : \tref{\tbool} \in \Delta$.
+\item We conclude (3) as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  \delta(p, \ell) : \tref{\tbool} \in \Delta
+} {
+  (4)\quad \llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+  \vdash_v
+  \delta(p, \ell): \tref{\tbool}
+}
+\end{mathpar}
+\begin{itemize}
+\item If instead (\emph{vi-b}) holds, then we have
+$\delta(p, \mf{flag}) = \mathbb{B}(p)$
+and $p \in \dom(\Pi)$. By the latter and premise \emph{(ii)},
+$\mathbb{B}(p)$ is well-defined.
+\item By definition of $\llrr{\Pi}$, we have 
+$\mathbb{B}(p): \tbool \in \llrr{\Pi}$.
+\item We conclude (3) as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Loc] {
+  \delta(p, \mf{flag}) : \tbool \in \llrr{\Pi}
+} {
+  (4)\quad \llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+  \vdash_v
+  \delta(p, \mf{flag}): \tref{\tbool}
+}
+\end{mathpar}
+\item Thus, in either case, we have (3)
+that $\llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+\vdash_v
+\delta(p, \mf{flag}): \tref{\tbool}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[Right=TE-Ret] {
+  \inferrule*[right=TV-Pair] {
+    (3) \and
+    \inferrule*[right=TV-Lam] {(2)} {
+      \llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+      \vdash_v \lambda().\llrr{\hat{e}_0}^{\mf{Succ}/p}_\delta:
+      \tone \rightarrow \tview
+    }
+  } {
+    \Gamma', \llrr{\Gamma} \semi \llrr{\Pi}
+    \vdash_v
+    (\mathbb{B}(p), 
+    \lambda ().\llrr{\hat{e}_0}^{\mf{Succ}/p}_\delta): B
+  }
+} {
+  \Gamma', \llrr{\Gamma} \semi \llrr{\Pi}
+  \vdash_e
+  \eret{(\delta(p,\mf{flag}), 
+  \lambda ().\llrr{\hat{e}_0}^{\mf{Succ}/p}_\delta)}: B
+}
+\end{mathpar}
+
+\tb{Case} \ts{TB-State}: We have
+\begin{align*}
+\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Init}(\hat{e}_0)/p}_\delta
+&= \elet{x_\ell}{\eref{\llrr{v}}}{\\
+  (x_\ell\ \mf{fresh})\quad&\quad\ \elet{x}{\eget{x_\ell}}{\\
+    &\quad\ \elet{x_\mf{set}}{\lambda y.\\
+      &\qquad(\eset{x_\ell}{y} \semi \eset{\delta(p, \mf{flag})}{\mf{true}})
+      \\&\quad\ 
+    }{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\delta,\ell \mapsto x_\ell}}
+  }
+}
+\end{align*}
+and:
+\begin{mathpar}
+\inferrule*[right=TB-State] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash v: \ptp}
+  \and
+  \inferrule* {(2)} {
+    \Gamma, x: \ptp, x_\mf{set}: \tset{\ptp} \semi \Pi
+    \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \estate{x}{\ell}{v}{\hat{e}}: \Ell, \ell: \ptp
+}
+\end{mathpar}
+\begin{itemize}
+\item The mutual inductive hypothesis (\thref{thm:oldtprezval})
+on (1) gives us (3) that
+$\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{v}: \llrr{A}$.
+\item The inductive hypothesis on (2), 
+using premises \emph{(ii)}-\emph{(vi)},
+gives us (4):
+$$\llrr{\Gamma}, \Delta, x_\ell: \tref{\llrr{\Ell_0[\ell]}},
+x: \llrr{A}, x_\mf{set}: \llrr{\tset{\ptp}} \semi \llrr{\Pi}
+\vdash_e 
+\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\delta,\ell \mapsto x_\ell}
+: B$$
+\item Since $\Ell, \ell: \ptp \subseteq \Ell_0$,
+we get that $\Ell_0[\ell] = \ptp$.
+\item Finally, the flag-typing lemma (\hl{TODO})
+gives us (5) that $\llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+\vdash_v \delta(p, \mf{flag}): \tref{\tbool}$.
+\item The conclusion can then be shown via the following
+series of derivations:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-Ref] {(3)} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi}
+  \vdash_e
+  \eref{\llrr{v}}: \tref{\llrr{A}} \quad(6)
+}
+\and
+\inferrule*[right=TE-Get] {
+  \inferrule*[right=TV-Var] { } {
+    \llrr{\Gamma}, \Delta, x_\ell: \tref{\llrr{A}} 
+    \semi \llrr{\Pi} \vdash_v
+    x_\ell: \tref{\llrr{A}}
+  }
+} {
+  \llrr{\Gamma}, \Delta, x_\ell: \tref{\llrr{A}} 
+  \semi \llrr{\Pi} \vdash_e 
+  \eget{x_\ell}: \llrr{A} \quad(7)
+}
+\and
+\inferrule*[Right=TE-Set] {
+  \inferrule*[right=TV-Var] { } {
+    x_\ell: \tref{\llrr{A}}, \cdots
+    \semi \llrr{\Pi} \vdash_v
+    x_\ell: \tref{\llrr{A}}
+  }
+  \
+  \inferrule*[Right=TV-Var] { } {
+    x: \llrr{A}, \cdots
+    \semi \llrr{\Pi} \vdash_v
+    y: \llrr{A}
+  }
+} {
+  \llrr{\Gamma}, \Delta, x_\ell: \tref{\llrr{A}}, x, y: \llrr{A}
+  \semi \llrr{\Pi} \vdash_e
+  \eset{x_\ell}{y}: \tone \quad(8)
+}
+\and
+\inferrule*[Right=TE-Set] {
+  (5)
+  \and
+  \inferrule*[Right=TV-True] { } {
+    \cdots \semi \Pi \vdash_v \mf{true}: \tbool
+  }
+} {
+  \llrr{\Gamma}, \Delta, x_\ell: \tref{\llrr{A}}, x, y: \llrr{A}
+  \semi \llrr{\Pi} \vdash_e
+  \eset{\delta(p, \mf{flag})}{\mf{true}}: \tone \quad(9)
+}
+\and
+\inferrule*[Right=TE-Ret] {
+  \inferrule*[Right=TV-Lam] {
+    \inferrule*[Right=TE-Let] {
+      (8) \and (9)
+    } {
+      \llrr{\Gamma}, \Delta, x_\ell: \tref{\llrr{A}}, x, y: \llrr{A}
+      \semi \llrr{\Pi} \vdash_e
+      \eset{x_\ell}{y} \semi \eset{\delta(p, \mf{flag})}{\mf{true}}:
+      \tone
+    }
+  } {
+    \llrr{\Gamma}, \Delta, x_\ell: \tref{\llrr{A}}, x: \llrr{A}
+    \semi \llrr{\Pi} \vdash_v
+    \lambda y.\cdots: \llrr{A} \rightarrow \tone
+  }
+} {
+  \llrr{\Gamma}, \Delta, x_\ell: \tref{\llrr{A}}, x: \llrr{A}
+  \semi \llrr{\Pi} \vdash_e
+  \eret{\lambda y.\cdots}: \llrr{A} \rightarrow \tone
+  \quad(10)
+}
+\and
+\inferrule*[Right=TE-Let] {
+  (6)
+  \inferrule*[Right=TE-Let] {
+    (7)
+    \quad
+    \inferrule*[Right=TE-Let] {
+      (10) \and (4) 
+    } {
+      \llrr{\Gamma}, \Delta, x_\ell: \tref{\llrr{A}}, x: \llrr{A}
+      \semi \llrr{\Pi} \vdash_e 
+      \elet{x_\mf{set}}{\eret{\cdots}}{\cdots}: B
+    }
+  } {
+    \llrr{\Gamma}, \Delta, x_\ell: \tref{\llrr{A}} 
+    \semi \llrr{\Pi} \vdash_e 
+    \elet{x}{\eget{x_\ell}}{\cdots}: B
+  }
+} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi} \vdash_e 
+  \elet{x_\ell}{\eref{\llrr{v}}}{\cdots}
+  : B
+}
+\end{mathpar}
+
+\tb{Case} \ts{TB-Let}: TODO, but easy.
+\end{Proof}
+\end{theorem}
+
+\begin{corollary}[Type preservation, bodies (initial), complete.]
+\label{thm:oldtprezinit-ed}
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$,
+\item $\Gamma_0 \semi \Pi \vdash \hat{e}_0: \Ell_0$ 
+(with $\Ell \subseteq \Ell_0$ and $\Gamma_0 \subseteq \Gamma$),
+\item $\Pi \vDash \I$,
+\item $\dom(\Ell_0) = \dom(\Ell) \cup \Pi[p].\mf{labs}$,
+\item $\Ell_0 = \Ell_p$, where $\Pi[p].\mf{spec}=\pair{A_p}{\Ell_p}$,
+\end{enumerate}
+then $\llrr{\Gamma} \semi \llrr{\Pi} 
+\vdash_e
+\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_\emptyset: 
+\tref{\tbool} \times (\tone \rightarrow \tview)$.
+\end{corollary}
+
+\begin{corollary}[Type preservation, bodies (initial), static.]
+\label{thm:sprezinit}
+If $\Gamma \semi \cdot \vdash \hat{e}: \Ell$,
+then $\llrr{\Gamma}, \Delta \semi \cdot
+\vdash_e
+\llrr{\hat{e}}^{\mf{Init}(\hat{e})/p}_{\mf{flag} \mapsto x_f}: \mf{View}$.
+
+\begin{Proof}
+We want to apply \thref{thm:oldtprezsucc}:
+\begin{itemize}
+\item premises \emph{(i)} and \emph{(ii)} 
+are both given by our premise;
+\item premise \emph{(iii)} holds \hl{TODO: does it?};
+\item premise \emph{(iv)} holds by definition 
+(where $\Delta=x_f: \tref{\tbool}$),
+\item premise \emph{(v)} holds trivially, and
+\item premise \emph{(vi-a)} is satisfied.
+\end{itemize}
+\end{Proof}
+\end{corollary}
+
+\begin{theorem}[Type preservation, bodies, top.]
+\label{thm:oldtprezbod}
+If $\Gamma \semi \Pi \vdash \hat{e}: \Ell$,
+then\\$\llrr{\Gamma} \semi \llrr{\Pi} 
+\vdash_e
+\llrr{\hat{e}}^{\top}: 
+\tref{\tbool} \times (\tone \rightarrow \tview)$.
+\end{theorem}
+
+\begin{theorem}[Type preservation, runtime values.]
+\label{thm:oldtprezrtv}
+If $\Gamma \semi \Pi \vdash u: A$,
+then $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{u}: \llrr{A}$.
+
+\begin{Proof}
+By induction on the derivation of the typing premise.
+
+\tb{Case} \ts{TR-Var}: We have $\llrr{x}=x$ and:
+\begin{mathpar}
+\inferrule*[right=TR-Var] {
+  \inferrule* {(1)} {x: A \in \Gamma}
+} {
+  \Gamma \semi \Pi \vdash_v x: A
+}
+\end{mathpar}
+\begin{itemize}
+\item By (1) and definition of $\llrr{\Gamma}$,
+we get $x: \llrr{A} \in \llrr{\Gamma}$.
+\item The conclusion is straightforward:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  x: \llrr{A} \in \llrr{\Gamma}
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v x: \llrr{A}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TR-Path}: We have 
+$\llrr{p}=\mf{path}(\mathbb{S}(p), \mathbb{T}(p), \mathbb{B}(p))$,
+$\llrr{\ttree}=\ttree$, and:
+\begin{mathpar}
+\inferrule*[right=TR-Path] {
+  \inferrule*{(1)} {\Pi[p].\mf{tree} = \tt}
+} {
+  \Gamma \semi \Pi \Vdash p: \ttree
+}
+\end{mathpar}
+\begin{itemize}
+\item By (1) and the premise that $\Pi \vDash \I$,
+we know that all of $\mathbb{S}(p), \mathbb{T}(p), \mathbb{B}(p)$
+are well-defined.
+\item Furthermore, by definition of $\llrr{\Pi}$, we have:
+\begin{itemize}
+\item (2) $\mathbb{S}(p) : \tone \rightarrow \tview \in \llrr{\Pi}$,
+\item (3) $\mathbb{T}(p) : \ttree \in \llrr{\Pi}$, and
+\item (4) $\mathbb{B}(p) : \tbool \in \llrr{\Pi}$.
+\end{itemize}
+\item We can now derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Loc] {(2)} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+  \mathbb{S}(p): \tref{\tone \rightarrow \tview} \quad(5)
+}
+\and
+\inferrule*[right=TV-Loc] {(3)} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+  \mathbb{T}(p): \tref{\ttree} \quad(6)
+}
+\and
+\inferrule*[right=TV-Loc] {(4)} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+  \mathbb{B}(p): \tref{\tbool} \quad(7)
+}
+\and
+\inferrule*[right=TV-Path] {
+  (5) \and (6) \and (7)
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+  \mf{path}(\mathbb{S}(p), \mathbb{T}(p), \mathbb{B}(p)): \ttree
+}
+\end{mathpar}
+
+\tb{Other cases}: Elided for the moment.
+\end{Proof}
+\end{theorem}
+
+\begin{theorem}[Type preservation, runtime expressions.]
+\label{thm:oldtprezrte}
+If 
+\begin{itemize}
+\item $\Gamma \semi \Pi \vdash \rho: A$ and
+\item $\Gamma \semi \Pi \vDash m$,
+\end{itemize}
+then $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v \llrr{\rho}_m: \llrr{A}$.
+
+\begin{Proof}
+By induction on the derivation of the typing premise \emph{(i)}.
+
+\tb{Case} \ts{TR-EvalI}: We have
+\begin{align*}
+\llrr{\eeval{\mf{Init}}{p}{\hat{e}}}_m
+&= \elet{\mf{view}}{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_\emptyset}{\\
+  &\quad\ \elet{\mf{tree}}{\mf{init}\ \mf{view}}{
+    \llrr{\enew{\mf{Init}}{p}{\mf{tree}}}_m
+  }
+}
+\end{align*}
+where $m[p].\mf{spec} = \pair{\C(x).\hat{e}_0}{v}$, and:
+\begin{mathpar}
+\inferrule*[right=TR-EvalI] {
+  \inferrule* {(1)} {\Pi[p].\mf{spec} = \pair{\ptp}{\Ell_0}}
+  \and
+  \inferrule* {(2)} {\Gamma \semi \Pi \vdash \hat{e}: \Ell}
+  \and
+  \inferrule* {(3)} {\Ell_0 = \Ell \cup \Pi[p].\mf{labs}}
+} {
+  \Gamma \semi \Pi \Vdash_\rho \eeval{\mf{Init}}{p}{\hat{e}}: \tview
+}
+\end{mathpar}
+\begin{itemize}
+\item By (1) and premise \emph{(ii)}, we have (4) that
+$\Gamma, x: A \semi \Pi \vdash \hat{e}_0 : \Ell_0$
+and (5) that $\Gamma \semi \Pi \vdash v: A$.
+\item By substitution lemma \hl{REF},
+$\Gamma \semi \Pi \vdash \hat{e}_0[v/x] : \Ell_0$.
+\item We apply \thref{thm:oldtprezinit-ed}
+to (2), (6), and (3) to obtain that
+$\llrr{\Gamma} \semi \llrr{\Pi} \vdash_e
+\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_\emptyset:
+\tref{\tbool} \times (\tone \rightarrow \tview)$.
+\item \hl{Term is slightly wrong}:
+need to destruct the tuple
+\end{itemize}
+
+\end{Proof}
+\end{theorem}
+
+\section{Source Language Changes}
+
+\subsection{Cells}
+
+Drawing inspiration from the translation,
+we redefine runtime terms in our calculus
+to simplify the memory.
+
+This has the notable benefit of
+making the tree structure of the DOM \emph{explicit},
+which lets us avoid the (gross) reasoning
+about pointer linearity that we did before.
+
+$\hat{e}$-memory version:
+
+\begin{align*}
+\text{Runtime values } u
+&::= x \mid () \mid [] \mid u :: u
+\mid \elit{v} \mid \enode{id}{v}{u}
+\mid \mhl{\mf{cell}_p(u)}\\
+\text{Runtime expressions } \rho
+&::= \eret{u} \mid \elet{x}{\rho}{\rho}\\
+&\quad\mid \einit{v} \mid \einits{v} \mid \escan{v} \mid \escans{v}\\
+&\quad\mid \echk{u} \mid \echks{u}
+\mid \esearch{id}{u} \mid \esearches{id}{u}\\
+&\quad\mid \eeval{\phi}{p}{\hat{e}}
+\mid \ehdl{e} \mid \eprog{e}\\
+\pi &::= \{\mf{spec}: \hat{e}, \mf{st}: \map{\ell}{v}, \mf{rerender}: b\}\\
+\Pi &::= \map{p}{\{\mf{spec}: \Ell, \mf{labs}: \{\num{\ell}\}, \mf{tree}: b\}}
+\end{align*}
+\begin{mathpar}
+\inferrule*[right=TR-Cell] {
+  \Pi[p].\mf{tree} = \tt
+  \and
+  \Pi[p].\mf{spec} = \Pi[p].\mf{labs}
+} {
+  \Gamma \semi \Pi \vdash \mf{cell}_p(u): \mf{Tree}
+}
+\and
+\inferrule*[right=ER-ISpec] {
+  p\ \mf{fresh}
+  \\
+  m'=m[p \mapsto \{
+    \mf{spec}: \hat{e}[v/x],
+    \mf{st}: \cdot,
+    \mf{rerender}: \mf{ff}
+  \}]
+} {
+  m \semi \einit{\pair{\C(x).\hat{e}}{v}}
+  \hookrightarrow
+  \eeval{\mf{Init}}{p}{\hat{e}[v/x]} \semi m'
+}
+\and
+\inferrule*[right=ER-PDone] { } {
+  \cdot \semi \eprog{\eret{v}}
+  \hookrightarrow \einit{v}
+  \semi \cdot
+}
+\and
+\inferrule*[right=ER-ChkCF] {
+  m[p].\mf{rerender} = \ff
+} {
+  m \semi \echk{\mf{cell}_p(u)}
+  \hookrightarrow
+  \elet{x}{\echk{u}}{\eret{\mf{cell}_p(\hat{e}, x)}} \semi m
+}
+\and
+\inferrule*[right=ER-ChkCT] {
+  m[p].\mf{rerender} = \tt
+  \and
+  m[p].\mf{spec} = \hat{e}
+} {
+  m \semi \echk{\mf{cell}_p(u)}
+  \hookrightarrow
+  \eeval{\mf{Succ}}{p}{\hat{e}}
+  \semi m \mid m[p].\mf{rerender} = \ff
+}
+\end{mathpar}
+
+\begin{align*}
+m \semi \eeval{\phi}{p}{\eret{v}}
+&\hookrightarrow
+\elet{x}{\einit{v}}{\eret{\mf{cell}_p(x)}} \semi m
+&&\ts{ER-New}\\
+m \semi \esearch{id}{\mf{cell}_p(u)}
+&\hookrightarrow
+\esearch{id}{u} \semi m
+&&\ts{ER-SCell}
+\end{align*}
+
+\begin{mathpar}
+\inferrule*[right=ER-Top] {
+  m \semi \rho \hookrightarrow \rho' \semi m'
+} {
+  m \semi \rho \hookrightarrow_0 \rho' \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \eret{u} 
+&\hookrightarrow_0
+\esearch{id}{u} \semi \echk{u} \semi m
+&&\ts{ER-Event}
+\end{align*}
+
+$\hat{e}$-cell version:
+
+Motivation: avoid synchronization issues with spec in memory
+in simulation proof by embedding the spec in the term instead
+
+\begin{align*}
+\text{Runtime values } u
+&::= x \mid () \mid [] \mid u :: u
+\mid \elit{v} \mid \enode{id}{v}{u}
+\mid \mhl{\mf{cell}_p(\hat{e}, u)}\\
+\text{Runtime expressions } \rho
+&::= \eret{u} \mid \elet{x}{\rho}{\rho}\\
+&\quad\mid \einit{v} \mid \einits{v} \mid \escan{v} \mid \escans{v}\\
+&\quad\mid \echk{u} \mid \echks{u}
+\mid \esearch{id}{u} \mid \esearches{id}{u}\\
+&\quad\mid \eeval{\phi}{p}{\hat{e} \Rightarrow \hat{e}}
+\mid \ehdl{e} \mid \eprog{e}\\
+\pi &::= \{\mf{st}: \map{\ell}{v}, \mf{rerender}: b\}\\
+\Pi &::= \map{p}{\{\mf{st}: \Ell, \mf{tree}: b\}}
+\end{align*}
+\begin{mathpar}
+\inferrule*[right=TR-Cell] {
+  \Pi[p].\mf{tree} = \tt
+  \and
+  \Gamma \semi \Pi \vdash \hat{e}: \Ell
+  \and
+  \Ell = \Pi[p].\mf{labs}
+} {
+  \Gamma \semi \Pi \vdash \mf{cell}_p(\hat{e}, u): \mf{Tree}
+}
+\and
+\inferrule*[right=TR-EvalI] {
+  \Gamma \semi \Pi \vdash \hat{e}_0: \Ell_0
+  \and
+  \Gamma \semi \Pi \vdash \hat{e}: \Ell
+  \and
+  \Ell_0 = \Ell \cup \Pi[p].\mf{st}
+} {
+  \Gamma \semi \Pi \vdash \eeval{\mf{Init}}{p}
+  {\hat{e}_0 \Rightarrow \hat{e}}: \ttree
+}
+\and
+\inferrule*[right=TR-EvalS] {
+  \Gamma \semi \Pi \vdash \hat{e}_0: \Ell_0
+  \and
+  \Gamma \semi \Pi \vdash \hat{e}: \Ell
+  \and
+  \Ell \subseteq \Ell_0 = \Pi[p].\mf{st}
+} {
+  \Gamma \semi \Pi \vdash \eeval{\mf{Succ}}{p}
+  {\hat{e}_0 \Rightarrow \hat{e}}: \ttree
+}
+\and
+\inferrule*[right=ER-ISpec] {
+  p\ \mf{fresh}
+  \and
+  \hat{e}_0 = \hat{e}[v/x]
+  \and
+  m'=m[p \mapsto \{
+    \mf{st}: \cdot,
+    \mf{rerender}: \mf{ff}
+  \}]
+} {
+  m \semi \einit{\pair{\C(x).\hat{e}}{v}}
+  \hookrightarrow
+  \eeval{\mf{Init}}{p}{\hat{e}_0 \Rightarrow \hat{e}_0} \semi m'
+}
+\and
+\inferrule*[right=ER-PDone] { } {
+  \cdot \semi \eprog{\eret{v}}
+  \hookrightarrow \einit{v}
+  \semi \cdot
+}
+\and
+\inferrule*[right=ER-ChkCF] {
+  m[p].\mf{rerender} = \ff
+} {
+  m \semi \echk{\mf{cell}_p(\hat{e}, u)}
+  \hookrightarrow
+  \elet{x}{\echk{u}}{\eret{\mf{cell}_p(\hat{e}, x)}} \semi m
+}
+\and
+\inferrule*[right=ER-ChkCT] {
+  m[p].\mf{rerender} = \tt
+} {
+  m \semi \echk{\mf{cell}_p(\hat{e}, u)}
+  \hookrightarrow
+  \eeval{\mf{Succ}}{p}{\hat{e} \Rightarrow \hat{e}}
+  \semi m \mid m[p].\mf{rerender} = \ff
+}
+\and
+\inferrule*[right=ER-Eval] {
+  \bstep{m}{\hat{e}}{\phi}{p}{\hat{e}'}{m'}
+} {
+  m \semi \eeval{\phi}{p}{\hat{e}_0 \Rightarrow \hat{e}}
+  \hookrightarrow
+  \eeval{\phi}{p}{\hat{e}_0 \Rightarrow \hat{e}'} \semi m'
+}
+\end{mathpar}
+
+\begin{align*}
+m \semi \eeval{\phi}{p}{\hat{e} \Rightarrow \eret{v}}
+&\hookrightarrow
+\elet{x}{\einit{v}}{\eret{\mf{cell}_p(\hat{e}, x)}} \semi m
+&&\ts{ER-New}\\
+m \semi \esearch{id}{\mf{cell}_p(u)}
+&\hookrightarrow
+\esearch{id}{u} \semi m
+&&\ts{ER-SCell}
+\end{align*}
+
+\begin{align*}
+m \semi \eret{u} 
+&\hookrightarrow_0
+\esearch{id}{u} \semi \echk{u} \semi m
+&&\ts{ER-Event}
+\end{align*}
+
+\subsection{Propless}
+
+We remove props from components.
+
+This change is orthogonal to the above; a simplification resulting
+from the observation that the component ``argument''
+doesn't have any role beyond a standard abstraction,
+i.e. we can express $\C(x).\hat{e}$ 
+by $\lambda x.\mf{comp}\ \hat{e}$.
+
+This has some other simplifying effects,
+e.g. removing the prop type in components
+and the ``spec'' intermediate value $\pair{v}{v}$.
+
+Other changes include the introduction of cells from above,
+as well as:
+\begin{itemize}
+\item Removal of the $\mf{new}$ construct,
+as we no longer need to update the memory once
+initialization of the child tree is complete.
+\item The ``idle type'' is now $\ttree$ instead of $\tone$,
+since it now makes (and maybe before made?) more sense 
+to represent our tree as the result of computation,
+instead of having to go through memory.
+(We no longer have to deal with constants like $p_0$.)
+\end{itemize}
+
+\hl{TODO}: maintaining a syntactic distinction between user-level and runtime
+means we also have to distinguish $\Gamma$ and $\Gamma_\rho$;
+\emph{do we gain enough from this distinction?}
+
+\subsubsection{Syntax}
+
+User-level:
+\begin{align*}
+\text{Value } v &::= x \mid () \mid s 
+\mid \lambda x.e \mid \mhl{\mf{comp}\ \hat{e}}
+\mid [] \mid v :: v\\
+&\quad\mid \vtxt{v} \mid \vtag{v}{v}
+\mid \vattr{v}{v} \mid \vclick{v} \mid \mgrey{\vset{\ell}{p}}\\
+\text{Expression } e &::= \eret{v} \mid \elet{x}{e}{e} \mid v\ v \\
+&\quad\mid \ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}\\
+\text{Body }\hat{e} &::= e \mid \estate{x}{\ell}{v}{\hat{e}} \mid \elet{x}{e}{\hat{e}}\\
+\text{Type } \ptp &::= \tone \mid \tstr \mid \ptp \arrow{E} \ptp
+\mid [\ptp] \\
+&\quad\mid \tview \mid \tattr \mid \tset{\ptp}\\
+\text{Effect } E &::= \epsilon \mid \emut\\
+\text{Label-record }\Ell &::= \map{\ell}{\ptp}
+\end{align*}
+
+Runtime-level:
+\begin{align*}
+\text{Runtime values } u
+&::= x \mid () \mid [] \mid u :: u
+\mid \elit{v} \mid \enode{id}{v}{u}
+\mid \mhl{\mf{cell}_p(\hat{e}, u)}\\
+\text{Runtime expressions } \rho
+&::= \eret{u} \mid \elet{x}{\rho}{\rho}\\
+&\quad\mid \einit{v} \mid \einits{v} \mid \escan{v} \mid \escans{v}\\
+&\quad\mid \echk{u} \mid \echks{u}
+\mid \esearch{id}{u} \mid \esearches{id}{u}\\
+&\quad\mid \hat{e} \gg^\phi_p \hat{e}
+\mid \ehdl{e} \mid \eprog{e}\\
+\text{Runtime type } \rtp &::= \tone \mid \ttree \mid [\ttree]
+\end{align*}
+
+Other internal representations:
+\begin{align*}
+\text{Variable }x &\in \mf{Var}\\
+\text{Pointer }p &\in \mathbb{N}\\
+\text{Label }\ell &\in \mathbb{N}\\
+\text{Node identifier }\mf{id} &\in \mf{ID}\\
+\text{Boolean flag }b &::= \tt \mid \ff\\
+\text{Type context }\Gamma &::= \emptyset \mid \Gamma, x: A\\
+\text{Pointer context }\Pi &::= \emptyset \mid \Pi, p: \Ell\\
+\text{Phase }\phi &::= \mf{Init} \mid \mf{Succ}\\
+\text{State store }\varsigma &::= \emptyset \mid \varsigma, \ell: v\\
+\text{Component memory }\pi &::= \{\mf{st}: \varsigma, \mf{rerender}: b\}\\
+\text{Memory }m &::= \emptyset \mid m, p: \pi\\
+\end{align*}
+
+% almost like abstract of the paper
+% mainly motivation, broadly accessible
+% can assume a little more ST/picalc knowledge, but not much
+  % Rast knowledge will be new— start with example?
+% metatheoretical results (one-slide, highlight interesting points)
+% only key ideas from our work
+
+% programmer burden is critical
+% get rid of two
+% condense "inferring refinements" somehow— too much detail
+% lead w/ two-stage inference overview slide
+% show a (coarse) example, then done
+
+% make metatheory prettier
+% three-icon thing?
+
+% above: simon, below: me
+
+% add: big slide for decl, one for def
+% mirror in refinement sec
+
+\subsubsection{Typing}
+
+Value judgment: $\Gamma \semi \Pi \vdash v: \ptp$
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  x: \ptp \in \Gamma
+} {
+  \Gamma \semi \Pi \vdash x: \ptp
+}
+\and
+\inferrule*[right=TV-Unit] { } {
+  \Gamma \semi \Pi \vdash (): \tone
+}
+\and
+\inferrule*[right=TV-Str] { } {
+  \Gamma \semi \Pi \vdash s: \tstr
+}
+\and
+\inferrule*[right=TV-Lam] {
+  \Gamma, x: \ptp_1 \semi \Pi \vdash e: \ptp_2 \mid E
+} {
+  \Gamma \semi \Pi \vdash \lambda x.e: \ptp_1 \xrightarrow{E} \ptp_2
+}
+\and
+\inferrule*[right=TV-Comp] {
+  \Gamma \semi \Pi \vdash \hat{e}: \Ell
+} {
+  \Gamma \semi \Pi \vdash \mf{comp}\ \hat{e} : \tview
+}
+\and
+\inferrule*[right=TV-Nil] { } {
+  \Gamma \semi \Pi \vdash []: [\ptp]
+}
+\and
+\inferrule*[right=TV-Cons] {
+  \Gamma \semi \Pi \vdash v_1: \ptp
+  \and
+  \Gamma \semi \Pi \vdash v_2: [\ptp]
+} {
+  \Gamma \semi \Pi \vdash v_1 :: v_2: [\ptp]
+}
+\and
+\inferrule*[right=TV-Text] {
+  \Gamma \semi \Pi \vdash v: \tstr
+} {
+  \Gamma \semi \Pi \vdash \vtxt{v}: \tview
+}
+\and
+\inferrule*[right=TV-Tag] {
+  \Gamma \semi \Pi \vdash v_1: [\tattr]
+  \and
+  \Gamma \semi \Pi \vdash v_2: [\tview]
+} {
+  \Gamma \semi \Pi \vdash \vtag{v_1}{v_2}: \tview
+}
+\and
+\inferrule*[right=TV-Attr] {
+  \Gamma \semi \Pi \vdash v_1: \tstr
+  \and
+  \Gamma \semi \Pi \vdash v_2: \tstr
+} {
+  \Gamma \semi \Pi \vdash \vattr{v_1}{v_2}: \tattr
+}
+\and
+\inferrule*[right=TV-Click] {
+  \Gamma \semi \Pi \vdash v: \tone \arrow{E} \tone
+} {
+  \Gamma \semi \Pi \vdash \vclick{v}: \tattr
+}
+\and
+\inferrule*[right=\grey{TV-Set}] {
+  \ell: \ptp \in \Pi[p]
+} {
+  \Gamma \semi \Pi \vdash \vset{\ell}{p}: \tset{\ptp}
+}
+\end{mathpar}
+
+Expression judgment: $\Gamma \semi \Pi \vdash e: \ptp \mid E$
+\begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \Gamma \semi \Pi \vdash v: \ptp
+} {
+  \Gamma \semi \Pi \vdash \eret{v}: \ptp \mid \epsilon
+}
+\and
+\inferrule*[right=TE-Let] {
+  \Gamma \semi \Pi \vdash e_1: \ptp_1 \mid E
+  \and
+  \Gamma, x: \ptp_1 \semi \Pi \vdash e_2: \ptp_2 \mid E
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e_1}{e_2}: \ptp_2 \mid E
+}
+\and
+\inferrule*[right=TE-AppL] {
+  \Gamma \semi \Pi \vdash v_1: \ptp_1 \arrow{E} \ptp_2
+  \and
+  \Gamma \semi \Pi \vdash v_2: \ptp_1
+} {
+  \Gamma \semi \Pi \vdash v_1\ v_2: \ptp_2 \mid E
+}
+\and
+\inferrule*[right=TE-AppS] {
+  \Gamma \semi \Pi \vdash v_1: \tset{\ptp}
+  \and
+  \Gamma \semi \Pi \vdash v_2: \ptp
+} {
+  \Gamma \semi \Pi \vdash v_1\ v_2: \tone \mid \emut
+}
+\and
+\inferrule*[right=TE-Case] {
+  \Gamma \semi \Pi \vdash v: [\ptp_1]
+  \and
+  \Gamma \semi \Pi \vdash e_1: \ptp_2 \mid E
+  \\
+  \Gamma, x_\mf{hd}: \ptp_1, x_\mf{tl}: [\ptp_1] \semi \Pi
+  \vdash e_2: \ptp_2 \mid E
+} {
+  \Gamma \semi \Pi \vdash
+  \ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}: \ptp_2 \mid E
+}
+\and
+\inferrule*[right=TE-Sub] {
+  \Gamma \semi \Pi \vdash e: \ptp \mid \epsilon
+} {
+  \Gamma \semi \Pi \vdash e: \ptp \mid \emut
+}
+\end{mathpar}
+
+Body judgment: $\Gamma \semi \Pi \vdash \hat{e}: \Ell$
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \Gamma \semi \Pi \vdash e: \tview \mid \epsilon
+} {
+  \Gamma \semi \Pi \vdash e: \emptyset
+}
+\and
+\inferrule*[right=TB-Let] {
+  \Gamma \semi \Pi \vdash e: \ptp \mid \epsilon
+  \and
+  \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e}{\hat{e}}: \Ell
+}
+\and
+\inferrule*[right=TB-State] {
+  \Gamma \semi \Pi \vdash v: \ptp
+  \and
+  \Gamma, x: \ptp, x_\mf{set}: \tset{\ptp} \semi \Pi
+  \vdash \hat{e}: \Ell
+} {
+  \Gamma \semi \Pi \vdash \estate{x}{\ell}{v}{\hat{e}}: \Ell, \ell: \ptp
+}
+\end{mathpar}
+
+Runtime value judgment: $\Gamma \semi \Pi \Vdash u: \rtp$
+\begin{mathpar}
+\inferrule*[right=TR-Var] {
+  x: \rtp \in \Gamma
+} {
+  \Gamma \semi \Pi \Vdash x: \rtp
+}
+\and
+\inferrule*[right=TR-Unit] { } {
+  \Gamma \semi \Pi \Vdash (): \tone
+}
+\and
+\inferrule*[right=TR-Nil] { } {
+  \Gamma \semi \Pi \Vdash []: [\ttree]
+}
+\and
+\inferrule*[right=TR-Lit] {
+  \cdot \semi \Pi \vdash v: \tstr
+} {
+  \Gamma \semi \Pi \Vdash \elit{v}: \ttree
+}
+\and
+\inferrule*[right=TR-Cons] {
+  \Gamma \semi \Pi \Vdash u_1: \ttree
+  \and
+  \Gamma \semi \Pi \Vdash u_2: [\ttree]
+} {
+  \Gamma \semi \Pi \Vdash u_1 :: u_2: [\ttree]
+}
+\and
+\inferrule*[right=TR-Node] {
+  \cdot \semi \Pi \vdash v: [\tattr]
+  \and
+  \Gamma \semi \Pi \Vdash u: [\ttree]
+} {
+  \Gamma \semi \Pi \Vdash \enode{id}{v}{u}: \ttree
+}
+\and
+\inferrule*[right=TR-Cell] {
+  \cdot \semi \Pi \vdash \hat{e}: \Pi[p]
+  \and
+  \Gamma \semi \Pi \Vdash u: \ttree
+} {
+  \Gamma \semi \Pi \Vdash \mf{cell}_p(\hat{e}, u): \ttree
+}
+\end{mathpar}
+
+Runtime expression judgment: $\Gamma \semi \Pi \Vdash_\rho \rho: \rtp$
+\begin{mathpar}
+\inferrule*[right=TR-Ret] {
+  \Gamma \semi \Pi \Vdash u: \rtp
+} {
+  \Gamma \semi \Pi \Vdash_\rho \eret{u}: \rtp
+}
+\and
+\inferrule*[right=TR-Let] {
+  \Gamma \semi \Pi \Vdash_\rho \rho_1: \rtp_1
+  \and
+  \Gamma, x: \rtp_1 \semi \Pi \Vdash_\rho \rho_2: \rtp_2
+} {
+  \Gamma \semi \Pi \Vdash_\rho \elet{x}{\rho_1}{\rho_2}: \rtp_2
+}
+\and
+\inferrule*[right=TR-Init] {
+  \cdot \semi \Pi \vdash v: \tview
+} {
+  \Gamma \semi \Pi \Vdash_\rho \einit{v}: \ttree
+}
+\and
+\inferrule*[right=TR-Inits] {
+  \cdot \semi \Pi \vdash v: [\tview]
+} {
+  \Gamma \semi \Pi \Vdash_\rho \einits{v}: [\ttree]
+}
+\and
+\inferrule*[right=TR-Scan] {
+  \cdot \semi \Pi \vdash v: \tview
+} {
+  \Gamma \semi \Pi \Vdash_\rho \escan{v}: \tone
+}
+\and
+\inferrule*[right=TR-Scans] {
+  \cdot \semi \Pi \vdash v: [\tview]
+} {
+  \Gamma \semi \Pi \Vdash_\rho \escans{v}: \tone
+}
+\and
+\inferrule*[right=TR-Chk] {
+  \Gamma \semi \Pi \Vdash u: \ttree
+} {
+  \Gamma \semi \Pi \Vdash_\rho \echk{v}: \tone
+}
+\and
+\inferrule*[right=TR-Chks] {
+  \Gamma \semi \Pi \Vdash u: [\ttree]
+} {
+  \Gamma \semi \Pi \Vdash_\rho \echks{v}: \tone
+}
+\and
+\inferrule*[right=TR-Sr] {
+  \Gamma \semi \Pi \Vdash u: \ttree
+} {
+  \Gamma \semi \Pi \Vdash_\rho \esearch{id}{v}: \tone
+}
+\and
+\inferrule*[right=TR-Srs] {
+  \Gamma \semi \Pi \Vdash u: [\ttree]
+} {
+  \Gamma \semi \Pi \Vdash_\rho \esearches{id}{v}: \tone
+}
+\and
+\inferrule*[right=TR-EvalI] {
+  \cdot \semi \Pi \vdash \hat{e}_0: \Ell \cup \Pi[p]
+  \and
+  \cdot \semi \Pi \vdash \hat{e}: \Ell
+} {
+  \Gamma \semi \Pi \Vdash_\rho \hat{e}_0 \gg^\mf{Init}_p \hat{e}: \tview
+}
+\and
+\inferrule*[right=TR-EvalS] {
+  \cdot \semi \Pi \vdash \hat{e}_0: \Pi[p]
+  \and
+  \cdot \semi \Pi \vdash \hat{e}: \Ell
+  \and
+  \Ell \subseteq \Pi[p]
+} {
+  \Gamma \semi \Pi \Vdash_\rho \hat{e}_0 \gg^\mf{Succ}_p \hat{e}: \tone
+}
+\and
+\inferrule*[right=TR-Hdl] {
+  \cdot \semi \Pi \vdash e: \tone \mid E
+} {
+  \Gamma \semi \Pi \Vdash_\rho \ehdl{e}: \tone
+}
+\and
+\inferrule*[right=TR-Prog] {
+  \cdot \semi \Pi \vdash e: \tview \mid \epsilon
+} {
+  \Gamma \semi \Pi \Vdash_\rho \eprog{e}: \tone
+}
+\end{mathpar}
+
+Memory typing:
+
+Define $\Gamma \semi \Pi \vDash \varsigma: \Ell$ 
+if $\dom(\Ell)=\dom(\varsigma)$
+and, for all $\ell \in \dom(\varsigma)$,
+we have $\Gamma \semi \Pi \vdash \varsigma[\ell]: \Ell[\ell]$.
+
+Define $\Gamma \semi \Pi \vDash m$
+if $\dom(\Pi)=\dom(m)$
+and, for all $p \in \dom(m)$,
+we have $\Gamma \semi \Pi \vDash m[p].\mf{st}: \Pi[p]$.
+
+\subsubsection{Semantics}
+
+Expression judgment: $\estep{m}{e}{e'}{m'}$
+\begin{mathpar}
+\inferrule*[right=E-Let] {
+  \estep{m}{e_1}{e_1'}{m'}
+} {
+  \estep{m}{\elet{x}{e_1}{e_2}}{\elet{x}{e_1'}{e_2}}{m'}
+}
+\and
+\inferrule*[right=E-AppS] {
+  m' = m \mid m[p].\mf{st}[\ell] = v\ \mf{and}\ m[p].\mf{rerender} = \tt
+} {
+  \estep{m}{\vset{\ell}{p}\ v}{\eret{()}}{m'}
+}
+\end{mathpar}
+\begin{align*}
+\estep{m}{\elet{x}{\eret{v}}{e}&}{e[v/x]}{m}
+&&\ts{E-Ret}\\
+\estep{m}{(\lambda x. e)\ v&}{e[v/x]}{m}
+&&\ts{E-AppL}\\
+\estep{m}{\ecase{[]}{[]}{e_1}{x_\mf{h} :: x_\mf{t}}{e_2}&}{e_1}{m}
+&&\ts{E-CaseN}\\
+\estep{m}{\ecase{v_\mf{h} :: v_\mf{t}}{[]}{e_1}{x_\mf{h} :: x_\mf{t}}{e_2}&}
+{e_2[v_\mf{h} / x_\mf{h}, v_\mf{t} / x_\mf{t}]}{m}
+&&\ts{E-CaseC}
+\end{align*}
+
+Body judgment: $\bstep{m}{\hat{e}}{\phi}{p}{\hat{e}'}{m'}$
+\begin{mathpar}
+\inferrule*[right=EB-Lift] {
+  \estep{m}{e}{e'}{m}
+} {
+  \bstep{m}{e}{\phi}{p}{e'}{m}
+}
+\and
+\inferrule*[right=EB-Let] {
+  \estep{m}{e}{e'}{m}
+} {
+  \bstep{m}{\elet{x}{e}{\hat{e}}}{\phi}{p}{\elet{x}{e'}{\hat{e}}}{m}
+}
+\end{mathpar}
+\begin{align*}
+\bstep{m}{\elet{x}{\eret{v}}{\hat{e}}&}{\phi}{p}{\hat{e}[v/x]}{m}
+&&\ts{EB-Ret}\\
+\bstep{m}{\estate{x}{\ell}{v}{\hat{e}}&}{\mf{Init}}{p}
+{\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}]}{m'}
+&&\ts{EB-StI}\\
+(m' &= m \mid m[p].\mf{st}[\ell] = v)\\
+\bstep{m}{\estate{x}{\ell}{v}{\hat{e}}&}{\mf{Succ}}{p}
+{\hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}]}{m}
+&&\ts{EB-StS}\\
+(v' &= m[p].\mf{st}[\ell])
+\end{align*}
+
+Runtime judgment: $m \semi \rho \hookrightarrow \rho' \semi m'$
+
+Admin:
+\begin{mathpar}
+\inferrule*[right=ER-Let] {
+  m \semi \rho_1 \hookrightarrow \rho_1' \semi m'
+} {
+  m \semi \elet{x}{\rho_1}{\rho_2}
+  \hookrightarrow
+  \elet{x}{\rho_1'}{\rho_2} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \elet{x}{\eret{u}}{\rho}
+&\hookrightarrow
+\rho[u/x] \semi m
+&&\ts{ER-Ret}\\
+\end{align*}
+
+Initialization:
+\begin{mathpar}
+\inferrule*[right=ER-ITag] {
+  x\ \mf{fresh}
+  \and
+  \mf{id}\ \mf{fresh}
+} {
+  m \semi \einit{\vtag{v_1}{v_2}}
+  \hookrightarrow
+  \elet{x}{\einits{v_2}}{\eret{\enode{id}{v_1}{x}}} \semi m
+}
+\and
+\inferrule*[right=ER-ISpec] {
+  p\ \mf{fresh}
+  \and
+  m'=m[p \mapsto \{
+    \mf{st}: \cdot, 
+    \mf{rerender}: \mf{ff}
+  \}]
+} {
+  m \semi \einit{\mf{comp}\ \hat{e}}
+  \hookrightarrow
+  \hat{e} \gg^\mf{Init}_p \hat{e} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \einit{\vtxt{v}}
+&\hookrightarrow
+\eret{\elit{v}} \semi m
+&&\ts{ER-ILit}\\
+m \semi \einits{[]}
+&\hookrightarrow
+\eret{[]} \semi m
+&&\ts{ER-INil}\\
+m \semi \einits{v :: vs}
+&\hookrightarrow
+(\elet{x}{\einit{v}}{\\&\quad\
+  \elet{xs}{\einits{vs}}{&&\ts{ER-ICons}\\&\quad\
+    \eret{x :: xs}
+  }
+}) \semi m
+\end{align*}
+
+Component Evaluation:
+\begin{mathpar}
+\inferrule*[right=ER-Eval] {
+  \bstep{m}{\hat{e}}{\phi}{p}{\hat{e}'}{m'}
+} {
+  m \semi \hat{e}_0 \gg^\mf{Init}_p \hat{e}
+  \hookrightarrow
+  \hat{e}_0 \gg^\mf{Init}_p \hat{e}' \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \hat{e}_0 \gg^\mf{Init}_p \eret{v}
+&\hookrightarrow
+\elet{x}{\einit{v}}{\mf{cell}_p(\hat{e}_0, x)} \semi m
+&&\ts{ER-EDone}
+\end{align*}
+
+Event Handling:
+\begin{align*}
+m \semi \esearch{id}{\elit{v}}
+&\hookrightarrow
+\eret{()} \semi m
+&&\ts{ER-SLit}\\
+m \semi \esearch{id}{\mf{cell}_p(\hat{e}, u)}
+&\hookrightarrow
+\esearch{id}{u} \semi m
+&&\ts{ER-SPath}\\
+m \semi \esearch{id}{\enode{id'}{v}{u}}
+&\hookrightarrow
+\esearches{id}{u} \semi m\quad (\mf{id} \neq \mf{id}')
+&&\ts{ER-SNodeF}\\
+m \semi \esearch{id}{\enode{id}{v}{u}}
+&\hookrightarrow
+\elet{\_}{\escans{v}}{\esearches{id}{u}} \semi m
+&&\ts{ER-SNodeT}\\
+m \semi \esearches{id}{[]}
+&\hookrightarrow
+\eret{()} \semi m
+&&\ts{ER-SNil}\\
+m \semi \esearches{id}{u :: us}
+&\hookrightarrow
+\elet{\_}{\esearch{id}{u}}{\esearch{id}{us}} \semi m
+&&\ts{ER-SCons}
+\end{align*}
+\begin{align*}
+m \semi \escan{\vattr{v_1}{v_2}}
+&\hookrightarrow
+\eret{()} \semi m
+&&\ts{ER-ScAttr}\\
+m \semi \escan{\vclick{v}}
+&\hookrightarrow
+\ehdl{v\ ()} \semi m
+&&\ts{ER-ScClick}\\
+m \semi \escans{[]}
+&\hookrightarrow
+\eret{()} \semi m
+&&\ts{ER-ScNil}\\
+m \semi \escans{u :: us}
+&\hookrightarrow
+\elet{\_}{\escan{u}}{\escans{us}} \semi m
+&&\ts{ER-ScCons}
+\end{align*}
+\begin{mathpar}
+\inferrule*[right=ER-Hdl] {
+  \estep{m}{e}{e'}{m'}
+} {
+  m \semi \ehdl{e} \hookrightarrow \ehdl{e'} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \ehdl{\eret{()}} 
+&\hookrightarrow
+\eret{()} \semi m
+&&\ts{ER-HDone}\\
+\end{align*}
+
+Checking:
+\begin{mathpar}
+\inferrule*[right=ER-ChkPF] {
+  m[p].\mf{rerender} = \ff
+} {
+  m \semi \echk{\mf{cell}_p(\hat{e}, u)}
+  \hookrightarrow
+  \elet{x}{\echk{u}}{\eret{\mf{cell}_p(\hat{e}, x)}} \semi m
+}
+\and
+\inferrule*[right=ER-ChkPT] {
+  m[p].\mf{rerender} = \tt
+} {
+  m \semi \echk{\mf{cell}_p(\hat{e}, u)}
+  \hookrightarrow
+  \hat{e} \gg^\mf{Succ}_p \hat{e}
+  \semi m \mid m[p].\mf{rerender} = \ff
+}
+\end{mathpar}
+\begin{align*}
+m \semi \echk{\elit{v}}
+&\hookrightarrow
+\eret{\elit{v}} \semi m
+&&\ts{ER-ChkLit}\\
+m \semi \echk{\enode{id}{v}{u}}
+&\hookrightarrow
+\elet{x}{\echk{u}&&\ts{ER-ChkNode}\\&\quad\ }
+{\eret{\enode{id}{v}{x}}} \semi m\\
+m \semi \echks{[]} &\hookrightarrow \eret{[]} \semi m
+&&\ts{ER-ChkNil}\\
+m \semi \echks{u :: us}
+&\hookrightarrow
+(\elet{x}{\echk{v}}{\\&\quad\
+  \elet{xs}{\echks{vs}}{&&\ts{ER-ChkCons}\\&\quad\
+    \eret{x :: xs}
+  }
+}) \semi m
+\end{align*}
+
+Programs:
+\begin{mathpar}
+\inferrule*[right=ER-Prog] {
+  \cdot \semi e \mapsto e' \semi \cdot
+} {
+  \cdot \semi \eprog{e} \mapsto \eprog{e'} \semi \cdot
+}
+\end{mathpar}
+\begin{align*}
+m \semi \eprog{\eret{v}}
+&\hookrightarrow
+\einit{v} \semi m
+&&\ts{ER-PDone}
+\end{align*}
+
+Top-Level:
+\begin{mathpar}
+\inferrule*[right=ER-Top] {
+  m \semi \rho \hookrightarrow \rho' \semi m'
+} {
+  m \semi \rho \hookrightarrow_0 \rho' \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \eret{u} 
+&\hookrightarrow_0
+\elet{\_}{\esearch{id}{u}}{\echk{u}} \semi m
+&&\ts{ER-Event}
+\end{align*}
+
+\subsubsection{Translation}
+
+Types:
+\begin{align*}
+\llrr{\tone} &= \tone\\
+\llrr{\tstr} &= \tstr\\
+\llrr{A \xrightarrow{E} A} &= \llrr{A} \rightarrow \llrr{A}\\
+\llrr{\mf{List}\ A} &= \mf{List}\ \llrr{A}\\
+\llrr{\tview} &= \tview\\
+\llrr{\tattr} &= \tattr\\
+\llrr{\tset{A}} &= \llrr{A} \rightarrow \tone\\
+\llrr{\ttree} &= \ttree
+\end{align*}
+Abbreviate, in the target language,
+$A_\mf{res}=\tview \times \tref{\tbool} \times (\tone \rightarrow \tview)$
+(the return type of initial-phase body translations.)
+
+$\llrr{\Gamma}$ is defined pointwise; $\llrr{\Pi}$ is defined as:
+\begin{align*}
+\llrr{\Pi} &= \bigcup_p\left( \{\I(p) \mapsto \tbool\}
+\cup \bigcup_{\ell \in \pi.\mf{labs}} \{\I(p, \ell) \mapsto \llrr{\Ell[\ell]}\}
+\right)\\
+\end{align*}
+
+Values:
+\begin{align*}
+\llrr{x} &= x\\
+\llrr{()} &= ()\\
+\llrr{s} &= s\\
+\llrr{\lambda x.e} &= \lambda x.\llrr{e}\\
+\llrr{\mf{comp}\ \hat{e}} &= \mf{comp}(
+  \lambda ().\llrr{\hat{e}}
+)\\
+\llrr{[]} &= []\\
+\llrr{v_1 :: v_2} &= \llrr{v_1} :: \llrr{v_2}\\
+\llrr{\vtxt{v}} &= \vtxt{\llrr{v}}\\
+\llrr{\vtag{v_1}{v_2}} &= \vtag{\llrr{v_1}}{\llrr{v_2}}\\
+\llrr{\vattr{v_1}{v_2}} &= \vattr{\llrr{v_1}}{\llrr{v_2}}\\
+\llrr{\vclick{v}} &= \vclick{\llrr{v}}\\
+\llrr{\vset{\ell}{p}}
+&= \lambda x. \eset{\I(p, \ell)}{x}
+\semi \eset{\I(p)}{\mf{true}}
+\end{align*}
+
+Expressions:
+\begin{align*}
+\llrr{\eret{v}} &= \eret{\llrr{v}}\\
+\llrr{\elet{x}{e_1}{e_2}} &= \elet{x}{\llrr{e_1}}{\llrr{e_2}}\\
+\llrr{v_1\ v_2} &= \llrr{v_1}\llrr{v_2}\\
+\llrr{\ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}}
+&= \ecase{\llrr{v}}{[]}{\llrr{e_1}}{x_\mf{hd} :: x_\mf{tl}}{\llrr{e_2}}
+\end{align*}
+
+Bodies:
+
+Intuitively, component bodies have two different interpretations:
+under $\phi=\mf{Init}$, $\mf{useState}$ \emph{initializes}
+a reference, and under $\phi=\mf{Succ}$, $\mf{useState}$
+\emph{accesses} a reference.
+
+To model this in a safe way, the translation of $\phi=\mf{Init}$
+\emph{returns} the translation of $\phi=\mf{Succ}$,
+such that the latter can \emph{close over} the locations
+initialized by the former.
+
+A lot of machinery is necessary to achieve this in a way
+such that we can reason about intermediate stages of body evaluation.
+For instance, due to the introduction of fresh variables,
+we parameterize by a context
+$$\delta ::= \emptyset \mid \delta, \ell \mapsto x 
+\mid \delta, \mf{flag} \mapsto x$$
+and define an auxiliary function as follows:
+\[\delta(p, \ell) = \begin{cases}
+  x & \text{if}\ \ell \mapsto x \in \delta\\
+  \I(p, \ell) & \text{otherwise}
+\end{cases}\]
+\[\delta(p) = \begin{cases}
+  x & \text{if}\ \mf{flag} \mapsto x \in \delta\\
+  \I(p) & \text{otherwise}
+\end{cases}\]
+Intuitively, if a variable is in the range of $\delta$,
+it was bound previously in the translation;
+if not, then we have some raw location (given by $\I$)
+instead.
+
+\begin{align*}
+\llrr{\hat{e}}^\top &= \elet{x_f}{\eref{\mf{false}}}
+{\llrr{\hat{e}}^{\mf{Init}(\hat{e})/p}_{\mf{flag} \mapsto x_f}}\\
+\llrr{\elet{x}{e}{\hat{e}}}^{\mf{Init}(\hat{e}_0)/p}_{\delta}
+&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_\delta}\\
+\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Init}(\hat{e}_0)/p}_\delta
+&= \elet{x_\ell}{\eref{\llrr{v}}}{\\
+  (x_\ell\ \mf{fresh})\quad&\quad\ \elet{x}{\eget{x_\ell}}{\\
+    &\quad\ \elet{x_\mf{set}}{\eret{\lambda y.\\
+      &\qquad
+      \eset{x_\ell}{y} \semi \eset{\delta(p)}{\mf{true}}}\\&\quad\ }{
+       \llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\delta,\ell \mapsto x_\ell}
+    }
+  }
+}\\
+\llrr{e}^{\mf{Init}(\hat{e}_0)/p}_\delta
+&= \elet{x_r}{\llrr{e}}{\\
+  &\quad\ \eret{(x_r,\delta(p),\lambda ().\llrr{\hat{e}_0}^{\mf{Succ}/p}_\delta)}
+}\\
+\llrr{\elet{x}{e}{\hat{e}}}^{\mf{Succ}/p}_\delta
+&= \elet{x}{\llrr{e}}{\llrr{\hat{e}}^{\mf{Succ}/p}_\delta}\\
+\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Succ}/p}_\delta
+&= \elet{x}{\eget{\delta(p, \ell)}}{\\
+    &\quad\ \elet{x_\mf{set}}{\eret{\lambda y.\\
+      &\qquad \eset{\delta(p, \ell)}{y} 
+        \semi 
+        \eset{\delta(p)}{\mf{true}}
+      \\&\quad\
+    }}
+  \llrr{\hat{e}}^{\mf{Succ}/p}_\delta}
+\\
+\llrr{e}^{\mf{Succ}/p}_\delta &= \llrr{e}
+\end{align*}
+
+Runtime values:
+\begin{align*}
+\llrr{x} &= x\\
+\llrr{()} &= ()\\
+\llrr{[]} &= []\\
+\llrr{u :: u} &= \llrr{u} :: \llrr{u}\\
+\llrr{\elit{v}} &= \elit{\llrr{v}}\\
+\llrr{\enode{id}{v}{u}} &= \enode{id}{\llrr{v}}{\llrr{u}}\\
+\llrr{\mf{cell}_p(\hat{e}, u)} 
+&= \mf{cell}(
+  \lambda ().\llrr{\hat{e}}^{\mf{Succ}/p}_\emptyset,
+  \I(p),
+  \llrr{u}
+)
+\end{align*}
+
+Runtime expressions:
+\begin{align*}
+\llrr{\eret{u}} &= \eret{\llrr{u}}\\
+\llrr{\elet{x}{\rho_1}{\rho}} &= 
+\elet{x}{\llrr{\rho_1}}{\llrr{\rho_2}}\\
+\llrr{\einit{v}} &= \mf{init}\ \llrr{v}\\
+\llrr{\einits{v}} &= \mf{map}\ \mf{init}\ \llrr{v}\\
+\llrr{\escan{v}} &= \mf{scan}\ \llrr{v}\\
+\llrr{\escans{v}} &= \mf{iter}\ \mf{scan}\ \llrr{v}\\
+\llrr{\echk{u}} &= \mf{check}\ \llrr{u}\\
+\llrr{\echks{u}} &= \mf{iter}\ \mf{check}\ \llrr{u}\\
+\llrr{\esearch{id}{u}} &= \mf{search}\ \mf{id}\ \llrr{u}\\
+\llrr{\esearches{id}{u}} &= \mf{iter}\ (\mf{search}\ \mf{id})\ \llrr{u}\\
+\llrr{\hat{e}_0 \gg^\mf{Init}_p \hat{e}}
+&= \elet{\mf{view, flag, spec}}{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_\emptyset}{\\
+  &\quad\ \elet{\mf{tree}}{\mf{init}\ \mf{view}}{
+    \mf{cell(spec, flag, tree)}
+  }
+}\\
+\llrr{\hat{e}_0 \gg^\mf{Succ}_p \hat{e}}
+&= \elet{\mf{view}}{\llrr{\hat{e}}^{\mf{Succ}}_p}{\\
+  &\quad\ \elet{\mf{tree}}{\mf{init}\ \mf{view}}{
+    \mf{cell}(
+      \lambda().\llrr{\hat{e}_0}^{\mf{Succ}/p}_\emptyset,
+      \I(p),
+      \mf{tree}
+    )
+  }
+}\\
+\llrr{\ehdl{e}} &= \llrr{e}\\
+\llrr{\eprog{e}} &= \elet{\mf{view}}{\llrr{e}}{\einit{\mf{view}}}
+\end{align*}
+(Constants to be defined: 
+$\mf{init}, \mf{scan}, \mf{search}, \mf{check}, \mf{map}, \mf{iter}$)
+
+Memory:
+$$
+\llrr{m} = \bigcup_{p \in m} \left(
+  \{\I(p) \mapsto \llrr{\pi}.\mf{rerender}\}
+  \cup \bigcup_{\ell \in m[p].\mf{st}} \{
+    \I(p, \ell) \mapsto \llrr{m[p].\mf{st}[\ell]}
+  \}
+\right)
+$$
+
+\section{Proofs, Again}
+
+\subsection{Source Type Soundness}
+
+\begin{theorem}[Progress, expressions.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\cdot \semi \Pi \vdash e: \ptp \mid E$ and
+\item $\cdot \semi \Pi \vDash m$,
+\end{enumerate}
+then either:
+\begin{enumerate}[label=(\roman*)]
+\item $e = \eret{v}$ or
+\item $m \semi e \mapsto e' \semi m'$ for some $e', m'$.
+\end{enumerate}
+
+\begin{Proof}
+By induction over the derivation of the expression typing
+premise \emph{(i)}.
+
+\tb{Case} \ts{TE-Ret}: We have
+\begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \cdot \semi \Pi \vdash v: \ptp
+} {
+  \cdot \semi \Pi \vdash \eret{v}: \ptp \mid \epsilon
+}
+\end{mathpar}
+\begin{itemize}
+\item We trivially satisfy conclusion \emph{(i)}.
+\end{itemize}
+
+\tb{Case} \ts{TE-Let}: We have
+\begin{mathpar}
+\inferrule*[right=TE-Let] {
+  \inferrule* {(1)} {
+    \cdot \semi \Pi \vdash e_1: \ptp_1 \mid E
+  }
+  \and
+  x: \ptp_1 \semi \Pi \vdash e_2: \ptp_2 \mid E
+} {
+  \cdot \semi \Pi \vdash \elet{x}{e_1}{e_2}: \ptp_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premise \emph{(ii)}, 
+we have two subcases:
+either (a) $e_1=\eret{v}$
+or (b) $m \semi e_1 \mapsto e_1' \semi m'$.
+\item In subcase (a), rule \ts{E-Ret}
+says $m \semi \elet{x}{\eret{v}}{e_2} \mapsto e_2[v/x] \semi m$.
+\item In subcase (b), we derive a step as follows:
+\begin{mathpar}
+\inferrule*[right=E-Let] {
+  \inferrule*[right=\tn{(b)}] { } {\estep{m}{e_1}{e_1'}{m'}}
+} {
+  \estep{m}{\elet{x}{e_1}{e_2}}{\elet{x}{e_1'}{e_2}}{m'}
+}
+\end{mathpar}
+\item Thus, in either case, we satisfy conclusion \emph{(ii)}.
+\end{itemize}
+
+\tb{Case} \ts{TE-AppL}: We have
+\begin{mathpar}
+\inferrule*[right=TE-AppL] {
+  \inferrule* {(1)} {
+    \cdot \semi \Pi \vdash v_1: \ptp_1 \arrow{E} \ptp_2
+  }
+  \and
+  \cdot \semi \Pi \vdash v_2: \ptp_1
+} {
+  \cdot \semi \Pi \vdash v_1\ v_2: \ptp_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (canonical forms) on (1),
+we have that $v_1 = \lambda x.e$.
+\item We apply rule \ts{E-AppL} to get that
+$m \semi (\lambda x.e)\ v \mapsto e[v/x] \semi m$,
+satisfying conclusion \emph{(ii)}.
+\end{itemize}
+
+\tb{Case} \ts{TE-AppS}: We have
+\begin{mathpar}
+\inferrule*[right=TE-AppS] {
+  \inferrule* {(1)} {
+    \cdot \semi \Pi \vdash v_1: \tset{\ptp}
+  }
+  \and
+  \cdot \semi \Pi \vdash v_2: \ptp
+} {
+  \cdot \semi \Pi \vdash v_1\ v_2: \tone \mid \emut
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (canonical forms) on (1),
+we have that $v_1 = \vset{\ell}{p}$.
+\item We apply rule \ts{E-AppL} to get
+$m \semi \vset{\ell}{p}\ v \mapsto 
+\eret{()} \semi m \mid m[p].\mf{st}[\ell] = v$,
+satisfying conclusion \emph{(ii)}.
+\end{itemize}
+
+\tb{Case} \ts{TE-Case}: We have
+\begin{mathpar}
+\inferrule*[right=TE-Case] {
+  \inferrule* {(1)} {\cdot \semi \Pi \vdash v: [\ptp_1]}
+  \and
+  \cdots
+} {
+  \cdot \semi \Pi \vdash
+  \ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}: \ptp_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (canonical forms) on (1), we have two subcases:
+either (a) $v=[]$ or (b) $v=v_\mf{hd} :: v_\mf{tl}$.
+\item In subcase (a), we apply rule \ts{E-CaseN} to get
+$$\estep{m}{\ecase{[]}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}}{e_1}{m}$$
+\item In subcase (b), we apply rule \ts{E-CaseC} to get
+$$\estep{m}{\ecase{v_\mf{h} :: v_\mf{t}}{[]}{e_1}
+{x_\mf{h} :: x_\mf{t}}{e_2}}
+{e_2[v_\mf{h} / x_\mf{h}, v_\mf{t} / x_\mf{t}]}{m}$$
+\item Thus, in either subcase, we satisfy conclusion \emph{(ii)}.
+\end{itemize}
+
+\tb{Case} \ts{TE-Sub}: We have \begin{mathpar}
+\inferrule*[right=TE-Sub] {
+  \inferrule* {(1)} {
+    \cdot \semi \Pi \vdash e: \ptp \mid \epsilon
+  }
+} {
+  \cdot \semi \Pi \vdash e: \ptp \mid \emut
+}
+\end{mathpar}
+\begin{itemize}
+\item The result follows immediately from the inductive hypothesis
+applied to (1) and premise \emph{(ii)}.
+\end{itemize}
+
+\end{Proof}
+\end{theorem}
+
+\begin{theorem}[Preservation, expressions.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash e: \ptp \mid E$,
+\item $\Gamma \semi \Pi \vDash m$, and
+\item $m \semi e \mapsto e' \semi m'$,
+\end{enumerate}
+then:
+\begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash e': \ptp \mid E$ and
+\item $\Gamma \semi \Pi \vDash m'$.
+\end{enumerate}
+
+\begin{Proof}
+By induction on the derivation of the step premise \emph{(iii)}.
+
+Note that conclusion \emph{(ii)} 
+is immediate by premise \emph{(ii)} when $m'=m$.
+
+\tb{Case} \ts{E-Let}: We have:
+\begin{mathpar}
+\inferrule*[right=E-Let] {
+  \inferrule* {(1)} {\estep{m}{e_1}{e_1'}{m'}}
+} {
+  \estep{m}{\elet{x}{e_1}{e_2}}{\elet{x}{e_1'}{e_2}}{m'}
+}
+\and
+\inferrule*[right=TE-Let] {
+  \inferrule* {(2)} {\Gamma \semi \Pi \vdash e_1: \ptp_1 \mid E}
+  \and
+  \inferrule* {(3)} {\Gamma, x: \ptp_1 \semi \Pi \vdash e_2: \ptp_2 \mid E}
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e_1}{e_2}: \ptp_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1), (2), and premise \emph{(ii)},
+we get that $\Gamma \semi \Pi \vDash m'$,
+satisfying conclusion \emph{(ii)},
+and (4) that $\Gamma \semi \Pi \vdash e_1': \ptp \mid E$.
+\item We derive conclusion \emph{(i)} as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-Let] {
+  \inferrule*[right=(4)] { } {
+    \Gamma \semi \Pi \vdash e_1': \ptp_1 \mid E
+  }
+  \and
+  \inferrule*[right=(3)] { } {
+    \Gamma, x: \ptp_1 \semi \Pi \vdash e_2: \ptp_2 \mid E
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e_1'}{e_2}: \ptp_2 \mid E
+}
+\end{mathpar}
+
+\tb{Case} \ts{E-Ret}: We have that
+$\estep{m}{\elet{x}{\eret{v}}{e}}{e[v/x]}{m}$
+and:
+\begin{mathpar}
+\inferrule*[right=TE-Let] {
+  \inferrule* {(1)} {
+    \Gamma \semi \Pi \vdash e_1: \ptp_1 \mid E
+  }
+  \and
+  \inferrule* {(2)} {
+    \Gamma, x: \ptp_1 \semi \Pi \vdash e_2: \ptp_2 \mid E
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e_1}{e_2}: \ptp_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item (1) lets us derive (3) $\tval{\Gamma}{\Pi}{v}{\ptp_1}$
+by subcasing on the value of $E$:
+\begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \inferrule* {(3)} {
+    \Gamma \semi \Pi \vdash v : \ptp_1
+  }
+} {
+  \Gamma \semi \Pi \vdash \eret{v} : \ptp_1 \mid \epsilon
+}
+\and
+\inferrule*[right=TE-Sub] {
+  \inferrule*[right=TE-Ret] {
+    \inferrule* {(3)} {
+      \Gamma \semi \Pi \vdash v : \ptp_1
+    }
+  } {
+    \Gamma \semi \Pi \vdash \eret{v} : \ptp_1 \mid \epsilon
+  }
+} {
+  \Gamma \semi \Pi \vdash \eret{v}: \ptp_1 \mid \emut
+}
+\end{mathpar}
+\item By \hl{REF} (substitution)
+on (2) and (3), we get
+$\Gamma \semi \Pi \vdash e[v/x]: \ptp_2 \mid E$ and we are done.
+\end{itemize}
+
+\tb{Case} \ts{E-AppL}: We have that
+$\estep{m}{(\lambda x.e)\ v}{e[v/x]}{m}$
+and:
+\begin{mathpar}
+\inferrule*[right=TE-AppL] {
+  \inferrule*[right=TV-Lam] {
+    \inferrule* {(1)} {
+      \Gamma, x: \ptp_1 \semi \Pi \vdash e: \ptp_2 \mid E
+    }
+  } {
+    \Gamma \semi \Pi \vdash \lambda x.e: \ptp_1 \arrow{E} \ptp_2
+  }
+  \and
+  \inferrule* {(2)} {
+    \Gamma \semi \Pi \vdash v: \ptp_1
+  }
+} {
+  \Gamma \semi \Pi \vdash (\lambda x.e)\ v: \ptp_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (substitution)
+on (1) and (2), we get
+$\Gamma \semi \Pi \vdash e[v/x]: \ptp_2 \mid E$ and we are done.
+\end{itemize}
+
+\tb{Case} \ts{E-AppS}: We have 
+$\estep{m}{\vset{\ell}{p}\ v}{\eret{()}}{m'}$,
+where
+$$m' = m \mid m[p].\mf{st}[\ell] = v\ 
+\mf{and}\ m[p].\mf{rerender} = \tt$$
+and:
+\begin{mathpar}
+\inferrule*[right=TE-AppS] {
+  \inferrule*[right=TV-Set] {
+    \inferrule* {(1)} {
+      \ell: \ptp \in \Pi[p]
+    }
+  } {
+    \Gamma \semi \Pi \vdash \vset{\ell}{p}: \tset{\ptp}}
+  \and
+  \inferrule* {(2)} {
+    \Gamma \semi \Pi \vdash v: \ptp
+  }
+} {
+  \Gamma \semi \Pi \vdash \vset{\ell}{p}\ v: \tone \mid \emut
+}
+\end{mathpar}
+\begin{itemize}
+\item To show conclusion \emph{(ii)} given premise \emph{(ii)},
+it suffices to show that 
+$\Gamma \semi \Pi \vdash m'[p].\mf{st}[\ell]: \Pi[p][\ell]$.
+\item By (1) and definition of $m'$,
+it suffices to show that
+$\Gamma \semi \Pi \vdash v: \ptp$.
+This is given by (2).
+\item Conclusion \emph{(i)} is derived as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-Sub] {
+  \inferrule*[right=TE-Ret] {
+    \inferrule*[right=TV-Unit] { } {
+      \Gamma \semi \Pi \vdash (): \tone
+    }
+  } {
+    \Gamma \semi \Pi \vdash \eret{()}: \tone \mid \epsilon
+  }
+} {
+  \Gamma \semi \Pi \vdash \eret{()}: \tone \mid \emut
+}
+\end{mathpar}
+
+\tb{Case} \ts{E-CaseN}: We have
+$\estep{m}{\ecase{[]}{[]}{e_1}{x_\mf{h} :: x_\mf{t}}{e_2}}{e_1}{m}$
+and:
+\begin{mathpar}
+\inferrule*[right=TE-Case] {
+  \inferrule* {(1)} {
+    \Gamma \semi \Pi \vdash e_1: \ptp \mid E
+  }
+  \and
+  \cdots
+} {
+  \Gamma \semi \Pi \vdash
+  \ecase{[]}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}: \ptp \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion \emph{(i)} is given directly by (1).
+\end{itemize}
+
+\tb{Case} \ts{E-CaseC}: We have
+$$\estep{m}{\ecase{v_\mf{hd} 
+:: v_\mf{tl}}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}}
+{e_2[v_\mf{hd} / x_\mf{hd}, v_\mf{tl} / x_\mf{tl}]}{m}$$
+and:
+\begin{mathpar}
+\inferrule*[right=TE-Case] {
+  \inferrule* {\vdots} {(1)}
+  \and
+  \inferrule* {(2)} {
+    \Gamma, x_\mf{hd}: \ptp_1, x_\mf{tl} : \mf{List}\ \ptp_1
+    \semi \Pi \vdash e_1: \ptp_2 \mid E
+  }
+  \and
+  \cdots
+} {
+  \Gamma \semi \Pi \vdash
+  \ecase{v_\mf{h} :: v_\mf{t}}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}: \ptp_2 \mid E
+}
+\and
+\inferrule*[right=TV-Cons] {
+  \inferrule* {(3)} {
+    \Gamma \semi \Pi \vdash v_\mf{hd}: \ptp_1
+  }
+  \and
+  \inferrule* {(4)} {
+    \Gamma \semi \Pi \vdash v_\mf{tl}: \mf{List}\ \ptp_1
+  }
+} {
+  (1) \quad
+  \Gamma \semi \Pi \vdash v_\mf{hd} :: v_\mf{tl}: \mf{List}\ \ptp_1
+}
+\end{mathpar}
+\begin{itemize}
+\item We derive conclusion \emph{(i)} via two applications of
+\hl{REF} (substitution) to (2) using (3) and (4).
+\end{itemize}
+\end{Proof}
+\end{theorem}
+
+\begin{theorem}[Progress, bodies, initial.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\cdot \semi \Pi \vdash \hat{e}: \Ell$ and
+\item $\cdot \semi \Pi \vDash m$,
+\end{enumerate}
+then either:
+\begin{enumerate}[label=(\roman*)]
+\item $\hat{e}=\eret{v}$ or
+\item $\bstep{m}{\hat{e}}{\mf{Init}}{p}{\hat{e}'}{m'}$.
+\end{enumerate}
+
+\begin{Proof}
+By induction on the derivation of the body typing premise \emph{(i)}.
+
+\tb{Case} \ts{TB-Lift}: We have
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \inferrule* {(1)} {\cdot \semi \Pi \vdash e: \tview \mid \epsilon}
+} {
+  \cdot \semi \Pi \vdash e: \emptyset
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (expression progress) 
+on (1) and premise \emph{(ii)},
+we get that either $e=\eret{v}$
+(and we are done by conclusion \emph{(i)}),
+or (2) that $\estep{m}{e}{e'}{m'}$.
+\item By \hl{REF} (purity) on (2) and premise \emph{(i)},
+we get that $m'=m$, i.e. (3) $\estep{m}{e}{e'}{m}$.
+\item In the latter case, we derive conclusion \emph{(ii)}
+as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=EB-Lift] {
+  \inferrule*[right=(3)] { } {\estep{m}{e}{e'}{m}}
+} {
+  \bstep{m}{e}{\mf{Init}}{p}{e'}{m}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TB-Let}: We have
+\begin{mathpar}
+\inferrule*[right=TB-Let] {
+  \inferrule* {(1)} {
+    \cdot \semi \Pi \vdash e: \ptp \mid \epsilon
+  }
+  \and
+  x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+} {
+  \cdot \semi \Pi \vdash \elet{x}{e}{\hat{e}}: \Ell
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (expression progress) 
+on (1) and premise \emph{(ii)},
+we get that either (a) $e=\eret{v}$
+or (b) that $\estep{m}{e}{e'}{m}$.
+\item In subcase (a), \ts{EB-Ret} gives that
+$\bstep{m}{\elet{x}{\eret{v}}{\hat{e}}}{\mf{Init}}{p}{\hat{e}[v/x]}{m}$.
+\item In subcase (b), we derive a step as follows:
+\begin{mathpar}
+\inferrule*[right=EB-Let] {
+  \inferrule*[right=(\tn{b})] { } {
+    \estep{m}{e}{e'}{m}
+  }
+} {
+  \bstep{m}{\elet{x}{e}{\hat{e}}}{\mf{Init}}{p}
+  {\elet{x}{e'}{\hat{e}}}{m}
+}
+\end{mathpar}
+\item Thus, in either subcase, we satisfy conclusion \emph{(ii)}.
+\end{itemize}
+
+\tb{Case} \ts{TB-State}: We have
+\begin{mathpar}
+\inferrule*[right=TB-State] {
+  \cdot \semi \Pi \vdash v: \ptp
+  \and
+  x: \ptp, x_\mf{set}: \tset{\ptp} \semi \Pi
+  \vdash \hat{e}: \Ell
+} {
+  \cdot \semi \Pi \vdash \estate{x}{\ell}{v}{\hat{e}}: \Ell, \ell: \ptp
+}
+\end{mathpar}
+\begin{itemize}
+\item We can immediately apply \ts{EB-StI} 
+to satisfy conclusion \emph{(ii)}:
+\end{itemize}
+$$
+\bstep{m}{\estate{x}{\ell}{v}{\hat{e}}}{\mf{Init}}{p}
+{\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}]}{m \mid m[p].\mf{st}[\ell] = v}
+$$
+\
+\end{Proof}
+\end{theorem}
+
+\begin{theorem}[Preservation, bodies, initial.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$,
+\item $\Gamma \semi \Pi \vDash m$, and
+\item $\bstep{m}{\hat{e}}{\mf{Init}}{p}{\hat{e}'}{m'}$,
+\end{enumerate}
+then there exists some $\Pi' \rpo \Pi$ such that:
+\begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi' \vdash \hat{e}': \Ell'$,
+\item $\Gamma \semi \Pi' \vDash m'$, and
+\item $\Ell' \cup \Pi'[p] = \Ell \cup \Pi[p]$.
+\end{enumerate}
+
+\begin{Proof}
+By induction on the derivation of the step judgment \emph{(iii)}.
+
+Unless otherwise mentioned, we choose $\Pi'=\Pi$,
+such that conclusion \emph{(ii)} is given by premise \emph{(ii)}
+if $m'=m$,
+and conclusion \emph{(iii)} holds if $\Ell'=\Ell$.
+
+\tb{Case} \ts{EB-Lift}: We have:
+\begin{mathpar}
+\inferrule*[right=EB-Lift] {
+  \inferrule* {(1)} {\estep{m}{e}{e'}{m}}
+} {
+  \bstep{m}{e}{\mf{Init}}{p}{e'}{m}
+}
+\and
+\inferrule*[right=TB-Lift] {
+  \inferrule* {(2)} {
+    \Gamma \semi \Pi \vdash e: \tview \mid \epsilon
+  }
+} {
+  \Gamma \semi \Pi \vdash e: \emptyset
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (expression preservation)
+on (1), (2), and premise \emph{(ii)},
+we get (3) that 
+$\Gamma \semi \Pi' \vdash e': \tview \mid \epsilon$.
+\item We derive conclusion \emph{(i)} as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \inferrule*[right=(3)] { } {
+    \Gamma \semi \Pi \vdash e': \tview \mid \epsilon
+  }
+} {
+  \Gamma \semi \Pi \vdash e': \emptyset
+}
+\end{mathpar}
+
+\tb{Case} \ts{EB-Let}: We have:
+\begin{mathpar}
+\inferrule*[right=EB-Let] {
+  \inferrule* {(1)} {\estep{m}{e}{e'}{m}}
+} {
+  \bstep{m}{\elet{x}{e}{\hat{e}}}{\phi}{p}{\elet{x}{e'}{\hat{e}}}{m}
+}
+\and
+\inferrule*[right=TB-Let] {
+  \inferrule* {(2)} {
+    \Gamma \semi \Pi \vdash e: \ptp \mid \epsilon
+  }
+  \and
+  \inferrule* {(3)} {
+    \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e}{\hat{e}}: \Ell
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (expression preservation) on (1), (2),
+and premise \emph{(ii)}, we get (4) that
+$\Gamma \semi \Pi \vdash e': \ptp \mid \epsilon$.
+\item We derive conclusion \emph{(i)} as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TB-Let] {
+  \inferrule*[right=(4)] { } {
+    \Gamma \semi \Pi \vdash e': \ptp \mid \epsilon
+  }
+  \and
+  \inferrule*[right=(3)] { } {
+    \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e'}{\hat{e}}: \Ell
+}
+\end{mathpar}
+
+\tb{Case} \ts{EB-Ret}: We have
+$\bstep{m}{\elet{x}{\eret{v}}{\hat{e}}}
+{\mf{Init}}{p}{\hat{e}[v/x]}{m}$ and:
+\begin{mathpar}
+\inferrule*[right=TB-Let] {
+  \inferrule*[right=TE-Ret] {
+    \inferrule* {(1)} {
+      \Gamma \semi \Pi \vdash v: \ptp
+    }
+  } {
+    \Gamma \semi \Pi \vdash \eret{v}: \ptp \mid \epsilon
+  }
+  \and
+  \inferrule* {(2)} {
+    \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{\eret{v}}{\hat{e}}: \Ell
+}
+\end{mathpar}
+\begin{itemize}
+\item Conclusion \emph{(i)} follows from \hl{REF} (substitution)
+applies to (1) and (2).
+\end{itemize}
+
+\tb{Case} \ts{EB-StI}: We have
+$$\bstep{m}{\estate{x}{\ell}{v}{\hat{e}}}{\mf{Init}}{p}
+{\hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}]}{m'}$$
+where $m' = m \mid m[p].\mf{st}[\ell] = v$,
+and:
+\begin{mathpar}
+\inferrule*[right=TB-State] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash v: \ptp}
+  \and
+  \inferrule* {(2)} {
+    \Gamma, x: \ptp, x_\mf{set}: \tset{\ptp} \semi \Pi
+    \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \estate{x}{\ell}{v}{\hat{e}}: \Ell, \ell: \ptp
+}
+\end{mathpar}
+\begin{itemize}
+\item Choose $\Pi'=\Pi[p \mapsto \Pi[p], \ell: A]$;
+clearly $\Pi \po \Pi'$.
+\item We show conclusion \emph{(i)} as follows:
+\begin{itemize}
+  \item By \hl{REF} ($\Pi$-weakening) on (1),
+  we get (3) that $\Gamma \semi \Pi' \vdash v: \ptp$.
+  \item Similarly, by \hl{REF} ($\Pi$-weakening) on (2),
+  we obtain (4) that $\Gamma, x: \ptp, x_\mf{set}: \tset{\ptp} 
+  \semi \Pi' \vdash \hat{e}: \Ell$.
+  \item Since $\ell: A \in \Pi'[p]$ by definition,
+  we derive the setter type as follows:
+  \begin{mathpar}
+  \inferrule*[right=TV-Set] {
+    \ell: A \in \Pi'[p]
+  } {
+    \Gamma \semi \Pi' \vdash \vset{\ell}{p}: \tset{A}
+    \quad(5)
+  }
+  \end{mathpar}
+  \item We apply \hl{REF} (substitution) twice to (4),
+  using (3) and (5), to get that
+  $\Gamma \semi \Pi' \vdash 
+  \hat{e}[v/x, \vset{\ell}{p}/x_\mf{set}]: \Ell$,
+  i.e. conclusion \emph{(i)} holds.
+\end{itemize}
+\item We show conclusion \emph{(ii)} as follows:
+\begin{itemize}
+  \item We want (6) that $\dom(\Pi') = \dom(m')$. 
+  By definition of each, it suffices to show that 
+  $\dom(\Pi) \cup \{p\} = \dom(m) \cup \{p\}$.
+  Premise \emph{(ii)} says that $\dom(\Pi) = \dom(m)$, 
+  so this holds.
+  \item We also want (7) that $\dom(\Pi'[p]) = \dom(m'[p].\mf{st})$.
+  Again by definition of each, it suffices to show that 
+  $\dom(\Pi[p]) \cup \{\ell\} = \dom(m[p].\mf{st}) \cup \{\ell\}$.
+  Premise \emph{(ii)} says that $\dom(\Pi[p]) = \dom(m[p].\mf{st})$, 
+  so this holds.
+  \item Finally, we want (8) that
+  $\Gamma \semi \Pi' \vdash m'[p].\mf{st}[\ell]: \Pi[p][\ell]$.
+  By definition, it suffices that
+  $\Gamma \semi \Pi' \vdash v: A$,
+  which is given by (3).
+  \item By premise \emph{(ii)} and by definition,
+  (6)-(8) are sufficient to show that
+  $\Gamma \semi \Pi' \vDash m'$,
+  i.e. conclusion \emph{(ii)} holds.
+\end{itemize}
+\item Finally, we show conclusion \emph{(iii)} as follows:
+\begin{itemize}
+  \item We want to show that 
+  $\Ell \cup \Pi'[p] = \Ell, \ell: A \cup \Pi[p]$.
+  \item By definition, it suffices to show that 
+  $\Ell \cup \Pi[p], \ell: A = \Ell, \ell: A \cup \Pi[p]$.
+  This follows by definition of label-context 
+  composition and equality, and we are done.
+\end{itemize}
+\end{itemize}
+
+\tb{Case} \ts{EB-StS}: Impossible, since this rule
+requires that $\phi=\mf{Succ}$.
+\end{Proof}
+\end{theorem}
+
+\begin{theorem}[Progress, bodies, successor.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\cdot \semi \Pi \vdash \hat{e}: \Ell$,
+\item $\cdot \semi \Pi \vDash m$, and
+\item $\Ell \subseteq \Pi[p]$,
+\end{enumerate}
+then either:
+\begin{enumerate}[label=(\roman*)]
+\item $\hat{e}=\eret{v}$ or
+\item $\bstep{m}{\hat{e}}{\mf{Succ}}{p}{\hat{e}'}{m}$.
+\end{enumerate}
+
+\begin{Proof}
+By induction on the derivation of the body typing premise \emph{(i)}.
+
+\tb{Case} \ts{TB-Lift}: We have
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \inferrule* {(1)} {\cdot \semi \Pi \vdash e: \tview \mid \epsilon}
+} {
+  \cdot \semi \Pi \vdash e: \emptyset
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (expression progress) 
+on (1) and premise \emph{(ii)},
+we get that either $e=\eret{v}$
+(and we are done by conclusion \emph{(i)}),
+or (2) that $\estep{m}{e}{e'}{m'}$.
+\item By \hl{REF} (purity) on (2) and premise \emph{(i)},
+we get that $m'=m$, i.e. (3) $\estep{m}{e}{e'}{m}$.
+\item In the latter case, we derive conclusion \emph{(ii)}
+as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=EB-Lift] {
+  \inferrule*[right=(3)] { } {\estep{m}{e}{e'}{m}}
+} {
+  \bstep{m}{e}{\mf{Succ}}{p}{e'}{m}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TB-Let}: We have
+\begin{mathpar}
+\inferrule*[right=TB-Let] {
+  \inferrule* {(1)} {
+    \cdot \semi \Pi \vdash e: \ptp \mid \epsilon
+  }
+  \and
+  x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+} {
+  \cdot \semi \Pi \vdash \elet{x}{e}{\hat{e}}: \Ell
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (expression progress) 
+on (1) and premise \emph{(ii)},
+we get that either (a) $e=\eret{v}$
+or (b) that $\estep{m}{e}{e'}{m}$.
+\item In subcase (a), \ts{EB-Ret} gives that
+$\bstep{m}{\elet{x}{\eret{v}}{\hat{e}}}{\mf{Init}}{p}{\hat{e}[v/x]}{m}$.
+\item In subcase (b), we derive a step as follows:
+\begin{mathpar}
+\inferrule*[right=EB-Let] {
+  \inferrule*[right=(\tn{b})] { } {
+    \estep{m}{e}{e'}{m}
+  }
+} {
+  \bstep{m}{\elet{x}{e}{\hat{e}}}{\mf{Succ}}{p}
+  {\elet{x}{e'}{\hat{e}}}{m}
+}
+\end{mathpar}
+\item Thus, in either subcase, we satisfy conclusion \emph{(ii)}.
+\end{itemize}
+
+\tb{Case} \ts{TB-State}: We have
+\begin{mathpar}
+\inferrule*[right=TB-State] {
+  \cdot \semi \Pi \vdash v: \ptp
+  \and
+  x: \ptp, x_\mf{set}: \tset{\ptp} \semi \Pi
+  \vdash \hat{e}: \Ell
+} {
+  \cdot \semi \Pi \vdash \estate{x}{\ell}{v}{\hat{e}}: \Ell, \ell: \ptp
+}
+\end{mathpar}
+\begin{itemize}
+\item We want to apply rule \ts{EB-StS}, which says that:
+$$\bstep{m}{\estate{x}{\ell}{v}{\hat{e}}}{\mf{Succ}}{p}
+{\hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}]}{m}$$
+where $v' = m[p].\mf{st}[\ell]$. To do so, we must show
+that $v'$ is well-defined.
+\item Premise \emph{(iii)}, alongside the type of the body,
+tells us that $\ell: A \in \Pi[p]$.
+\item Then by premise \emph{(ii)}, we get that
+$\Gamma \semi \Pi \vdash m[p].\mf{st}[\ell]: A$,
+i.e. $m[p].\mf{st}[\ell]$ is well-defined
+and we are done.
+\end{itemize}
+
+\end{Proof}
+\end{theorem}
+
+\begin{theorem}[Preservation, bodies, successor.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$
+(where $\Ell \subseteq \Pi[p]$),
+\item $\Gamma \semi \Pi \vDash m$, and
+\item $\bstep{m}{\hat{e}}{\mf{Succ}}{p}{\hat{e}'}{m}$,
+\end{enumerate}
+then $\Gamma \semi \Pi \vdash \hat{e}': \Ell'$ 
+for some $\Ell' \subseteq \Ell$.
+
+\begin{Proof}
+By induction on the derivation of the step judgment \emph{(iii)}.
+
+\tb{Case} \ts{EB-Lift}: We have:
+\begin{mathpar}
+\inferrule*[right=EB-Lift] {
+  \inferrule* {(1)} {\estep{m}{e}{e'}{m}}
+} {
+  \bstep{m}{e}{\mf{Init}}{p}{e'}{m}
+}
+\and
+\inferrule*[right=TB-Lift] {
+  \inferrule* {(2)} {
+    \Gamma \semi \Pi \vdash e: \tview \mid \epsilon
+  }
+} {
+  \Gamma \semi \Pi \vdash e: \emptyset
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (expression preservation)
+on (1), (2), and premise \emph{(ii)},
+we get (3) that
+$\Gamma \semi \Pi' \vdash e': \tview \mid \epsilon$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \inferrule*[right=(3)] { } {
+    \Gamma \semi \Pi \vdash e': \tview \mid \epsilon
+  }
+} {
+  \Gamma \semi \Pi \vdash e': \emptyset
+}
+\end{mathpar}
+
+\tb{Case} \ts{EB-Let}: We have:
+\begin{mathpar}
+\inferrule*[right=EB-Let] {
+  \inferrule* {(1)} {\estep{m}{e}{e'}{m}}
+} {
+  \bstep{m}{\elet{x}{e}{\hat{e}}}{\phi}{p}{\elet{x}{e'}{\hat{e}}}{m}
+}
+\and
+\inferrule*[right=TB-Let] {
+  \inferrule* {(2)} {
+    \Gamma \semi \Pi \vdash e: \ptp \mid \epsilon
+  }
+  \and
+  \inferrule* {(3)} {
+    \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e}{\hat{e}}: \Ell
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (expression preservation) on (1), (2),
+and premise \emph{(ii)}, we get (4) that
+$\Gamma \semi \Pi \vdash e': \ptp \mid \epsilon$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TB-Let] {
+  \inferrule*[right=(4)] { } {
+    \Gamma \semi \Pi \vdash e': \ptp \mid \epsilon
+  }
+  \and
+  \inferrule*[right=(3)] { } {
+    \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e'}{\hat{e}}: \Ell
+}
+\end{mathpar}
+
+\tb{Case} \ts{EB-Ret}: We have
+$\bstep{m}{\elet{x}{\eret{v}}{\hat{e}}}
+{\mf{Init}}{p}{\hat{e}[v/x]}{m}$ and:
+\begin{mathpar}
+\inferrule*[right=TB-Let] {
+  \inferrule*[right=TE-Ret] {
+    \inferrule* {(1)} {
+      \Gamma \semi \Pi \vdash v: \ptp
+    }
+  } {
+    \Gamma \semi \Pi \vdash \eret{v}: \ptp \mid \epsilon
+  }
+  \and
+  \inferrule* {(2)} {
+    \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{\eret{v}}{\hat{e}}: \Ell
+}
+\end{mathpar}
+\begin{itemize}
+\item The conclusion follows from \hl{REF} (substitution)
+applies to (1) and (2).
+\end{itemize}
+
+\tb{Case} \ts{EB-StI}: Impossible, since this rule
+requires that $\phi=\mf{Init}$.
+
+\tb{Case} \ts{EB-StS}: We have
+$$\bstep{m}{\estate{x}{\ell}{v}{\hat{e}}}{\mf{Init}}{p}
+{\hat{e}[v'/x, \vset{\ell}{p}/x_\mf{set}]}{m}$$
+where $v' = m[p].\mf{st}[\ell]$,
+and:
+\begin{mathpar}
+\inferrule*[right=TB-State] {
+  \Gamma \semi \Pi \vdash v: \ptp
+  \and
+  \inferrule* {(1)} {
+    \Gamma, x: \ptp, x_\mf{set}: \tset{\ptp} \semi \Pi
+    \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \estate{x}{\ell}{v}{\hat{e}}: \Ell, \ell: \ptp
+}
+\end{mathpar}
+\begin{itemize}
+\item Since $v'$ is well-defined, we have by premise \emph{(ii)}
+that (2) $\Gamma \semi \Pi \vdash v': \Pi[p][\ell]$.
+\item Since $\Ell, \ell: A \subseteq \Pi[p]$, 
+we have (3) that $\Pi[p][\ell]=A$.
+\item (2) and (3) give us (4)
+that $\Gamma \semi \Pi \vdash v': A$.
+\item We derive the setter type as follows:
+\begin{mathpar}
+\inferrule*[right=TV-Set] {
+  \inferrule*[right=(3)] { } {\ell: A \in \Pi[p]}
+} {
+  \Gamma \semi \Pi \vdash \vset{\ell}{p}: \tset{A}
+  \quad (5)
+}
+\end{mathpar}
+\item We apply \hl{REF} (substitution) twice to (1),
+using (4) and (5), to get that
+$\Gamma \semi \Pi \vdash \hat{e}[v'/x,\vset{\ell}{p}/x_\mf{set}]: \Ell$,
+satisfying the conclusion.
+\end{itemize}
+
+\end{Proof}
+\end{theorem}
+
+\begin{theorem}[Progress, runtime.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\cdot \semi \Pi \vdash \rho: \ptp$ and
+\item $\cdot \semi \Pi \vDash m$,
+\end{enumerate}
+then either:
+\begin{enumerate}[label=(\roman*)]
+\item $\rho=\eret{u}$ or
+\item $m \semi \rho \mapsto \rho' \semi m'$.
+\end{enumerate}
+
+\begin{Proof}
+By induction on the derivation of the expression typing premise \emph{(i)}.
+
+\tb{Case} \ts{TR-EvalI}: We have:
+\begin{mathpar}
+\inferrule*[right=TR-EvalI] {
+  \cdot \semi \Pi \vdash \hat{e}_0: \Ell \cup \Pi[p]
+  \and
+  \inferrule* {(1)} {
+    \cdot \semi \Pi \vdash \hat{e}: \Ell
+  }
+} {
+  \cdot \semi \Pi \Vdash_\rho \hat{e}_0 \gg^\mf{Init}_p \hat{e}: \tview
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (initial-phase body progress) on (1) and premise \emph{(ii)},
+we have either (a) that $\hat{e}=\eret{v}$ 
+or (b) that $\bstep{m}{\hat{e}}{\mf{Init}}{p}{\hat{e}'}{m'}$.
+\item In subcase (a), \ts{ER-EDone} gives us that
+$m \semi \hat{e}_0 \gg^\mf{Init}_p \eret{v}
+\hookrightarrow
+\elet{x}{\einit{v}}{\mf{cell}_p(\hat{e}_0, x)} \semi m$.
+\item In subcase (b), we derive a step as follows:
+\begin{mathpar}
+\inferrule*[right=ER-Eval] {
+  \inferrule*[right=\tn{(b)}] { } {
+    \bstep{m}{\hat{e}}{\mf{Init}}{p}{\hat{e}'}{m'}
+  }
+} {
+  m \semi \hat{e}_0 \gg^\mf{Init}_p \hat{e}
+  \hookrightarrow
+  \hat{e}_0 \gg^\mf{Init}_p \hat{e}' \semi m'
+}
+\end{mathpar}
+\item Thus, in either subcase, we satisfy conclusion \emph{(ii)}
+and we are done.
+\end{itemize}
+
+\tb{Case} \ts{TR-EvalS}: We have:
+\begin{mathpar}
+\inferrule*[right=TR-EvalS] {
+  \cdot \semi \Pi \vdash \hat{e}_0: \Pi[p]
+  \and
+  \inferrule* {(1)} {
+    \cdot \semi \Pi \vdash \hat{e}: \Ell
+  }
+  \and
+  \inferrule* {(2)} {\Ell \subseteq \Pi[p]}
+} {
+  \Gamma \semi \Pi \Vdash_\rho \hat{e}_0 \gg^\mf{Succ}_p \hat{e}: \tone
+}
+\end{mathpar}
+\begin{itemize}
+\item By \hl{REF} (successor-phase body progress) on (1), (2),
+and premise \emph{(ii)},
+we have either (a) that $\hat{e}=\eret{v}$ 
+or (b) that $\bstep{m}{\hat{e}}{\mf{Succ}}{p}{\hat{e}'}{m'}$.
+\item In subcase (a), \ts{ER-EDone} gives us that
+$m \semi \hat{e}_0 \gg^\mf{Succ}_p \eret{v}
+\hookrightarrow
+\elet{x}{\einit{v}}{\mf{cell}_p(\hat{e}_0, x)} \semi m$.
+\item In subcase (b), we derive a step as follows:
+\begin{mathpar}
+\inferrule*[right=ER-Eval] {
+  \inferrule*[right=\tn{(b)}] { } {
+    \bstep{m}{\hat{e}}{\mf{Succ}}{p}{\hat{e}'}{m'}
+  }
+} {
+  m \semi \hat{e}_0 \gg^\mf{Succ}_p \hat{e}
+  \hookrightarrow
+  \hat{e}_0 \gg^\mf{Init}_p \hat{e}' \semi m'
+}
+\end{mathpar}
+\item Thus, in either subcase, we satisfy conclusion \emph{(ii)}
+and we are done.
+\end{itemize}
+
+\tb{All other cases}: \hl{TODO}; comparatively straightforward,
+but should fill in.
+
+\end{Proof}
+\end{theorem}
+
+\begin{theorem}[Preservation, runtime.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \rho: \ptp$,
+\item $\Gamma \semi \Pi \vDash m$, and
+\item $m \semi \rho \mapsto \rho' \semi m'$,
+\end{enumerate}
+then there exists some $\Pi' \rpo \Pi$ such that:
+\begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi' \vdash \rho': \ptp$ and
+\item $\Gamma \semi \Pi' \vDash m'$.
+\end{enumerate}
+
+
+\end{theorem}
+
+\subsection{Runtime Relations}
+
+Define $\mathbb{B}: \mathbb{N} \rightharpoonup \mf{Loc}$ to be a
+partial function from paths $p$ in the source language to locations $r$
+in the target language.
+
+Similarly define $\mathbb{L}: (\mathbb{N} \times \mathbb{N}) 
+\rightharpoonup \mf{Loc}$ as a
+partial function from path/label pairs $(p, \ell)$ in the source language 
+to locations $r$ in the target language.
+
+Let $\I=\pair{\mathbb{B}}{\mathbb{L}}$.
+We overload $\I$ such that
+$\I(p)=\mathbb{B}(p)$ and 
+$\I(p, \ell)=\mathbb{L}(p, \ell)$.
+
+Now we need some notion of a \emph{sufficient} interpretation $\I$.
+For instance, the empty interpretation is sufficient
+to translate $\llrr{\vtxt{s}}=\vtxt{s}$, but not to
+translate 
+$\llrr{\vset{\ell}{p}}=\lambda x.(\eset{\I(p, \ell)}{x} 
+\semi \eset{\I(p)}{\mf{true}})$,
+since e.g. $\I(p, \ell)=\bot$.
+
+Define $\Pi \vDash \I$ to hold when:
+\begin{itemize}
+\item $\I(p) \neq \bot \Leftrightarrow p \in \dom(\Pi)$, and
+\item $\I(p, \ell) \neq \bot \Leftrightarrow \ell \in \Pi[p]$.
+\end{itemize}
+
+We want to show the \emph{well-formedness}
+of each translation function parameterized by $\I$.
+(By well-formed, we mean that any instance of an
+interpretation function $\I(p)$ or $\I(p, \ell)$ resolves to a concrete
+location $r$ in the target language.)
+
+\begin{lemma}[Well-definedness, pointer context.]
+If $\Pi \vDash \I$, then $\llrr{\Pi}_\I$ is well-defined.
+
+\begin{Proof}
+Recall our definition of $\llrr{\Pi}_\I$:
+\[
+\llrr{\Pi}_\I = \bigcup_p\left( \{\I(p) \mapsto \tbool\}
+\cup \bigcup_{\ell \in \Pi[p]} \{\I(p, \ell) \mapsto \llrr{\Pi[p][\ell]}\}
+\right)\\
+\]
+\begin{itemize}
+\item First consider arbitrary $p \in \dom(\Pi)$.
+By the definition of the premise, we have that $\I(p) \neq \bot$,
+i.e. there exists some target-language location $r$ such that
+$\I(p)=r$.
+\item Next, for that $p$, consider arbitrary $\ell \in \Pi[p]$.
+Again by definition of the premise, we have that
+$\I(p, \ell) \neq \bot$, 
+i.e. there exists some target-language location $r_\ell$ such that
+$\I(p, \ell)=r_\ell$.
+\item Now by definition, every invocation of $\I$ within $\llrr{\Pi}_\I$
+resolves to a concrete location, and we are done.
+\end{itemize}
+\end{Proof}
+\end{lemma}
+
+\subsection{Type Preservation}
+
+We prove \emph{type preservation lemmas}
+for each term-level translation.
+Each lemma has a corresponding 
+\emph{well-definedness corollary},
+which states that the translation result is well defined;
+this always follows from the fact that undefined terms
+cannot be typed.
+
+\begin{lemma}[Type preservation, values.]
+\label{thm:tprezval}
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash v: A$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{v}_\I: \llrr{A}$.
+
+\begin{Proof}
+By induction on the derivation of premise \emph{(i)}.
+(This induction is \emph{mutual} 
+with \hl{REFS}, type preservation for expressions and bodies.)
+
+\tb{Case} \ts{TV-Var}: We have $\llrr{x}_\I=x$ and:
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  \inferrule* {(1)} {x: \ptp \in \Gamma}
+} {
+  \Gamma \semi \Pi \vdash x: \ptp
+}
+\end{mathpar}
+\begin{itemize}
+\item By (1) and definition of $\llrr{\Gamma}$, we get (2) that
+$x: \llrr{\ptp} \in \llrr{\Gamma}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  \inferrule*[right=(2)] { } {x: \llrr{\ptp} \in \llrr{\Gamma}}
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_v x: \llrr{\ptp}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Unit}: $\llrr{()}_\I=()$ and $\llrr{\tone}=\tone$,
+so the conclusion is easy:
+\begin{mathpar}
+\inferrule*[right=TV-Unit] { } {
+  \Gamma \semi \Pi \vdash (): \tone
+}
+\and
+\inferrule*[right=TV-Unit] { } {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_v (): \llrr{\tone}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Str}: $\llrr{s}_\I=s$ and $\llrr{\tstr}=\tstr$,
+so the conclusion is easy:
+\begin{mathpar}
+\inferrule*[right=TV-Str] { } {
+  \Gamma \semi \Pi \vdash s: \tstr
+}
+\and
+\inferrule*[right=TV-Str] { } {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_v \llrr{s}_\I: \llrr{\tstr}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Lam}: We have
+\begin{itemize}
+\item $\llrr{\lambda x.e}_\I=\lambda x.\llrr{e}_\I$,
+\item $\llrr{\ptp_1 \arrow{E} \ptp_2} 
+= \llrr{\ptp_1} \rightarrow \llrr{\ptp_2}$,
+\end{itemize}
+and: \begin{mathpar}
+\inferrule*[right=TV-Lam] {
+  \inferrule* {(1)} {
+    \Gamma, x: \ptp_1 \semi \Pi \vdash e: \ptp_2 \mid E
+  }
+} {
+  \Gamma \semi \Pi \vdash \lambda x.e: \ptp_1 \arrow{E} \ptp_2
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis (\hl{REF}) on (1),
+we get $\llrr{\Gamma, x: \ptp_1} \semi \llrr{\Pi}_\I 
+\vdash_e \llrr{e}_\I: \llrr{\ptp_2}$.
+\item By definition, this is equivalent to (2) that
+$\llrr{\Gamma}, x: \llrr{\ptp_1} \semi \llrr{\Pi}_\I
+\vdash_e \llrr{e}_\I: \llrr{\ptp_2}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Lam] {
+  \inferrule*[right=(2)] { } {
+    \llrr{\Gamma}, x: \llrr{\ptp_1} \semi \llrr{\Pi}_\I
+    \vdash_e \llrr{e}_\I: \llrr{\ptp_2}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_v \lambda x.\llrr{e}_\I: 
+  \llrr{\ptp_1} \rightarrow \llrr{\ptp_2}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Comp}: We have 
+\begin{itemize}
+\item $\llrr{\mf{comp}\ \hat{e}}=\mf{comp}\ \lambda().\llrr{\hat{e}}^\top_\I$,
+\item $\llrr{\tview} = \tview$,
+\end{itemize}
+and: \begin{mathpar}
+\inferrule*[right=TV-Comp] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash \hat{e}: \Ell}
+} {
+  \Gamma \semi \Pi \vdash \mf{comp}\ \hat{e} : \tview
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis on (1) (Theorem \hl{REF}),
+we get (2) that $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_e \llrr{\hat{e}}^\top_\I: A_\mf{res}$.
+\item We can derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Comp] {
+  \inferrule*[right=TV-Lam] {
+    \inferrule*[right=(2)] { } {
+      \llrr{\Gamma} \semi \llrr{\Pi}_\I
+      \vdash_e
+      \llrr{\hat{e}}^\top_\I: A_\mf{res}
+    }
+  } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I
+    \vdash_v
+    \lambda().\llrr{\hat{e}}^\top_\I: \tone \rightarrow A_\mf{res}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I
+  \vdash_v
+  \mf{comp}\ \lambda().\llrr{\hat{e}}^\top_\I: \tview
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Nil}: $\llrr{[]}_\I=[]$
+and $\llrr{\mf{List}\ \ptp}=\mf{List}\ \llrr{\ptp}$,
+so the conclusion is easy:
+\begin{mathpar}
+\inferrule*[right=TV-Nil] { } {
+  \Gamma \semi \Pi \vdash []: \mf{List}\ \ptp
+}
+\and
+\inferrule*[right=TV-Nil] { } {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_v []: \mf{List}\ \llrr{\ptp}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TV-Cons}: We have 
+$\llrr{v :: vs}_\I = \llrr{v}_\I :: \llrr{vs}_\I$ 
+and $\llrr{\mf{List}\ \ptp}=\mf{List}\ \llrr{\ptp}$, and:
+\begin{mathpar}
+\inferrule*[right=TV-Cons] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash v_1: \ptp}
+  \and
+  \inferrule* {(2)} {\Gamma \semi \Pi \vdash v_2: \mf{List}\ \ptp}
+} {
+  \Gamma \semi \Pi \vdash v_1 :: v_2: \mf{List}\ \ptp
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on each of (1) and (2),
+we get (3) that $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{v_1}_\I: \llrr{\ptp}$
+and (4) that $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{v_2}_\I: \mf{List}\ \llrr{\ptp}$ respectively.
+\item We then derive the conclusion:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Cons] {
+  \inferrule*[right=(3)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_v \llrr{v_1}_\I: \llrr{\ptp}
+  }
+  \and
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_v v_2: \mf{List}\ \llrr{\ptp}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I 
+  \vdash_v \llrr{v_1}_\I :: \llrr{v_2}_\I: \mf{List}\ \llrr{\ptp}
+}
+\end{mathpar}
+
+\tb{Cases} \ts{TV-Text}, \ts{TV-Tag},
+\ts{TV-Attr}, \ts{TV-Click}: \hl{elided} for the moment,
+but should be easy.
+
+\tb{Case} \ts{TV-Set}: We have
+\begin{itemize}
+\item $\llrr{\vset{\ell}{p}}_\I = \lambda x. \eset{\mathbb{I}(p, \ell)}{x}
+\semi \eset{\mathbb{I}(p)}{\mf{true}}$,
+\item $\llrr{\tset{A}} = \llrr{A} \rightarrow \tone$,
+\end{itemize}
+and: \begin{mathpar}
+\inferrule*[right=TV-Set] {
+  \inferrule* {(1)} {\ell: A \in \Pi[p]}
+} {
+  \Gamma \semi \Pi \vdash \vset{\ell}{p}: \tset{\ptp}
+}
+\end{mathpar}
+\begin{itemize}
+\item By (1) and premise \emph{(ii)}, we get that
+$\I(p)$ and $\I(p, \ell)$ are each well-defined.
+\item Furthermore, by definition of $\llrr{\Pi}$,
+we get (3) that $\I(p, \ell) : \llrr{A} \in \llrr{\Pi}$
+and (4) that $\I(p) : \tbool \in \llrr{\Pi}$.
+\item We can now derive the conclusion:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Loc] {
+  \inferrule*[right=(3)] { } {
+    \I(p, \ell): \llrr{A} \in \llrr{\Pi}
+  }
+} {
+  (5)\quad \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_v
+  \I(p, \ell): \tref{\llrr{A}}
+}
+\and
+\inferrule*[right=TV-Loc] {
+  \inferrule*[right=(4)] { } {
+    \I(p): \tbool \in \llrr{\Pi}
+  }
+} {
+  (6)\quad \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_v
+  \I(p): \tref{\tbool}
+}
+\and
+\inferrule*[right=TE-Set] {
+  (5)
+  \and
+  \inferrule*[right=TV-Var] { } {
+    \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_v x: \llrr{A}
+  }
+} {
+  (7)\quad \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_e 
+  \eset{\I(p, \ell)}{x}: \tone
+}
+\and
+\inferrule*[right=TE-Set] {
+  (6)
+  \and
+  \inferrule*[right=TV-True] { } {
+    \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} 
+    \vdash_v \mf{true}: \tbool
+  }
+} {
+  (8)\quad \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_e 
+  \eset{\I(p)}{\mf{true}}: \tone
+}
+\and
+\inferrule*[right=TV-Lam] {
+  \inferrule*[right=TE-Let] {
+    (7)
+    \and
+    (8)
+  } {
+    \llrr{\Gamma}, x: \llrr{A} \semi \llrr{\Pi} \vdash_e
+    \eset{\I(p, \ell)}{x}
+    \semi \eset{\I(p)}{\mf{true}} : \tone
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi} \vdash_v 
+  \lambda x. \eset{\I(p, \ell)}{x}
+  \semi \eset{\I(p)}{\mf{true}} : \llrr{A} \rightarrow \tone
+}
+\end{mathpar}\
+\end{Proof}
+\end{lemma}
+
+\begin{corollary}[Well-definedness, values.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash v: A$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\llrr{v}_\I$ is well-defined.
+\end{corollary}
+
+\begin{lemma}[Type preservation, expressions.]
+\label{thm:tprezexp}
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash e: A \mid E$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_e \llrr{e}_\I: \llrr{A}$.
+
+\begin{Proof}
+By induction on the derivation of premise \emph{(i)}.
+(This induction is \emph{mutual} 
+with \hl{REFS}, type preservation for values and bodies.)
+
+\tb{Case} \ts{TE-Ret}: We have
+$\llrr{\eret{v}}_\I = \eret{\llrr{v}_\I}$ and:
+\begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash v: \ptp}
+} {
+  \Gamma \semi \Pi \vdash \eret{v}: \ptp \mid \epsilon
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis (\thref{thm:tprezval},
+value type preservation) on (1) and premise \emph{(ii)},
+we get (2) that $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{v}_\I: \llrr{A}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-Ret] {
+  \inferrule*[right=(2)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I
+    \vdash_v 
+    \llrr{v}_\I: \llrr{A}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I
+  \vdash_e
+  \eret{\llrr{v}_\I}: \llrr{A}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TE-Let}: We have
+$\llrr{\elet{x}{e_1}{e_2}}_\I=\elet{x}{\llrr{e_1}_\I}{\llrr{e_2}_\I}$
+and:
+\begin{mathpar}
+\inferrule*[right=TE-Let] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash e_1: \ptp_1 \mid E}
+  \and
+  \inferrule* {(2)} {\Gamma, x: \ptp_1 \semi \Pi \vdash e_2: \ptp_2 \mid E}
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e_1}{e_2}: \ptp_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By inductive hypothesis on (1) and premise \emph{(ii)},
+we get (3) $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_e \llrr{e_1}_\I: \llrr{A_1}$.
+\item Again by inductive hypothesis on (2) and premise \emph{(ii)},
+we get (4) that $\llrr{\Gamma, x: \ptp_1} \semi \llrr{\Pi}_\I
+\vdash_e \llrr{e_2}_\I: \llrr{A_2}$.
+\item By definition of $\llrr{\Gamma}$, (4) is equal to (5) that
+$\llrr{\Gamma}, x: \llrr{\ptp_1} \semi \llrr{\Pi}_\I
+\vdash_e \llrr{e_2}_\I: \llrr{A_2}$.
+\item We can now derive the conclusion:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-Let] {
+  \inferrule*[right=(3)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I
+    \vdash_e
+    \llrr{e_1}_\I: \llrr{A_1}
+  }
+  \
+  \inferrule*[right=(5)] { } {
+    \llrr{\Gamma}, x: \llrr{A_1} \semi \llrr{\Pi}_\I
+    \vdash_e
+    \llrr{e_2}_\I: \llrr{A_2}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I
+  \vdash_e
+  \elet{x}{\llrr{e_1}_\I}{\llrr{e_2}_\I}: \llrr{A_2}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TE-AppL}: We have
+$\llrr{v_1\ v_2}_\I = \llrr{v_1}_\I \llrr{v_2}_\I$
+and:
+\begin{mathpar}
+\inferrule*[right=TE-AppL] {
+  \inferrule* {(1)} {
+    \Gamma \semi \Pi \vdash v_1: \ptp_1 \arrow{E} \ptp_2
+  }
+  \and
+  \inferrule* {(2)} {
+    \Gamma \semi \Pi \vdash v_2: \ptp_1
+  }
+} {
+  \Gamma \semi \Pi \vdash v_1\ v_2: \ptp_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis (\thref{thm:tprezval},
+value type preservation) on (1) and premise \emph{(ii)},
+we get (3) that $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{v_1}_\I: \llrr{\ptp_1 \arrow{E} \ptp_2}$.
+\item By definition, (3) is equal to (4) that
+$\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{v_1}_\I: \llrr{\ptp_1} \rightarrow \llrr{\ptp_2}$.
+\item Again by mutual inductive hypothesis (\thref{thm:tprezval})
+on (1) and premise \emph{(ii)},
+we get (5) that $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{v_2}_\I: \llrr{\ptp_1}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-App] {
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I
+    \vdash_v
+    \llrr{v_1}_\I: \llrr{\ptp_1} \rightarrow \llrr{\ptp_2}
+  }
+  \
+  \inferrule*[right=(5)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I
+    \vdash_v
+    \llrr{v_2}_\I: \llrr{\ptp_1}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I
+  \vdash_v 
+  \llrr{v_1}_\I \llrr{v_2}_\I: \llrr{\ptp_2}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TE-AppS}: We have
+$\llrr{v_1\ v_2}_\I = \llrr{v_1}_\I \llrr{v_2}_\I$,
+$\llrr{\tone}=\tone$,
+and:
+\begin{mathpar}
+\inferrule*[right=TE-AppS] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash v_1: \tset{\ptp}}
+  \and
+  \inferrule* {(2)} {\Gamma \semi \Pi \vdash v_2: \ptp}
+} {
+  \Gamma \semi \Pi \vdash v_1\ v_2: \tone \mid \emut
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis (\thref{thm:tprezval},
+value type preservation) on (1) and premise \emph{(ii)},
+we get (3) that $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{v_1}_\I: \llrr{\tset{\ptp}}$.
+\item By definition, (3) is equal to (4) that
+$\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{v_1}_\I: \llrr{\ptp} \rightarrow \tone$.
+\item Again by mutual inductive hypothesis (\thref{thm:tprezval})
+on (1) and premise \emph{(ii)},
+we get (5) that $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{v_2}_\I: \llrr{\ptp}$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-App] {
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I
+    \vdash_v
+    \llrr{v_1}_\I: \llrr{\ptp} \rightarrow \tone
+  }
+  \
+  \inferrule*[right=(5)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I
+    \vdash_v
+    \llrr{v_2}_\I: \llrr{\ptp}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I
+  \vdash_v 
+  \llrr{v_1}_\I \llrr{v_2}_\I: \tone
+}
+\end{mathpar}
+
+\tb{Case} \ts{TE-Case}: \hl{Elided}, but should fill in.
+\end{Proof}
+\end{lemma}
+
+\begin{corollary}[Well-definedness, expressions.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash e: A \mid E$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\llrr{e}_\I$ is well-defined.
+\end{corollary}
+
+To reason about $\delta$, we introduce the judgment
+$\Ell \semi \Pi \vDash \delta: \Delta$,
+which holds when:
+\begin{itemize}
+\item for all $\ell: A \in \Ell$, either:
+\begin{itemize}
+  \item $\ell \mapsto x_\ell \in \delta$ 
+  and $x_\ell: \tref{\llrr{A}} \in \Delta$, or
+  \item $\ell \notin \dom(\delta)$ and $\ell: A \in \Pi[p]$,
+\end{itemize}
+\item and either:
+\begin{itemize}
+  \item $\mf{flag} \mapsto x_f \in \delta$ 
+  and $x_f: \tref{\tbool} \in \Delta$, or
+  \item $\mf{flag} \notin \dom(\delta)$ and $p \in \dom(\Pi)$.
+\end{itemize}
+\end{itemize}
+
+We state some auxiliary lemmas about 
+the typing of the $\delta$-function
+before proceeding with type preservation:
+\begin{lemma}[Sub-recording under delta.]
+\label{thm:deltasub}
+
+If $\Ell \semi \Pi \vDash \delta: \Delta$
+and $\Ell' \po \Ell$,
+then $\Ell' \semi \Pi \vDash \delta: \Delta$
+
+\begin{Proof}
+Obvious by definition.
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Flag-typing under delta.]
+\label{thm:deltaflag}
+If
+\begin{enumerate}[label=(\roman*)]
+\item $\Ell \semi \Pi \vDash \delta: \Delta$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\Delta, \llrr{\Pi}_\I \vdash_v 
+\delta_\I(p): \tref{\tbool}$.
+
+\begin{Proof}
+By case-analysis on premise \emph{(i)}, either:
+\begin{enumerate}[label=(i-\alph*)]
+\item $\mf{flag} \mapsto x_f \in \delta$ 
+and $x_f: \tref{\tbool} \in \Delta$, or
+\item $\mf{flag} \notin \dom(\delta)$ and $p \in \dom(\Pi)$.
+\end{enumerate}
+
+\tb{Case} (i-a):
+\begin{itemize}
+\item By definition, $\delta_\I(p)=x_f$.
+\item From the premise, we also have 
+(1) that $x_f: \tref{\tbool} \in \Delta$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  \inferrule*[right=(1)] { } {x_f: \tref{\tbool} \in \Delta}
+} {
+  \Delta, \llrr{\Pi}_\I \vdash_v x_f: \tref{\tbool}
+}
+\end{mathpar}
+
+\tb{Case} (i-b):
+\begin{itemize}
+\item By definition, $\delta_\I(p)=\I(p)$.
+\item By premise \emph{(ii)}, since $p \in \dom(\Pi)$,
+we have that $\I(p)$ is well-defined.
+\item Then by definition of $\llrr{\Pi}_\I$,
+we get (2) that $\I(p): \tbool \in \llrr{\Pi}_\I$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Loc] {
+  \inferrule*[right=(2)] { } {\I(p): \tbool \in \llrr{\Pi}_\I}
+} {
+  \Delta, \llrr{\Pi}_\I \vdash_v \I(p): \tref{\tbool}
+}
+\end{mathpar}
+Thus, in any case, we conclude that
+$\Delta, \llrr{\Pi}_\I \vdash_v \delta_\I(p): \tref{\tbool}$
+and we are done.
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Label-typing under delta.]
+\label{thm:deltalab}
+If
+\begin{enumerate}[label=(\roman*)]
+\item $\Ell \semi \Pi \vDash \delta: \Delta$,
+\item $\Pi \vDash \I$, and
+\item $\ell: A \in \Ell$,
+\end{enumerate}
+then $\Delta, \llrr{\Pi}_\I \vdash_v 
+\delta_\I(p, \ell): \tref{\llrr{A}}$.
+
+\begin{Proof}
+By case-analysis on premise \emph{(i)}, either:
+\begin{enumerate}[label=(i-\alph*)]
+\item $\ell \mapsto x_\ell \in \delta$ 
+and $x_\ell: \tref{\llrr{A}} \in \Delta$, or
+\item $\ell \notin \dom(\delta)$ and $\ell: A \in \Pi[p]$.
+\end{enumerate}
+
+\tb{Case} (i-a):
+\begin{itemize}
+\item By definition, $\delta_\I(p, \ell)=x_\ell$.
+\item From the premise, we also have 
+(1) that $x_\ell: \tref{\llrr{A}} \in \Delta$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  \inferrule*[right=(1)] { } {
+    x_\ell: \tref{\llrr{A}} \in \Delta
+  }
+} {
+  \Delta, \llrr{\Pi}_\I \vdash_v x_\ell: \tref{\llrr{A}}
+}
+\end{mathpar}
+
+\tb{Case} (i-b):
+\begin{itemize}
+\item By definition, $\delta_\I(p, \ell)=\I(p, \ell)$.
+\item By premise \emph{(ii)}, since $\ell: A \in \Pi[p]$,
+we have that $\I(p, \ell)$ is well-defined.
+\item Then by definition of $\llrr{\Pi}_\I$,
+we get (2) that $\I(p, \ell): \llrr{A} \in \llrr{\Pi}_\I$.
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Loc] {
+  \inferrule*[right=(2)] { } {
+    \I(p, \ell): \llrr{A} \in \llrr{\Pi}_\I
+  }
+} {
+  \Delta, \llrr{\Pi}_\I \vdash_v \I(p, \ell): \tref{\llrr{A}}
+}
+\end{mathpar}
+Thus, in any case, we conclude that
+$\Delta, \llrr{\Pi}_\I \vdash_v \delta_\I(p, \ell): \tref{\llrr{A}}$
+and we are done.
+\end{Proof}
+\end{lemma}
+
+\begin{lemma}[Type preservation, bodies, successor phase.]
+\label{thm:tprezbods}
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$,
+\item $\Pi \vDash \I$, and
+\item $\Ell \semi \Pi \vDash \delta: \Delta$,
+\end{enumerate}
+then $\llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I
+\vdash_e \llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\delta}: \tview$.
+
+\begin{Proof}
+By induction on the derivation of premise \emph{(i)}.
+(This induction is \emph{mutual} 
+with \hl{REFS}, type preservation for values and expressions.)
+
+\tb{Case} \ts{TB-Lift}: We have
+$\llrr{e}^{\mf{Succ}/p}_{\I/\delta} = \llrr{e}$
+and:
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \inferrule* {(1)} {
+    \Gamma \semi \Pi \vdash e: \tview \mid \epsilon
+  }
+} {
+  \Gamma \semi \Pi \vdash e: \emptyset
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis 
+(\hl{REF}, expression type preservation)
+on (1) and premise \emph{(ii)},
+we get (2) that 
+$\llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_e \llrr{e}_\I: \tview$
+(noting that $\llrr{\tview}=\tview$).
+\item We weaken (2) by $\Delta$ (\hl{REF}) to get that
+$\llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_e \llrr{e}_\I: \tview$,
+and we are done.
+\end{itemize}
+
+\tb{Case} \ts{TB-Let}: We have
+$\llrr{\elet{x}{e}{\hat{e}}}^{\mf{Succ}/p}_{\I/\delta}
+= \elet{x}{\llrr{e}_\I}{\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\delta}}$
+and:
+\begin{mathpar}
+\inferrule*[right=TB-Let] {
+  \inferrule* {(1)} {
+    \Gamma \semi \Pi \vdash e: \ptp \mid \epsilon
+  }
+  \and
+  \inferrule* {(2)} {
+    \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e}{\hat{e}}: \Ell
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis 
+(\hl{REF}, expression type preservation)
+on (1) and premise \emph{(ii)},
+we get (3) that 
+$\llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_e \llrr{e}_\I: \llrr{A}$.
+\item We weaken (4) by $\Delta$ (\hl{REF}) to get (4) that
+$\llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_e \llrr{e}_\I: \tview$.
+\item By inductive hypothesis 
+on (2) and premises \emph{(ii)} and \emph{(iii)},
+we get (5) that
+$\llrr{\Gamma, x: A}, \Delta \semi \llrr{\Pi}_\I \vdash_e 
+\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\delta}: \llrr{\tview}$.
+\item By definition, (5) is equal to (6)
+$\llrr{\Gamma}, x: \llrr{A}, \Delta \semi \llrr{\Pi}_\I \vdash_e 
+\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\delta}: \tview$.
+\item We can now derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule* {
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_e \llrr{e}_\I: \llrr{A}
+  }
+  \
+  \inferrule*[right=(6)] { } {
+    \llrr{\Gamma}, x: \llrr{A}, \Delta \semi \llrr{\Pi}_\I \vdash_e 
+\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\delta}: \tview
+  }
+} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_e 
+  \elet{x}{\llrr{e}_\I}{\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\delta}}: \tview
+  \and (\ts{\small{TE-Let}})
+}
+\end{mathpar}
+
+\tb{Case} \ts{TB-State}: We have
+\begin{align*}
+\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Succ}/p}_\delta
+&= \elet{x}{\eget{\delta_\I(p, \ell)}}{\\
+    &\quad\ \elet{x_\mf{set}}{\eret{\lambda y.\\
+      &\qquad \eset{\delta_\I(p, \ell)}{y} 
+        \semi 
+        \eset{\delta_\I(p)}{\mf{true}}
+      \\&\quad\
+    }}
+  \llrr{\hat{e}}^{\mf{Succ}/p}_\delta}
+\end{align*}
+and:
+\begin{mathpar}
+\inferrule*[right=TB-State] {
+  \Gamma \semi \Pi \vdash v: \ptp
+  \and
+  \inferrule* {(1)} {
+    \Gamma, x: \ptp, x_\mf{set}: \tset{\ptp} \semi \Pi
+    \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \estate{x}{\ell}{v}{\hat{e}}: \Ell, \ell: \ptp
+}
+\end{mathpar}
+\begin{itemize}
+\item Note that $\Ell \po \Ell, \ell: \ptp$,
+so by \thref{thm:deltasub} (sub-recording under $\delta$) 
+on premise \emph{(iii)},
+we get (2) that $\Ell \semi \Pi \vDash \delta: \Delta$.
+\item By inductive hypothesis 
+on (1), (2), and premise \emph{(ii)},
+we get (3) that
+$\llrr{\Gamma, x: A, x_\mf{set}: \tset{\ptp}}, \Delta \semi \llrr{\Pi}_\I 
+\vdash_e 
+\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\delta}: \llrr{\tview}$.
+\item By definition, (3) is equal to (4)
+$\llrr{\Gamma}, x: \llrr{A}, x_\mf{set}: \llrr{A} \rightarrow \tone, \Delta 
+\semi \llrr{\Pi}_\I \vdash_e 
+\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\delta}: \tview$.
+\item By \thref{thm:deltalab} (label-typing under $\delta$) on
+premises \emph{(ii)} and \emph{(iii)},
+we get (5) $\Delta \semi \llrr{\Pi}_\I 
+\vdash_v \delta_\I(p, \ell): \tref{\llrr{A}}$.
+\item By \thref{thm:deltaflag} (flag-typing under $\delta$) on
+premises \emph{(ii)} and \emph{(iii)},
+we get (6) $\Delta \semi \llrr{\Pi}_\I 
+\vdash_v \delta_\I(p): \tref{\tbool}$.
+\item We can now derive the conclusion,
+weakening appropriately (by \hl{REF}) along the way:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-Get] {
+  \inferrule*[right=(5)] { } {
+    \Delta \semi \llrr{\Pi}_\I
+    \vdash_v \delta_\I(p, \ell) : \tref{\llrr{A}}
+  }
+} {
+  \Delta \semi \llrr{\Pi}_\I
+  \vdash_e \eget{\delta_\I(p, \ell)} : \llrr{A}
+  \quad (7)
+}
+\and
+\inferrule*[right=TE-Set] {
+  \inferrule*[right=(5)] { } {
+    \Delta \semi \llrr{\Pi}_\I
+    \vdash_v \delta_\I(p, \ell) : \tref{\llrr{A}}
+  }
+  \
+  \inferrule*[right=TV-Var] { } {
+    y: \llrr{A} \semi \llrr{\Pi}_\I \vdash_v y: \llrr{A}
+  }
+} {
+  \Delta, y: \llrr{A} \vdash_e \eset{\delta_\I(p, \ell)}{y}: \tone
+  \quad (8)
+}
+\and
+\inferrule*[right=TE-Set] {
+  \inferrule*[right=(6)] { } {
+    \Delta \semi \llrr{\Pi}_\I
+    \vdash_v \delta_\I(p) : \tref{\tbool}
+  }
+  \
+  \inferrule*[right=TV-True] { } {
+    \Delta \semi \llrr{\Pi}_\I \vdash_v \mf{true}: \tbool
+  }
+} {
+  \Delta, \vdash_e \eset{\delta_\I(p)}{\mf{true}}: \tone
+  \quad (9)
+}
+\and
+\inferrule*[right=TE-Ret] {
+  \inferrule*[right=TV-Lam] {
+    \inferrule*[right=TE-Let] {
+      \inferrule* { } {(8)}
+      \and
+      \inferrule* { } {(9)}
+    } {
+      \Delta, y: \llrr{A} \semi \llrr{\Pi}_\I
+      \vdash_v
+      \eset{\delta_\I(p, \ell)}{y} 
+      \semi \eset{\delta_\I(p)}{\mf{true}}: \tone
+    }
+  } {
+    \Delta \semi \llrr{\Pi}_\I
+    \vdash_v
+    \lambda y.\cdots: \llrr{A} \rightarrow \tone
+  }
+} {
+  \Delta \semi \llrr{\Pi}_\I
+  \vdash_e
+  \eret{\lambda y.\cdots}: \llrr{A} \rightarrow \tone
+  \quad (10)
+}
+\and
+\inferrule*[right=TE-Let] {
+  \inferrule* { } {(7)}
+  \
+  \inferrule*[right=TE-Let] {
+    \inferrule* { } {(10)}
+    \and
+    \inferrule* { } {(4)}
+  } {
+    \llrr{\Gamma}, \Delta, x: \llrr{A} \semi \llrr{\Pi}_\I
+    \vdash_e
+    \elet{x_\mf{set}}{\cdots}{\cdots}: \tview
+  }
+} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I
+  \vdash_e
+  \elet{x}{\eget{\delta_\I(p, \ell)}}{\cdots}: \tview
+}
+\end{mathpar}
+
+\end{Proof}
+\end{lemma}
+
+\begin{corollary}[Well-definedness, bodies, successor phase.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$,
+\item $\Pi \vDash \I$, and
+\item $\Ell \semi \Pi \vDash \delta: \Delta$,
+\end{enumerate}
+then $\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\delta}$ is well-defined.
+\end{corollary}
+
+\begin{lemma}[Type preservation, bodies, initial phase.]
+\label{thm:tprezbodi}
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$,
+\item $\Gamma \semi \Pi \vdash \hat{e}_0: \Ell_0$
+(where $\Ell \subseteq \Ell_0$),
+\item $\Pi \vDash \I$, and
+\item $(\Ell_0 \setminus \Ell) \semi \Pi \vDash \delta: \Delta$
+\end{enumerate}
+then $\llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I
+\vdash_e
+\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}: A_\mf{res}$.
+
+\begin{Proof}
+Recall that $A_\mf{res}=\tview \times 
+\tref{\tbool} \times (\tone \rightarrow \tview)$.
+
+We proceed by induction on the derivation of premise \emph{(i)}.
+(This induction is \emph{mutual} 
+with \hl{REFS}, type preservation for values and expressions.)
+
+\tb{Case} \ts{TB-Lift}: We have
+$$
+\llrr{e}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}
+= \elet{x_r}{\llrr{e}}{
+  \eret{(x_r,\delta_\I(p),\lambda ().\llrr{\hat{e}_0}^{\mf{Succ}/p}_{\I/\delta})}
+}
+$$
+and:
+\begin{mathpar}
+\inferrule*[right=TB-Lift] {
+  \inferrule* {(1)} {
+    \Gamma \semi \Pi \vdash e: \tview \mid \epsilon
+  }
+} {
+  \Gamma \semi \Pi \vdash e: \emptyset
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis 
+(\hl{REF}, expression type preservation)
+on (1) and premise \emph{(ii)},
+we get (2) that 
+$\llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_e \llrr{e}_\I: \tview$.
+\item Since $\Ell=\emptyset$, premise \emph{(iv)}
+reduces to (3) that $\Ell_0 \semi \Pi \vDash \delta: \Delta$.
+\item Then, mutual inductive hypothesis
+(\hl{REF}, successor-phase body type preservation)
+on (3) and premises \emph{(ii)} and \emph{(iii)},
+we get (4)
+$\llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_e
+\llrr{\hat{e}_0}^{\mf{Succ}/p}_{\I/\delta}: \tview$.
+\item Also, by \thref{thm:deltaflag} (flag-typing under $\delta$)
+applied to (3) and premise \emph{(iii)},
+we get (5) that 
+$\Delta, \llrr{\Pi}_\I \vdash_v \delta_\I(p): \tref{\tbool}$.
+\item We can now derive the conclusion,
+weakening appropriately (by \hl{REF}) along the way:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Pair] {
+  \inferrule* { } {(5)}
+  \and
+  \inferrule*[right=TV-Lam] {
+    \inferrule*[right=(4)] { } {
+      \llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_v
+      \llrr{\hat{e}_0}^{\mf{Succ}/p}_{\I/\delta}: \tview
+    }
+  } {
+    \llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_v
+    \lambda ().\llrr{\hat{e}_0}^{\mf{Succ}/p}_{\I/\delta}: 
+    \tone \rightarrow \tview
+  }
+} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_v
+  (\delta(p), \lambda ().\llrr{\hat{e}_0}^{\mf{Succ}/p}_{\I/\delta}): 
+  \tref{\tbool} \times \tone \rightarrow \tview
+  \quad (6)
+}
+\and
+\inferrule*[right=TE-Ret] {
+  \inferrule*[right=TV-Pair] {
+    \inferrule*[right=TV-Var] { } {
+      x_r: \tview \semi \llrr{\Pi}_\I \vdash_v x_r: \tview
+    }
+    \and
+    \inferrule* { } {(6)}
+  } {
+    \llrr{\Gamma}, \Delta, x_r: \tview \semi \llrr{\Pi}_\I 
+    \vdash_v
+    (x_r, \delta(p), 
+    \lambda ().\llrr{\hat{e}_0}^{\mf{Succ}/p}_{\I/\delta})
+    : A_\mf{res}
+  }
+} {
+  \llrr{\Gamma}, \Delta, x_r: \tview \semi \llrr{\Pi}_\I 
+  \vdash_e
+  \eret{(x_r, \delta(p), 
+  \lambda ().\llrr{\hat{e}_0}^{\mf{Succ}/p}_{\I/\delta})}
+  : A_\mf{res}
+  \quad (7)
+}
+\and
+\inferrule*[right=TE-Let] {
+  \inferrule* { } {(3)}
+  \and
+  \inferrule* { } {(7)}
+} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I 
+  \vdash_e
+  \elet{x_r}{\llrr{e}_\I}{\eret{\cdots}}
+  : A_\mf{res}
+}
+\end{mathpar}
+
+\tb{Case} \ts{TB-Let}: We have
+$\llrr{\elet{x}{e}{\hat{e}}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}
+= \elet{x}{\llrr{e}_\I}{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}}$
+and:
+\begin{mathpar}
+\inferrule*[right=TB-Let] {
+  \inferrule* {(1)} {
+    \Gamma \semi \Pi \vdash e: \ptp \mid \epsilon
+  }
+  \and
+  \inferrule* {(2)} {
+    \Gamma, x: \ptp \semi \Pi \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e}{\hat{e}}: \Ell
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis 
+(\hl{REF}, expression type preservation)
+on (1) and premise \emph{(iii)},
+we get (3) that 
+$\llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_e \llrr{e}_\I: \llrr{A}$.
+\item We weaken (4) by $\Delta$ (\hl{REF}) to get (4) that
+$\llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_e \llrr{e}_\I: A_\mf{res}$.
+\item By inductive hypothesis 
+on (2) and premises \emph{(ii)}-\emph{(iv)},
+we get (5) that
+$\llrr{\Gamma, x: A}, \Delta \semi \llrr{\Pi}_\I \vdash_e 
+\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}: A_\mf{res}$.
+\item By definition, (5) is equal to (6)
+$\llrr{\Gamma}, x: \llrr{A}, \Delta \semi \llrr{\Pi}_\I \vdash_e 
+\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}: A_\mf{res}$.
+\item We can now derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule* {
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_e \llrr{e}_\I: \llrr{A}
+  }
+  \
+  \inferrule*[right=(6)] { } {
+    \llrr{\Gamma}, x: \llrr{A}, \Delta \semi \llrr{\Pi}_\I \vdash_e 
+\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}: A_\mf{res}
+  }
+} {
+  \llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_e 
+  \elet{x}{\llrr{e}_\I}{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}}: 
+  A_\mf{res}
+  \and (\ts{\small{TE-Let}})
+}
+\end{mathpar}
+
+\tb{Case} \ts{TB-State}: We have
+\begin{align*}
+\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Init}(\hat{e}_0)/p}_\delta
+&= \elet{x_\ell}{\eref{\llrr{v}}}{\\
+  (x_\ell\ \mf{fresh})\quad&\quad\ \elet{x}{\eget{x_\ell}}{\\
+    &\quad\ \elet{x_\mf{set}}{\eret{\lambda y.\\
+      &\qquad
+      \eset{x_\ell}{y} \semi \eset{\delta(p)}{\mf{true}}}\\&\quad\ }{
+       \llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\delta,\ell \mapsto x_\ell}
+    }
+  }
+}
+\end{align*}
+and:
+\begin{mathpar}
+\inferrule*[right=TB-State] {
+  \inferrule* {(1)} {\Gamma \semi \Pi \vdash v: \ptp}
+  \and
+  \inferrule* {(2)} {
+    \Gamma, x: \ptp, x_\mf{set}: \tset{\ptp} \semi \Pi
+    \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \vdash \estate{x}{\ell}{v}{\hat{e}}: \Ell, \ell: \ptp
+}
+\end{mathpar}
+\begin{itemize}
+\item By mutual inductive hypothesis 
+(\hl{REF}, value type preservation)
+on (1) and premise \emph{(iii)},
+we get (3) that 
+$\llrr{\Gamma} \semi \llrr{\Pi}_\I \vdash_v \llrr{v}_\I: \llrr{A}$.
+\item We weaken (4) by $\Delta$ (\hl{REF}) to get (5) that
+$\llrr{\Gamma}, \Delta \semi \llrr{\Pi}_\I \vdash_v \llrr{v}_\I: \llrr{A}$.
+\item Now we want to apply the inductive hypothesis to (2).
+\item From premise \emph{(iv)}, that 
+$(\Ell_0 \setminus \Ell, \ell: A) \semi \Pi \vDash \delta: \Delta$,
+we want some $\Delta'$ with (6)
+$(\Ell_0 \setminus \Ell) \semi \Pi \vDash \delta, \ell \mapsto x_\ell: \Delta'$:
+  \begin{itemize}
+  \item Since $\Ell, \ell: A \po \Ell_0$, 
+  we have that $\ell: A \in (\Ell_0 \setminus \Ell)$.
+  \item Choose $\Delta'=\Delta,x_\ell: \llrr{A}$,
+  such that (6) holds for $\ell$ by definition.
+  \item Furthermore, by definition and by premise \emph{(iv)}, 
+  (6) holds for all $\ell': A' \in (\Ell_0 \setminus \Ell,\ell: A)$.
+  \end{itemize}
+\item We apply the inductive hypothesis to (2), (6), 
+and premises \emph{(ii)} and \emph{(iii)},
+obtaining (7):
+$$\llrr{\Gamma, x: A, x_\mf{set}: \tset{A}}, \Delta, x_\ell: \llrr{A}
+\semi \llrr{\Pi}_\I
+\vdash_e
+\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\delta,\ell \mapsto x_\ell}
+: A_\mf{res}$$
+\item Finally, we apply \thref{thm:deltaflag} (flag-typing under $\delta$)
+to premises \emph{(iii)} and \emph{(iv)}
+we get (8) that $\Delta, \llrr{\Pi}_\I \vdash_v \delta_\I(p): \tref{\tbool}$.
+\item We can now derive the conclusion,
+expanding definitions and
+weakening by \hl{REF} along the way:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-Ref] {
+  \inferrule*[right=(3)] { } {
+    \llrr{\Gamma}, \llrr{\Delta} \semi \llrr{\Pi}_\I
+    \vdash_v
+    \llrr{v}_\I: \llrr{A}
+  }
+} {
+  \llrr{\Gamma}, \llrr{\Delta} \semi \llrr{\Pi}_\I
+  \vdash_e
+  \eref{\llrr{v}}: \tref{\llrr{A}}
+  \quad (9)
+}
+\and
+\inferrule*[right=TE-Get] {
+  \inferrule*[right=TV-Var] { } {
+    x_\ell: \tref{\llrr{A}} \semi \llrr{\Pi}_\I
+    \vdash_v
+    x_\ell: \tref{\llrr{A}}
+  }
+} {
+  x_\ell: \tref{\llrr{A}} \semi \llrr{\Pi}_\I
+  \vdash_e
+  \eget{x_\ell}: \llrr{A}
+  \quad (10)
+}
+\and
+\inferrule*{
+  \inferrule*[right=TV-Var] { } {
+    x_\ell: \tref{\llrr{A}} \semi \llrr{\Pi}_\I
+    \vdash_v x_\ell : \tref{\llrr{A}}
+  }
+  \
+  \inferrule*[right=TV-Var] { } {
+    y: \llrr{A} \semi \llrr{\Pi}_\I \vdash_v y: \llrr{A}
+  }
+} {
+  x_\ell: \tref{\llrr{A}}, y: \llrr{A} \vdash_e \eset{x_\ell}{y}: \tone
+  \quad (11)
+  \qquad (\ts{\small{TE-Set}})
+}
+\and
+\inferrule*[right=TE-Set] {
+  \inferrule*[right=(8)] { } {
+    \Delta \semi \llrr{\Pi}_\I
+    \vdash_v \delta_\I(p) : \tref{\tbool}
+  }
+  \
+  \inferrule*[right=TV-True] { } {
+    \Delta \semi \llrr{\Pi}_\I \vdash_v \mf{true}: \tbool
+  }
+} {
+  \Delta, \vdash_e \eset{\delta_\I(p)}{\mf{true}}: \tone
+  \quad (12)
+}
+\and
+\inferrule* {
+  \inferrule*[right=TV-Lam] {
+    \inferrule*[right=TE-Let] {
+      \inferrule* { } {(11)}
+      \and
+      \inferrule* { } {(12)}
+    } {
+      \Delta, x_\ell: \tref{\llrr{A}}, y: \llrr{A} \semi \llrr{\Pi}_\I
+      \vdash_v
+      \eset{x_\ell}{y} 
+      \semi \eset{\delta_\I(p)}{\mf{true}}: \tone
+    }
+  } {
+    \Delta, x_\ell: \tref{\llrr{A}} \semi \llrr{\Pi}_\I
+    \vdash_v
+    \lambda y.\cdots: \llrr{A} \rightarrow \tone
+  }
+} {
+  \Delta, x_\ell: \tref{\llrr{A}} \semi \llrr{\Pi}_\I
+  \vdash_e
+  \eret{\lambda y.\cdots}: \llrr{A} \rightarrow \tone
+  \quad (13)
+  \qquad (\ts{\small{TE-Ret}})
+}
+\end{mathpar}
+All rules in the final derivation below are \ts{TE-Let}:
+\begin{mathpar}
+\inferrule* {
+  \inferrule* { } {(9)}
+  \
+  \inferrule* {
+    \inferrule* { } {(10)}
+    \
+    \inferrule* {
+      \inferrule* { } {(13)}
+      \and
+      \inferrule* { } {(7)}
+    } {
+      \llrr{\Gamma}, \llrr{\Delta}, x_\ell: \tref{\llrr{A}},
+      x: \llrr{A}
+      \semi \llrr{\Pi}_\I \vdash_e
+      \elet{x_\mf{set}}{\cdots}{\cdots}
+      : A_\mf{ret}
+    }
+  } {
+    \llrr{\Gamma}, \llrr{\Delta}, x_\ell: \tref{\llrr{A}} 
+    \semi \llrr{\Pi}_\I \vdash_e
+    \elet{x}{\eget{x_\ell}}{\cdots}
+    : A_\mf{ret}
+  }
+} {
+  \llrr{\Gamma}, \llrr{\Delta} \semi \llrr{\Pi}_\I
+  \vdash_e
+  \elet{x_\ell}{\eref{\llrr{v}_\I}}{\cdots}
+  : A_\mf{ret}
+}
+\end{mathpar}\
+\end{Proof}
+\end{lemma}
+
+\begin{corollary}[Well-definedness, bodies, initial.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$,
+\item $\Gamma \semi \Pi \vdash \hat{e}_0: \Ell_0$
+(where $\Ell \subseteq \Ell_0$),
+\item $\Pi \vDash \I$, and
+\item $(\Ell_0 \setminus \Ell) \semi \Pi \vDash \delta: \Delta$,
+\end{enumerate}
+then $\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}$ is well-defined.
+\end{corollary}
+
+\begin{lemma}[Type preservation, bodies, static.]
+\label{thm:tprezbodt}
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_e
+\llrr{\hat{e}}^\top_\I: A_\mf{res}$.
+
+\begin{Proof}\
+\begin{itemize}
+\item For any $\hat{e}$, we have that
+$\llrr{\hat{e}}^\top = \elet{x_f}{\eref{\mf{false}}}
+{\llrr{\hat{e}}^{\mf{Init}(\hat{e})/p}_{\mf{flag} \mapsto x_f}}$
+(for arbitrary $p$).
+\item We want to apply \thref{thm:tprezbodi}
+(body type preservation at $\phi=\mf{Init}$):
+\begin{itemize}
+  \item Since $\hat{e}=\hat{e}_0$, we have that $\Ell=\Ell_0$,
+  i.e. $\Ell_0 \setminus \Ell = \emptyset$.
+  \item Then by definition, $\Delta=x_f: \tref{\tbool}$
+  satisfies the condition (1) that
+  $(\Ell_0 \setminus \Ell) \semi \Pi \vDash
+  \mf{flag} \mapsto x_f: \Delta$.
+  \item By \thref{thm:tprezbodi} on (1) and both premises,
+  \emph{(i)} and \emph{(ii)},
+  we get (2) that
+  $\llrr{\Gamma}, x_f: \tref{\tbool} \semi \llrr{\Pi}_\I
+  \vdash_e \llrr{\hat{e}}^{\mf{Init}(\hat{e})/p}
+  _{\mf{flag} \mapsto x_f}: A_\mf{res}$.
+\end{itemize}
+\item We derive the conclusion as follows:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TE-Let] {
+  \inferrule*[right=TE-Ref] {
+    \inferrule*[right=TV-True] { } {
+      \llrr{\Gamma} \semi \llrr{\Pi}_\I
+      \vdash_e
+      \mf{false}: \tbool
+    }
+  } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I
+    \vdash_e
+    \eref{\mf{false}}: \tref{\tbool}
+  }
+  \and
+  \inferrule* { } {(2)}
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I
+  \vdash_e
+  \elet{x_f}{\eref{\mf{false}}}
+  {\llrr{\hat{e}}^{\mf{Init}(\hat{e})/p}_{\mf{flag} \mapsto x_f}}:
+  A_\mf{res}
+}
+\end{mathpar}\
+\end{Proof}
+\end{lemma}
+
+\begin{corollary}[Well-definedness, bodies, static.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\llrr{\hat{e}}^\top_\I$ is well-defined.
+\end{corollary}
+
+\begin{lemma}[Type preservation, runtime values.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash u: A$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{u}_\I: \llrr{A}$.
+
+\begin{Proof}
+By induction on the derivation of the typing premise \emph{(i)}.
+
+\tb{Cases} \ts{TR-Var}, \ts{TR-Unit}, \ts{TR-Nil}, \ts{TR-Cons}:
+Elided; should be trivial, but should fill in anyways.
+
+\tb{Case} \ts{TR-Lit}, \ts{TR-Node}:
+Also easy and elided, but should fill in\\
+\hl{once we can do ID}.
+
+\tb{Case} \ts{TR-Cell}: We have
+$\llrr{\mf{cell}_p(\hat{e}, u)}
+= \mf{cell}(\lambda().\llrr{\hat{e}}^{\mf{Succ}/p}_\emptyset,
+\I(p), \llrr{u})$
+and:
+\begin{mathpar}
+\inferrule*[right=TR-Cell] {
+  \inferrule* {(1)} {
+    \cdot \semi \Pi \vdash \hat{e}: \Pi[p]
+  }
+  \and
+  \inferrule* {(2)} {
+    \Gamma \semi \Pi \Vdash u: \ttree
+  }
+} {
+  \Gamma \semi \Pi \Vdash \mf{cell}_p(\hat{e}, u): \ttree
+}
+\end{mathpar}
+\begin{itemize}
+\item By definition, we have (3) that 
+$\Pi[p] \semi \Pi \vDash \emptyset: \emptyset$.
+\item By \thref{thm:tprezbods} (type preservation on bodies
+at $\phi=\mf{Succ}$) on (1), (3),
+and premise \emph{(ii)}, we get (4) that
+$\cdot \semi \llrr{\Pi}_\I \vdash_e 
+\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\emptyset}: \ttree$.
+\item Also from (1), we know $p \in \dom(\Pi)$,
+so by premise \emph{(ii)} we get that
+$\I(p)$ is well-defined.
+\item Then by definition, (5) $\I(p): \tbool \in \llrr{\Pi}$.
+\item By inductive hypothesis on (2) and premise \emph{(ii)},
+we get (6) $\llrr{\Gamma} \semi \llrr{\Pi}_\I
+\vdash_v \llrr{u}_\I: \ttree$.
+\item We conclude by derivation as follows,
+weakening (4) by $\llrr{\Gamma}$ according to \hl{REF}:
+\end{itemize}
+\begin{mathpar}
+\inferrule*[right=TV-Lam] {
+  \inferrule*[right=(4)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I
+    \vdash_e
+    \llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\emptyset}:
+    \ttree
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I
+  \vdash_v
+  \lambda().\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\emptyset}:
+  \tone \rightarrow \ttree
+  \quad (7)
+}
+\and
+\inferrule*[right=TV-Loc] {
+  \inferrule*[right=(5)] { } {
+    \I(p): \tbool \in \llrr{\Pi}
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I
+  \vdash_v
+  \I(p):
+  \tref{\tbool}
+  \quad (8)
+}
+\and
+\inferrule*[right=TV-Cell] {
+  \inferrule* { } {(7)}
+  \and
+  \inferrule* { } {(8)}
+  \and
+  \inferrule*[right=(6)] { } {
+    \llrr{\Gamma} \semi \llrr{\Pi}_\I
+    \vdash_v \llrr{u}_\I: \ttree
+  }
+} {
+  \llrr{\Gamma} \semi \llrr{\Pi}_\I
+  \vdash_v
+  \mf{cell}(
+    \lambda().\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\emptyset},
+    \I(p),
+    \llrr{u}
+  ): \ttree
+}
+\end{mathpar}\
+\end{Proof}
+\end{lemma}
+
+\begin{corollary}[Well-definedness, runtime values.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash u: A$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\llrr{u}_\I$ is well-defined.
+\end{corollary}
+
+\begin{lemma}[Type preservation, runtime expressions.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \rho: A$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\llrr{\Gamma}, \llrr{\Pi}_\I
+\vdash_e \llrr{\rho}_\I: \llrr{A}$.
+
+\begin{Proof}
+By induction over the derivation of the typing premise \emph{(i)}.
+
+\tb{Case} \ts{TR-EvalI}: We have
+\begin{align*}
+\llrr{\hat{e}_0 \gg^\mf{Init}_p \hat{e}}
+&= \elet{\mf{view, flag, spec}}{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_\emptyset}{\\
+  &\quad\ \elet{\mf{tree}}{\mf{init}\ \mf{view}}{\\
+    &\quad\ \eret{\mf{cell(spec, flag, tree)}}
+  }
+}
+\end{align*}
+and:
+\begin{mathpar}
+\inferrule*[right=TR-EvalI] {
+  \inferrule* {(1)} {
+    \cdot \semi \Pi \vdash \hat{e}_0: \Ell \cup \Pi[p]
+  }
+  \and
+  \inferrule* {(2)} {
+    \cdot \semi \Pi \vdash \hat{e}: \Ell
+  }
+} {
+  \Gamma \semi \Pi \Vdash_\rho \hat{e}_0 \gg^\mf{Init}_p \hat{e}: \tview
+}
+\end{mathpar}
+\begin{itemize}
+\item By definition, (3) $\Pi[p] \semi \Pi \vDash \emptyset: \emptyset$.
+\item \thref{thm:tprezbodi} (body type preservation at $\phi=\mf{Init}$)
+on (1-3) and premise \emph{(ii)}
+gives us (4) that $\llrr{\Gamma}\semi \llrr{\Pi}_\I
+\vdash_e
+\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\emptyset}: A_\mf{res}$.
+\item \hl{continue...}
+\end{itemize}
+
+\tb{Case} \ts{TR-EvalS}: We have
+\begin{align*}
+\llrr{\hat{e}_0 \gg^\mf{Succ}_p \hat{e}}
+&= \elet{\mf{view}}{\llrr{\hat{e}}^{\mf{Succ}}_p}{\\
+  &\quad\ \elet{\mf{tree}}{\mf{init}\ \mf{view}}{\\
+    &\quad\ \eret{\mf{cell}(
+      \lambda().\llrr{\hat{e}_0}^{\mf{Succ}/p}_\emptyset,
+      \I(p),
+      \mf{tree}
+    )}
+  }
+}\\
+\end{align*}
+and:
+\begin{mathpar}
+\inferrule*[right=TR-EvalS] {
+  \inferrule* {(1)} {
+    \cdot \semi \Pi \vdash \hat{e}_0: \Pi[p]
+  }
+  \and
+  \inferrule* {(2)} {
+    \cdot \semi \Pi \vdash \hat{e}: \Ell
+  }
+  \and
+  \inferrule* {(3)} {\Ell \subseteq \Pi[p]}
+} {
+  \Gamma \semi \Pi \Vdash_\rho \hat{e}_0 \gg^\mf{Succ}_p \hat{e}: \tone
+}
+\end{mathpar}
+\begin{itemize}
+\item By definition, (3) gives us (4)
+that $\Ell \semi \Pi \vDash \emptyset: \emptyset$.
+\item \thref{thm:tprezbods} (body type preservation at $\phi=\mf{Succ}$)
+on (2), (4), and premise \emph{(ii)}
+gives us (5) that $\llrr{\Gamma}\semi \llrr{\Pi}_\I
+\vdash_e
+\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\emptyset}: \tview$.
+\item By definition, we know (6) that
+$\Ell \semi \Pi \vDash \emptyset: \emptyset$.
+\item We again apply \thref{thm:tprezbods},
+this time to (1), (6), and premise \emph{(ii)},
+to get (7) that $\llrr{\Gamma}\semi \llrr{\Pi}_\I
+\vdash_e
+\llrr{\hat{e}_0}^{\mf{Succ}/p}_{\I/\emptyset}: \tview$.
+\item \hl{continue...}
+\end{itemize}
+
+\end{Proof}
+\end{lemma}
+
+\begin{corollary}[Well-definedness, runtime expressions.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vdash \rho: A$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\llrr{\rho}_\I$ is well-defined.
+\end{corollary}
+
+\begin{lemma}[Type preservation, memory.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vDash m$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\Gamma \semi \llrr{\Pi}_\I \vDash \llrr{m}_\I$.
+
+\begin{Proof}
+Consider some arbitrary $p \in m$:
+\begin{itemize}
+\item By premise \emph{(i)}, we have that $p \in \Pi$.
+(Note that, by premise \emph{(ii)}, $\I(p)$ is well-defined.)
+\item By definition, we have (1) that 
+$\I(p) \mapsto \llrr{m[p].\mf{rerender}} \in \llrr{m}_\I$.
+\item Also by definition, (2)
+$\I(p) \mapsto \tbool \in \llrr{\Pi}_\I$.
+\item We want to show $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+\llrr{m}_\I[\I(p)] : \llrr{\Pi}_\I[\I(p)]$.
+\item By (1) and (2),
+it suffices to show $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+\llrr{m[p].\mf{rerender}} : \tbool$.
+\item This is given by \hl{REF} (rerender-typing).
+\end{itemize}
+
+Now consider some arbitrary $\ell \in m[p].\mf{st}$:
+\begin{itemize}
+\item By premise \emph{(i)}, we have that $\ell \in \Pi[p]$.
+(Note that, by premise \emph{(ii)}, $\I(p, \ell)$ is well-defined.)
+\item By definition, we have (3) that 
+$\I(p, \ell) \mapsto \llrr{m[p].\mf{st}[\ell]}_\I \in \llrr{m}_\I$.
+\item Also by definition, (4)
+$\I(p, \ell) \mapsto \llrr{\Pi[p][\ell]} \in \llrr{\Pi}_\I$.
+\item We want to show $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+\llrr{m}_\I[\I(p, \ell)] : \llrr{\Pi}_\I[\I(p, \ell)]$.
+\item By (3) and (4),
+it suffices to show $\llrr{\Gamma} \semi \llrr{\Pi} \vdash_v
+\llrr{m[p].\mf{st}[\ell]}_\I : \llrr{\Pi[p][\ell]}$.
+\item Premise \emph{(i)} tells us that
+$\Gamma \semi \Pi \vdash m[p].\mf{st}[\ell]: \Pi[p][\ell]$.
+The conclusion follows from \thref{thm:tprezval}
+(value type preservation under translation).
+\end{itemize}
+
+\end{Proof}
+\end{lemma}
+
+\begin{corollary}[Well-definedness, memory.]
+If \begin{enumerate}[label=(\roman*)]
+\item $\Gamma \semi \Pi \vDash m$ and
+\item $\Pi \vDash \I$,
+\end{enumerate}
+then $\llrr{m}_\I$ is well-defined.
+\end{corollary}
+
+Define $\Gamma \semi \Pi \semi \I \vDash \pair{m}{e}$
+to hold when:
+\begin{itemize}
+\item $\Gamma \semi \Pi \vDash m$,
+\item $\Gamma \semi \Pi \vdash e: A \mid E$, and
+\item $\Pi \vDash \I$.
+\end{itemize}
+(We define analogous notions for bodies $\hat{e}$ and runtime terms $\rho$
+as well.)
+
+\begin{theorem}[Simulation, expressions.]
+\label{thm:simexp}
+If \begin{enumerate}[label=(\roman*)]
+\item $m \semi e \mapsto e' \semi m'$ and
+\item $\Gamma \semi \Pi \semi \I \vDash \pair{m}{e}$,
+\end{enumerate}
+then $\llrr{m}_\I \semi \llrr{e}_\I 
+\mapsto^+ \llrr{e'}_\I \semi \llrr{m'}_\I$.
+
+\begin{Proof}
+By induction over the derivation of the step judgment \emph{(i)}.
+
+\tb{Case} \ts{E-Let}: We have 
+$\llrr{\elet{x}{e_1}{e_2}}=\elet{x}{\llrr{e_1}}{\llrr{e_2}}$
+and:
+\begin{mathpar}
+\inferrule*[right=E-Let] {
+  \inferrule* {(1)} {\estep{m}{e_1}{e_1'}{m'}}
+} {
+  \estep{m}{\elet{x}{e_1}{e_2}}{\elet{x}{e_1'}{e_2}}{m'}
+}
+\and
+\inferrule*[right=TE-Let] {
+  \inferrule* {(2)} {\Gamma \semi \Pi \vdash e_1: \ptp_1 \mid E}
+  \and
+  \Gamma, x: \ptp_1 \semi \Pi \vdash e_2: \ptp_2 \mid E
+} {
+  \Gamma \semi \Pi \vdash \elet{x}{e_1}{e_2}: \ptp_2 \mid E
+}
+\end{mathpar}
+\begin{itemize}
+\item By (2) and definition of premise \emph{(ii)},
+we have (3) that $\Gamma \semi \Pi \semi \I \vDash \pair{m}{e_1}$.
+\item By inductive hypothesis on (1) and (3),
+we get (4) that $\llrr{m}_\I \semi \llrr{e_1}_\I 
+\mapsto^+ \llrr{e_1'}_\I \semi \llrr{m'}_\I$.
+\item By LEMMA (transitivity under $\mf{let}$) on (4),
+we conclude that $\elet{x}{\llrr{e_1}}{\llrr{e_2}} \mapsto^+
+\elet{x}{\llrr{e_1'}}{\llrr{e_2}}$, 
+which equals $\llrr{\elet{x}{e_1'}{e_2}}$
+and we are done.
+\end{itemize}
+
+\tb{Case} \ts{E-Ret}: \begin{itemize}
+\item We have
+$\llrr{\elet{x}{\eret{v}}{e}} = \elet{x}{\eret{\llrr{v}}}{\llrr{e}}$
+and $m \semi \elet{x}{\eret{v}}{e} \mapsto e[v/x] \semi m$.
+\item In the target language, we get that
+$\llrr{m} \semi \elet{x}{\eret{\llrr{v}}}{\llrr{e}}
+\mapsto
+\llrr{e}[\llrr{v}/x] \semi \llrr{m}$.
+\item It suffices to show that $\llrr{e[v/x]} = \llrr{e}[\llrr{v}/x]$.
+This is given by LEMMA (substitution), and we are done.
+\end{itemize}
+
+\tb{Case} \ts{E-AppL}: We have 
+$m \semi (\lambda x.e)\ v \mapsto e[v/x] \semi m$.
+\begin{itemize}
+\item The translation steps as follows:
+\begin{align*}
+\llrr{m} \semi \llrr{(\lambda x.e)\ v}
+&= \llrr{m} \semi \lambda x.\llrr{e}\ \llrr{v}\\
+&\mapsto \llrr{m} \semi \llrr{e}[\llrr{v}/x]
+\end{align*}
+\item The conclusion again follows from LEMMA (substitution).
+\end{itemize}
+
+\tb{Case} \ts{E-AppS}: We have that
+$m \semi \vset{\ell}{p}\ v \mapsto
+\eret{()} \semi m'$,
+where $m'=m \mid m[p].\mf{st}[\ell]=v\ 
+\mf{and}\ m[p].\mf{rerender} = \tt$,
+and:
+\begin{mathpar}
+\inferrule*[right=TE-AppS] {
+  \inferrule*[right=TV-Set] {
+    \inferrule* {(1)} {\ell: \ptp \in \Pi[p]}
+  } {
+    \Gamma \semi \Pi \vdash \vset{\ell}{p}: \tset{\ptp}
+  }
+  \and
+  \Gamma \semi \Pi \vdash v: \ptp
+} {
+  \Gamma \semi \Pi \vdash \vset{\ell}{p}\ v: \tone \mid \emut
+}
+\end{mathpar}
+\begin{itemize}
+\item By (1) and premise \emph{(ii)},
+$\I(p, \ell)$ is a well-defined location in the target language.
+($\I(p)$ is similarly well-defined.)
+\item Therefore, the following translation is well-defined:
+$$\llrr{\vset{\ell}{p}\ v} = (\lambda x. \eset{\I(p, \ell)}{x}
+\semi \eset{\I(p)}{\mf{true}})\ \llrr{v}$$
+\item The translation steps as follows:
+\begin{align*}
+&\llrr{m} \semi (\lambda x. \eset{\I(p, \ell)}{x}
+\semi \eset{\I(p)}{\mf{true}})\ \llrr{v}\\
+&\mapsto \llrr{m} \semi \eset{\I(p, \ell)}{\llrr{v}}
+\semi \eset{\I(p)}{\mf{true}}\\
+&\mapsto^+ \llrr{m}[\I(p, \ell) \mapsto \llrr{v}]
+\semi \eset{\I(p)}{\mf{true}}\\
+&\mapsto \llrr{m}[\I(p, \ell) \mapsto \llrr{v}, \I(p) \mapsto \mf{true}]
+\semi \eret{()}
+\end{align*}
+\item Trivially $\llrr{\eret{()}}=\eret{()}$;
+it remains to be shown that
+$\llrr{m'} = \llrr{m}[\I(p, \ell) \mapsto \llrr{v}, \I(p) \mapsto \mf{true}]$.
+\item This follows by definition of $\llrr{m'}$,
+and we are done.\\(\hl{TODO: does this need a lemma?})
+\end{itemize}
+
+\tb{Cases} \ts{E-CaseN}, \ts{E-CaseC}: Trivial, but should fill in.
+\end{Proof}
+\end{theorem}
+
+\begin{theorem}[Simulation, bodies, initial phase.]
+If \begin{enumerate}[label=(\roman*)]
+\item $m \semi \hat{e} \mapsto^\mf{Init}_p \hat{e}' \semi m'$,
+\item $\Gamma \semi \Pi \semi \I \vDash \pair{m}{\hat{e}}$, and
+\item $p \in \dom\ \Pi$,
+\end{enumerate}
+then there exist some $\Pi' \rpo \Pi$ and $\I' \rpo \I$ such that
+\begin{enumerate}[label=(\roman*)]
+\item $\llrr{m}_\I \semi \llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\emptyset} 
+\mapsto^+ \llrr{\hat{e}'}^{\mf{Init}(\hat{e}_0)/p}_{\I'/\emptyset} 
+\semi \llrr{m'}_{\I'}$ and
+\item $\Gamma \semi \Pi' \semi \I' \vDash \pair{m'}{\hat{e}'}$.
+\end{enumerate}
+
+\begin{Proof}
+By premise \emph{(ii)}, we have the following:
+\begin{enumerate}[label=(ii-\alph*)]
+\item $\Gamma \semi \Pi \vDash m$,
+\item $\Gamma \semi \Pi \vdash \hat{e}: \Ell$, and
+\item $\Pi \vDash \I$.
+\end{enumerate}
+(We refer to the sub-conclusions of conclusion \emph{(ii)} in the same way.)
+
+Unless otherwise mentioned, we choose $\I'=\I$ and $\Pi'=\Pi$,
+such that conclusion \emph{(ii)}
+is a corollary of (THEOREM) type preservation
+applied to premises \emph{(i)}, (ii-a), and (ii-b).
+\hl{TODO}: not true, tprez only gives us $\Pi' \rpo \Pi$
+
+We proceed by induction on the derivation 
+of the small-step premise \emph{(i)}.
+
+\tb{Case} \ts{EB-Lift}: We have
+\begin{mathpar}
+\inferrule*[right=EB-Lift] {
+  \inferrule* {(1)} {\estep{m}{e}{e'}{m}}
+} {
+  \bstep{m}{e}{\mf{Init}}{p}{e'}{m}
+}
+\and
+\inferrule*[right=TB-Lift] {
+  \Gamma \semi \Pi \vdash e: \tview \mid \epsilon
+} {
+  \Gamma \semi \Pi \vdash e: \emptyset
+}
+\end{mathpar}
+and:
+\begin{align*}
+\llrr{e}^{\mf{Init}(\hat{e}_0)/p}_{\I/\emptyset}
+&= \elet{x_r}{\llrr{e}}{\\
+  &\quad\ \eret{(x_r,\I(p),\lambda ().\llrr{\hat{e}_0}
+  ^{\mf{Succ}/p}_{\I/\emptyset})}
+}
+\end{align*}
+\begin{itemize}
+\item Premise \emph{(iii)} alongside (ii-c)
+gives us that $\I(p)$ is well-defined,
+i.e. the translation above is well-defined at $p$.
+\item By \thref{thm:simexp} (expression simulation) on (1)
+and premise \emph{(ii)},
+we have (2) that $\llrr{m}_\I \semi \llrr{e}_\I 
+\mapsto^+ \llrr{e'}_\I \semi \llrr{m}_\I$.
+\item By LEMMA (transitivity under $\mf{let}$) on (2),
+we get $m \semi \elet{x}{\llrr{e}}{e_2}
+\mapsto^+ \elet{x}{\llrr{e'}}{e_2} \semi m$,
+which equals $\llrr{e'}^{\mf{Init}(\hat{e}_0)/p}_{\I/\emptyset}$
+and so we are done.
+\end{itemize}
+
+\end{Proof}
+\end{theorem}
+
+\begin{itemize}
+\item type soundness of source
+\item soundness of target?
+\item translation well-definedness
+\item translation type preservation
+\item translation simulation
+\item translation reflection?
+\end{itemize}
+
+\section{Custom Hooks}
+
+\subsection{Motivation}
+
+Using only React's built-in \texttt{useState},
+we are limited to placing individual state cells 
+in component bodies, e.g.:
+
+\begin{lstlisting}
+let foo = comp {
+  let x, xset = useState(0) in
+  let y, yset = useState("foo") in
+  ...
+}
+\end{lstlisting}
+
+However, often we want some logic surrounding
+our primitive state: the most common usage in React
+is for \emph{query caching}.
+For a simpler example, \texttt{useNat}
+ensures that the state value (an integer)
+is greater than zero:
+
+\begin{lstlisting}
+const useNat = (n: int) => {
+  const n' = (n >= 0) ? n : 0;
+  let [val, setVal] = useState(n');
+  const setter = (newVal: int) => {
+    if (newVal >= 0) {
+      setVal(newVal);
+    }
+  };
+  return [val, setter];
+}
+\end{lstlisting}
+
+\texttt{useNat} is a \emph{custom hook}:
+it can be used just like \texttt{useState}
+at the top-level of component bodies
+(or other custom hooks!),
+and any hooks in \emph{its} body
+must occur at the top-level.
+
+My language currently does not support
+the \emph{composition of hooks} in this way—
+and I would like it to!
+
+\subsection{Hooks as Modes}
+
+Insight: composing hooks can be done in \emph{monadic style},
+which enforces an order (and a top-level requirement)
+on its constitutent parts.
+
+Hooks are assigned the \emph{modal type} $\mf{Hook}\ A$,
+and their evaluation must be sequenced with the $\mf{use}$ construct 
+(i.e. ``bind'').
+
+Components are the special case of hooks with $A=\mf{View}$,
+and can be injected into other views via the $\mf{spec}$ constructor.
+
+(Ignoring most runtime details for the moment.)
+
+\subsubsection{Syntax}
+
+We let $\mf{return}$ refer to the ``monadic'' return,
+whereas $\mf{val}$ refers to a ``pure'' return.
+
+(We need product types/constructs too, but these are easy.)
+
+\begin{align*}
+\text{Value } v &::= x \mid () \mid s 
+\mid \lambda x.e \mid [] \mid v :: v
+\mid \mhl{\mf{hook}\ e} \mid \mhl{\mf{state}}\\
+&\quad\mid \vtxt{v} \mid \vtag{v}{v} \mid \mhl{\mf{spec}\ v}
+\mid \vattr{v}{v} \mid \vclick{v}\\
+\text{Expression } e &::= \mf{val}\ v \mid \mhl{\eret{v}} \mid \mhl{\elet{x}{e}{e}} 
+\mid \mhl{\elet{x}{\mf{use}^\ell\ e}{e}}\\
+&\quad\mid v\ v \mid
+\ecase{v}{[]}{e_1}{x_\mf{hd} :: x_\mf{tl}}{e_2}\\
+\text{Type } \ptp &::= \tone \mid \tstr \mid \ptp \rightarrow \ptp
+\mid \mf{List}\ A \mid \tview \mid \tattr \mid \mhl{\mf{Hook}\ A}
+\end{align*}
+
+\subsubsection{Typing}
+
+Value judgment: $\Gamma \vdash_v v: A$
+
+\begin{mathpar}
+\inferrule*[right=TV-Var] {
+  x: A \in \Gamma
+} {
+  \Gamma \vdash_v x: A
+}
+\and
+\inferrule*[right=TV-Unit] { } {
+  \Gamma \vdash_v (): \tone
+}
+\and
+\inferrule*[right=TV-Str] { } {
+  \Gamma \vdash_v s: \tstr
+}
+\and
+\inferrule*[right=TV-Lam] {
+  \Gamma, x: A_1 \vdash_e e: A_2
+} {
+  \Gamma \vdash_v \lambda x.e: A_1 \rightarrow A_2
+}
+\and
+\inferrule*[right=TV-Nil] { } {
+  \Gamma \vdash_v []: \mf{List}\ A
+}
+\and
+\inferrule*[right=TV-Cons] {
+  \Gamma \vdash_v v_1: A
+  \and
+  \Gamma \vdash_v v_2: \mf{List}\ A
+} {
+  \Gamma \vdash_v v_1 :: v_2: \mf{List}\ A
+}
+\and
+\inferrule*[right=\hl{TV-Hook}] {
+  \Gamma \vdash_h e: A
+} {
+  \Gamma \vdash_v \mf{hook}\ e: \mf{Hook}\ A
+}
+\and
+\inferrule*[right=\hl{TV-State}] { } {
+  \Gamma \vdash \mf{state}: A \rightarrow 
+  \mf{Hook}\ (A \times (A \rightarrow \tone))
+}
+\inferrule*[right=TV-Text] {
+  \Gamma \vdash v: \tstr
+} {
+  \Gamma \vdash \vtxt{v}: \tview
+}
+\and
+\inferrule*[right=TV-Tag] {
+  \Gamma \vdash v_1: \mf{List}\ \tattr
+  \and
+  \Gamma \vdash v_2: \mf{List}\ \tview
+} {
+  \Gamma \vdash \vtag{v_1}{v_2}: \tview
+}
+\and
+\inferrule*[right=\hl{TV-Spec}] {
+  \Gamma \vdash v: \mf{Hook}\ \tview
+} {
+  \Gamma \vdash \mf{spec}\ v: \tview
+}
+\and
+\inferrule*[right=TV-Attr] {
+  \Gamma \vdash v_1: \tstr
+  \and
+  \Gamma \vdash v_2: \tstr
+} {
+  \Gamma \vdash \vattr{v_1}{v_2}: \tattr
+}
+\and
+\inferrule*[right=TV-Click] {
+  \Gamma \vdash v: \tone \rightarrow \tone
+} {
+  \Gamma \vdash \vclick{v}: \tattr
+}
+\end{mathpar}
+
+Pure expression judgment: $\Gamma \vdash_e e: A$
+
+\begin{mathpar}
+\inferrule*[right=TE-Val] {
+  \Gamma \vdash_v v: A
+} {
+  \Gamma \vdash_e \mf{val}\ v: A
+}
+\and
+\inferrule*[right=TE-Let] {
+  \Gamma \vdash_e e_1: A_1
+  \and
+  \Gamma, x: A_1 \vdash_e e_2: A_2
+} {
+  \Gamma \vdash_e \elet{x}{e_1}{e_2}: A_2
+}
+\and
+\inferrule*[right=TE-App] {
+  \Gamma \vdash v_1: A_1 \rightarrow A_2
+  \and
+  \Gamma \vdash v_2: A_1
+} {
+  \Gamma \vdash v_1\ v_2: A_2
+}
+\and
+\inferrule*[right=TE-Case] {
+  \Gamma \vdash v: \mf{List}\ A_1
+  \and
+  \Gamma \vdash e_1: A_2
+  \\
+  \Gamma, x: A_1, xs: \mf{List}\ A_1 \vdash e_2: A_2
+} {
+  \Gamma \vdash \ecase{v}{[]}{e_1}{x :: xs}{e_2}: A_2
+}
+\end{mathpar}
+
+Hook judgment: $\Gamma \vdash_h e: A$
+
+\begin{mathpar}
+\inferrule*[right=TH-Ret] {
+  \Gamma \vdash_v v: A
+} {
+  \Gamma \vdash_h \eret{v}: A
+}
+\and
+\inferrule*[right=\hl{TM-Use}] {
+  \Gamma \vdash_e e_1: \mf{Hook}\ A_1
+  \and
+  \Gamma, x: A_1 \vdash_h e: A_2
+} {
+  \Gamma \vdash_h \elet{x}{\mf{use}\ e_1}{e_2}: A_2
+}
+\end{mathpar}
+
+\subsubsection{Operational Semantics}
+
+Pure expression judgment: $e \mapsto e'$
+\begin{mathpar}
+\inferrule*[right=EE-Let] {
+  e_1 \mapsto e_1'
+} {
+  \elet{x}{e_1}{e_2} \mapsto \elet{x}{e_1'}{e_2}
+}
+\end{mathpar}
+\begin{align*}
+\elet{x}{\mf{val}\ v}{e} &\mapsto e[v/x] &&\textsc{EE-Val}\\
+(\lambda x.e)\ v &\mapsto e[v/x] &&\textsc{EE-App}\\
+\ecase{[]}{[]}{e_1}{x :: xs}{e_2}
+&\mapsto e_1 &&\textsc{EE-CaseN}\\
+\ecase{v :: vs}{[]}{e_1}{x :: xs}{e_2}
+&\mapsto e_2[v/x, vs/xs] &&\textsc{EE-CaseC}\\
+\end{align*}
+
+Hook judgment: $m \semi e \hookrightarrow^{\phi/p}_\Ell e' \semi m'$
+\begin{mathpar}
+\inferrule*[right=EH-Ret] {
+  e \mapsto e'
+} {
+  m \semi \eret{e}
+  \hookrightarrow^{\phi/p}_\Ell
+  \eret{e'} \semi m
+}
+\and
+\inferrule*[right=EH-Use] {
+  m \semi e_1 \hookrightarrow^{\phi/p}_{\Ell,\ell} e_1' \semi m'
+} {
+  m \semi \elet{x}{\mf{use}^\ell\ e_1}{e_2} 
+  \hookrightarrow^{\phi/p}_\Ell
+  \elet{x}{\mf{use}^\ell\ e_1'}{e_2} \semi m'
+}
+\end{mathpar}
+\begin{align*}
+m \semi \elet{x}{\mf{use}^\ell\ \eret{\mf{val}\ v}}{e}
+&\hookrightarrow^{\phi/p}_\Ell
+e[v/x] \semi m &&\textsc{EH-Val}\\
+m \semi \mf{state}\ v
+&\hookrightarrow^{\mf{Init}/p}_\Ell
+\eret{\mf{val}\ v} \semi m'
+&&\textsc{EH-StI}\\
+&(m \mid m[p].\mf{st}[\Ell] = v)\\
+m \semi \mf{state}\ v
+&\hookrightarrow^{\mf{Succ}/p}_\Ell
+\eret{\mf{val}\ v'} \semi m
+&&\textsc{EH-StS}\\
+&(v' = m[p].\mf{st}[\Ell])\\
+\end{align*}
+(state rules are missing setters for the moment,
+and I'm omitting a bunch of details re: memory syntax,
+but should be pretty straightforward?)
+
+A program has type $\mf{View}$.
+
+\subsubsection{Example}
+
+Allowing ourselves integers and conditionals:
+
+\begin{lstlisting}[mathescape]
+let nat = $\lambda$x.val hook {
+  let y, yset = use state x in
+  let setter = return val $\lambda$z.
+    if z >= 0
+      then yset z
+      else val ()
+    in
+  return val (y, setter)
+} 
+in
+spec hook {
+  let n, nset = use nat 5 in
+  return val (
+    <div onClick={$\lambda$().nset(n-1)}>
+      {n}
+    </div>
+  )
+}
+\end{lstlisting}
+
+$\mf{nat}$ has type $\mf{Int} \rightarrow 
+\mf{Hook}\ (\mf{Int} \times (\mf{Int} \rightarrow \tone))$.
+
+\subsection{A Problem}
+
+Consider a similar language with
+a single monadic action $\mf{tick}: \bigcirc \tone$:
+
+\begin{lstlisting}[mathescape]
+let x = use return (
+  if v < 0
+    then tick
+    else return ()
+) in
+let y = use x in return y
+\end{lstlisting}
+
+Evaluation of the above term may or may not cause a tick,
+depending on the value of $v$.
+
+We no longer have the needed guarantee that
+actions will be executed in the same order every time.
+
+The problem (I think?) only arises when
+a double-modality $\bigcirc\bigcirc$ arises somewhere in the
+typing derivation: above, the expression bound to $x$
+has type $\bigcirc\bigcirc\tone$.
+
+Maybe we can statically forbid this somehow?
+
 
 \end{document}

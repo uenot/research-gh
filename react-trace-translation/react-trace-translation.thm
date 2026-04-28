@@ -70,4 +70,72 @@
 \contentsline {Proof}{{Proof}{26}{}}{81}{}%
 \contentsline {theorem}{{Theorem}{1}{Termination of realization.}}{82}{}%
 \contentsline {Proof}{{Proof}{27}{}}{82}{}%
-\contentsline {theorem}{{Theorem}{2}{Type preservation, values.}}{96}{}%
+\contentsline {theorem}{{Theorem}{2}{Type preservation, values.}}{100}{}%
+\contentsline {Proof}{{Proof}{28}{}}{100}{}%
+\contentsline {theorem}{{Theorem}{3}{Type preservation, expressions.}}{103}{}%
+\contentsline {Proof}{{Proof}{29}{}}{103}{}%
+\contentsline {theorem}{{Theorem}{4}{Type preservation, bodies, successor phase.}}{105}{}%
+\contentsline {Proof}{{Proof}{30}{}}{106}{}%
+\contentsline {corollary}{{Corollary}{1}{Type preservation, bodies (successor), complete.}}{108}{}%
+\contentsline {corollary}{{Corollary}{2}{Type preservation, bodies (successor), static.}}{109}{}%
+\contentsline {theorem}{{Theorem}{5}{Type preservation, bodies, initial phase.}}{109}{}%
+\contentsline {Proof}{{Proof}{31}{}}{109}{}%
+\contentsline {corollary}{{Corollary}{3}{Type preservation, bodies (initial), complete.}}{111}{}%
+\contentsline {corollary}{{Corollary}{4}{Type preservation, bodies (initial), static.}}{111}{}%
+\contentsline {Proof}{{Proof}{32}{}}{112}{}%
+\contentsline {theorem}{{Theorem}{6}{Type preservation, bodies, top.}}{112}{}%
+\contentsline {theorem}{{Theorem}{7}{Type preservation, runtime values.}}{112}{}%
+\contentsline {Proof}{{Proof}{33}{}}{112}{}%
+\contentsline {theorem}{{Theorem}{8}{Type preservation, runtime expressions.}}{113}{}%
+\contentsline {Proof}{{Proof}{34}{}}{113}{}%
+\contentsline {theorem}{{Theorem}{9}{Progress, expressions.}}{127}{}%
+\contentsline {Proof}{{Proof}{35}{}}{127}{}%
+\contentsline {theorem}{{Theorem}{10}{Preservation, expressions.}}{129}{}%
+\contentsline {Proof}{{Proof}{36}{}}{129}{}%
+\contentsline {theorem}{{Theorem}{11}{Progress, bodies, initial.}}{131}{}%
+\contentsline {Proof}{{Proof}{37}{}}{132}{}%
+\contentsline {theorem}{{Theorem}{12}{Preservation, bodies, initial.}}{133}{}%
+\contentsline {Proof}{{Proof}{38}{}}{133}{}%
+\contentsline {theorem}{{Theorem}{13}{Progress, bodies, successor.}}{135}{}%
+\contentsline {Proof}{{Proof}{39}{}}{135}{}%
+\contentsline {theorem}{{Theorem}{14}{Preservation, bodies, successor.}}{136}{}%
+\contentsline {Proof}{{Proof}{40}{}}{136}{}%
+\contentsline {theorem}{{Theorem}{15}{Progress, runtime.}}{138}{}%
+\contentsline {Proof}{{Proof}{41}{}}{138}{}%
+\contentsline {theorem}{{Theorem}{16}{Preservation, runtime.}}{139}{}%
+\contentsline {lemma}{{Lemma}{28}{Well-definedness, pointer context.}}{140}{}%
+\contentsline {Proof}{{Proof}{42}{}}{140}{}%
+\contentsline {lemma}{{Lemma}{29}{Type preservation, values.}}{140}{}%
+\contentsline {Proof}{{Proof}{43}{}}{140}{}%
+\contentsline {corollary}{{Corollary}{5}{Well-definedness, values.}}{143}{}%
+\contentsline {lemma}{{Lemma}{30}{Type preservation, expressions.}}{143}{}%
+\contentsline {Proof}{{Proof}{44}{}}{143}{}%
+\contentsline {corollary}{{Corollary}{6}{Well-definedness, expressions.}}{145}{}%
+\contentsline {lemma}{{Lemma}{31}{Sub-recording under delta.}}{145}{}%
+\contentsline {Proof}{{Proof}{45}{}}{145}{}%
+\contentsline {lemma}{{Lemma}{32}{Flag-typing under delta.}}{145}{}%
+\contentsline {Proof}{{Proof}{46}{}}{145}{}%
+\contentsline {lemma}{{Lemma}{33}{Label-typing under delta.}}{146}{}%
+\contentsline {Proof}{{Proof}{47}{}}{146}{}%
+\contentsline {lemma}{{Lemma}{34}{Type preservation, bodies, successor phase.}}{147}{}%
+\contentsline {Proof}{{Proof}{48}{}}{147}{}%
+\contentsline {corollary}{{Corollary}{7}{Well-definedness, bodies, successor phase.}}{149}{}%
+\contentsline {lemma}{{Lemma}{35}{Type preservation, bodies, initial phase.}}{149}{}%
+\contentsline {Proof}{{Proof}{49}{}}{149}{}%
+\contentsline {corollary}{{Corollary}{8}{Well-definedness, bodies, initial.}}{152}{}%
+\contentsline {lemma}{{Lemma}{36}{Type preservation, bodies, static.}}{152}{}%
+\contentsline {Proof}{{Proof}{50}{}}{153}{}%
+\contentsline {corollary}{{Corollary}{9}{Well-definedness, bodies, static.}}{153}{}%
+\contentsline {lemma}{{Lemma}{37}{Type preservation, runtime values.}}{153}{}%
+\contentsline {Proof}{{Proof}{51}{}}{153}{}%
+\contentsline {corollary}{{Corollary}{10}{Well-definedness, runtime values.}}{154}{}%
+\contentsline {lemma}{{Lemma}{38}{Type preservation, runtime expressions.}}{154}{}%
+\contentsline {Proof}{{Proof}{52}{}}{154}{}%
+\contentsline {corollary}{{Corollary}{11}{Well-definedness, runtime expressions.}}{155}{}%
+\contentsline {lemma}{{Lemma}{39}{Type preservation, memory.}}{155}{}%
+\contentsline {Proof}{{Proof}{53}{}}{156}{}%
+\contentsline {corollary}{{Corollary}{12}{Well-definedness, memory.}}{156}{}%
+\contentsline {theorem}{{Theorem}{17}{Simulation, expressions.}}{156}{}%
+\contentsline {Proof}{{Proof}{54}{}}{157}{}%
+\contentsline {theorem}{{Theorem}{18}{Simulation, bodies, initial phase.}}{158}{}%
+\contentsline {Proof}{{Proof}{55}{}}{158}{}%
