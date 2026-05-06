@@ -15188,7 +15188,7 @@ as $\Gamma \semi \Sigma \vDash \sigma$.
 &&\textsc{EE-Set}
 \end{align*}
 
-\section{Translations}
+\section{Translations (WIP)}
 
 \subsection{$\lambda^\mf{hook}_\mf{dyn}$ to $\lambda^\mf{ref}_\mf{dyn}$}
 
@@ -15227,7 +15227,7 @@ Expressions:
 
 Bodies:
 \begin{align*}
-\llrr{e}^{\mf{Succ}/p}_{\I/\delta} &= \llrr{e}\\
+\llrr{e}^{\mf{Succ}/p}_{\I/\delta} &= \llrr{e}_\I\\
 \llrr{\elet{x}{e}{\hat{e}}}^{\mf{Succ}/p}_{\I/\delta}
 &= \elet{x}{\llrr{e}_\I}{\llrr{\hat{e}}^{\mf{Succ}/p}_{\I/\delta}}\\
 \llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Succ}/p}_{\I/\delta}
@@ -15248,13 +15248,13 @@ Bodies:
 }\\
 \llrr{\elet{x}{e}{\hat{e}}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}
 &= \elet{x}{\llrr{e}_\I}{\llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}}\\
-\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Init}(\hat{e}_0)/p}_\delta
-&= \elet{x_\ell}{\eref{\llrr{v}}}{\\
+\llrr{\estate{x}{\ell}{v}{\hat{e}}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta}
+&= \elet{x_\ell}{\eref{\llrr{v}_\I}}{\\
   &\quad\ \elet{x}{\eget{x_\ell}}{\\
     &\quad\ \elet{x_\mf{set}}{\eret{\lambda y.\\
       &\qquad
       \eset{x_\ell}{y} \semi \eset{\delta(p)}{\mf{true}}}\\&\quad\ }{
-       \llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\delta,\ell \mapsto x_\ell}
+       \llrr{\hat{e}}^{\mf{Init}(\hat{e}_0)/p}_{\I/\delta,\ell \mapsto x_\ell}
     }
   }
 }\\
@@ -15262,6 +15262,17 @@ Bodies:
   \llrr{\hat{e}}^{\mf{Init}(\hat{e})/\emptyset}_{\I/\mf{flag} \mapsto x_f}
 }
 \end{align*}
+
+$$\delta ::= \emptyset \mid \mf{flag} \mapsto x \mid \delta, \ell \mapsto x$$
+
+\[\delta_\I(p, \ell) = \begin{cases}
+  x & \text{if}\ \ell \mapsto x \in \delta\\
+  \I(p, \ell) & \text{otherwise}
+\end{cases}\]
+\[\delta_\I(p) = \begin{cases}
+  x & \text{if}\ \mf{flag} \mapsto x \in \delta\\
+  \I(p) & \text{otherwise}
+\end{cases}\]
 
 \subsection{$\lambda^\mf{ref}_\mf{dyn}$ to $\lambda^\mf{ref}_{\mf{view}+}$}
 
