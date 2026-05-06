@@ -1,141 +1,141 @@
-\contentsline {proposition}{{Proposition}{1}{Canonical forms.}}{7}{}%
-\contentsline {proposition}{{Proposition}{2}{Variable context weakening, values.}}{7}{}%
-\contentsline {proposition}{{Proposition}{3}{Path context weakening, values.}}{7}{}%
-\contentsline {proposition}{{Proposition}{4}{Path context weakening, bodies.}}{7}{}%
-\contentsline {proposition}{{Proposition}{5}{Substitution lemma, expressions.}}{7}{}%
-\contentsline {proposition}{{Proposition}{6}{Substitution lemma, bodies.}}{7}{}%
-\contentsline {proposition}{{Proposition}{7}{Substitution lemma, programs.}}{7}{}%
-\contentsline {lemma}{{Lemma}{1}{Progress of expressions.}}{7}{}%
-\contentsline {Proof}{{Proof}{1}{}}{7}{}%
-\contentsline {lemma}{{Lemma}{2}{Preservation of expressions.}}{9}{}%
-\contentsline {Proof}{{Proof}{2}{}}{9}{}%
-\contentsline {lemma}{{Lemma}{3}{Purity of expressions.}}{12}{}%
-\contentsline {Proof}{{Proof}{3}{}}{12}{}%
-\contentsline {lemma}{{Lemma}{4}{Progress of bodies, initial phase.}}{13}{}%
-\contentsline {Proof}{{Proof}{4}{}}{13}{}%
-\contentsline {lemma}{{Lemma}{5}{Preservation of bodies, initial phase.}}{14}{}%
-\contentsline {Proof}{{Proof}{5}{}}{14}{}%
-\contentsline {lemma}{{Lemma}{6}{Progress of bodies, successor phase.}}{16}{}%
-\contentsline {Proof}{{Proof}{6}{}}{16}{}%
-\contentsline {lemma}{{Lemma}{7}{Preservation of bodies, successor phase.}}{17}{}%
-\contentsline {Proof}{{Proof}{7}{}}{18}{}%
-\contentsline {lemma}{{Lemma}{8}{Progress of programs.}}{19}{}%
-\contentsline {Proof}{{Proof}{8}{}}{19}{}%
-\contentsline {lemma}{{Lemma}{9}{Preservation of programs.}}{20}{}%
-\contentsline {Proof}{{Proof}{9}{}}{21}{}%
-\contentsline {proposition}{{Proposition}{8}{Canonical forms, runtime.}}{27}{}%
-\contentsline {proposition}{{Proposition}{9}{Path context weakening, runtime sub-judgment.}}{27}{}%
-\contentsline {proposition}{{Proposition}{10}{Uniqueness of typing.}}{27}{}%
-\contentsline {lemma}{{Lemma}{10}{Hole typing, runtime sub-judgment.}}{27}{}%
-\contentsline {Proof}{{Proof}{10}{}}{28}{}%
-\contentsline {lemma}{{Lemma}{11}{Hole typing, runtime.}}{29}{}%
-\contentsline {Proof}{{Proof}{11}{}}{29}{}%
-\contentsline {lemma}{{Lemma}{12}{Hole typing, configurations.}}{30}{}%
-\contentsline {Proof}{{Proof}{12}{}}{30}{}%
-\contentsline {lemma}{{Lemma}{13}{Context replacement, runtime sub-judgment.}}{30}{}%
-\contentsline {Proof}{{Proof}{13}{}}{30}{}%
-\contentsline {lemma}{{Lemma}{14}{Context replacement, runtime.}}{33}{}%
-\contentsline {Proof}{{Proof}{14}{}}{33}{}%
-\contentsline {lemma}{{Lemma}{15}{Context replacement, configurations.}}{34}{}%
-\contentsline {Proof}{{Proof}{15}{}}{34}{}%
-\contentsline {lemma}{{Lemma}{16}{Progress of configurations.}}{34}{}%
-\contentsline {proof}{{Proof}{1}{}}{34}{}%
-\contentsline {lemma}{{Lemma}{17}{Preservation of configurations.}}{42}{}%
-\contentsline {Proof}{{Proof}{16}{}}{42}{}%
-\contentsline {proposition}{{Proposition}{11}{Path context weakening, linear sub-judgment.}}{58}{}%
-\contentsline {proposition}{{Proposition}{12}{Linear uniqueness of typing.}}{58}{}%
-\contentsline {proposition}{{Proposition}{13}{Uniqueness of memory typing.}}{58}{}%
-\contentsline {proposition}{{Proposition}{14}{Linear context containment.}}{58}{}%
-\contentsline {lemma}{{Lemma}{18}{Delinearization.}}{58}{}%
-\contentsline {Proof}{{Proof}{17}{}}{58}{}%
-\contentsline {lemma}{{Lemma}{19}{Hole typing, linear sub-judgment.}}{59}{}%
-\contentsline {Proof}{{Proof}{18}{}}{59}{}%
-\contentsline {lemma}{{Lemma}{20}{Hole typing, linear judgment.}}{61}{}%
-\contentsline {Proof}{{Proof}{19}{}}{61}{}%
-\contentsline {lemma}{{Lemma}{21}{Hole typing, linear configs.}}{61}{}%
-\contentsline {Proof}{{Proof}{20}{}}{61}{}%
-\contentsline {lemma}{{Lemma}{22}{Replacement, linear sub-judgment.}}{62}{}%
-\contentsline {Proof}{{Proof}{21}{}}{62}{}%
-\contentsline {lemma}{{Lemma}{23}{Replacement, linear judgment.}}{64}{}%
-\contentsline {Proof}{{Proof}{22}{}}{65}{}%
-\contentsline {lemma}{{Lemma}{24}{Replacement, linear configs.}}{65}{}%
-\contentsline {Proof}{{Proof}{23}{}}{65}{}%
-\contentsline {lemma}{{Lemma}{25}{Preservation of configurations, linear extension.}}{66}{}%
-\contentsline {Proof}{{Proof}{24}{}}{66}{}%
-\contentsline {proposition}{{Proposition}{15}{Hole typing, realization.}}{80}{}%
-\contentsline {proposition}{{Proposition}{16}{Replacement, realization.}}{80}{}%
-\contentsline {lemma}{{Lemma}{26}{Progress of realization.}}{80}{}%
-\contentsline {Proof}{{Proof}{25}{}}{80}{}%
-\contentsline {lemma}{{Lemma}{27}{Preservation of realization.}}{80}{}%
-\contentsline {Proof}{{Proof}{26}{}}{81}{}%
-\contentsline {theorem}{{Theorem}{1}{Termination of realization.}}{82}{}%
-\contentsline {Proof}{{Proof}{27}{}}{82}{}%
-\contentsline {theorem}{{Theorem}{2}{Type preservation, values.}}{100}{}%
-\contentsline {Proof}{{Proof}{28}{}}{100}{}%
-\contentsline {theorem}{{Theorem}{3}{Type preservation, expressions.}}{103}{}%
-\contentsline {Proof}{{Proof}{29}{}}{103}{}%
-\contentsline {theorem}{{Theorem}{4}{Type preservation, bodies, successor phase.}}{105}{}%
-\contentsline {Proof}{{Proof}{30}{}}{106}{}%
-\contentsline {corollary}{{Corollary}{1}{Type preservation, bodies (successor), complete.}}{108}{}%
-\contentsline {corollary}{{Corollary}{2}{Type preservation, bodies (successor), static.}}{109}{}%
-\contentsline {theorem}{{Theorem}{5}{Type preservation, bodies, initial phase.}}{109}{}%
-\contentsline {Proof}{{Proof}{31}{}}{109}{}%
-\contentsline {corollary}{{Corollary}{3}{Type preservation, bodies (initial), complete.}}{111}{}%
-\contentsline {corollary}{{Corollary}{4}{Type preservation, bodies (initial), static.}}{111}{}%
-\contentsline {Proof}{{Proof}{32}{}}{112}{}%
-\contentsline {theorem}{{Theorem}{6}{Type preservation, bodies, top.}}{112}{}%
-\contentsline {theorem}{{Theorem}{7}{Type preservation, runtime values.}}{112}{}%
-\contentsline {Proof}{{Proof}{33}{}}{112}{}%
-\contentsline {theorem}{{Theorem}{8}{Type preservation, runtime expressions.}}{113}{}%
-\contentsline {Proof}{{Proof}{34}{}}{113}{}%
-\contentsline {theorem}{{Theorem}{9}{Progress, expressions.}}{127}{}%
-\contentsline {Proof}{{Proof}{35}{}}{127}{}%
-\contentsline {theorem}{{Theorem}{10}{Preservation, expressions.}}{129}{}%
-\contentsline {Proof}{{Proof}{36}{}}{129}{}%
-\contentsline {theorem}{{Theorem}{11}{Progress, bodies, initial.}}{131}{}%
-\contentsline {Proof}{{Proof}{37}{}}{132}{}%
-\contentsline {theorem}{{Theorem}{12}{Preservation, bodies, initial.}}{133}{}%
-\contentsline {Proof}{{Proof}{38}{}}{133}{}%
-\contentsline {theorem}{{Theorem}{13}{Progress, bodies, successor.}}{135}{}%
-\contentsline {Proof}{{Proof}{39}{}}{135}{}%
-\contentsline {theorem}{{Theorem}{14}{Preservation, bodies, successor.}}{136}{}%
-\contentsline {Proof}{{Proof}{40}{}}{136}{}%
-\contentsline {theorem}{{Theorem}{15}{Progress, runtime.}}{138}{}%
-\contentsline {Proof}{{Proof}{41}{}}{138}{}%
-\contentsline {theorem}{{Theorem}{16}{Preservation, runtime.}}{139}{}%
-\contentsline {lemma}{{Lemma}{28}{Well-definedness, pointer context.}}{140}{}%
-\contentsline {Proof}{{Proof}{42}{}}{140}{}%
-\contentsline {lemma}{{Lemma}{29}{Type preservation, values.}}{140}{}%
-\contentsline {Proof}{{Proof}{43}{}}{140}{}%
-\contentsline {corollary}{{Corollary}{5}{Well-definedness, values.}}{143}{}%
-\contentsline {lemma}{{Lemma}{30}{Type preservation, expressions.}}{143}{}%
-\contentsline {Proof}{{Proof}{44}{}}{143}{}%
-\contentsline {corollary}{{Corollary}{6}{Well-definedness, expressions.}}{145}{}%
-\contentsline {lemma}{{Lemma}{31}{Sub-recording under delta.}}{145}{}%
-\contentsline {Proof}{{Proof}{45}{}}{145}{}%
-\contentsline {lemma}{{Lemma}{32}{Flag-typing under delta.}}{145}{}%
-\contentsline {Proof}{{Proof}{46}{}}{145}{}%
-\contentsline {lemma}{{Lemma}{33}{Label-typing under delta.}}{146}{}%
-\contentsline {Proof}{{Proof}{47}{}}{146}{}%
-\contentsline {lemma}{{Lemma}{34}{Type preservation, bodies, successor phase.}}{147}{}%
-\contentsline {Proof}{{Proof}{48}{}}{147}{}%
-\contentsline {corollary}{{Corollary}{7}{Well-definedness, bodies, successor phase.}}{149}{}%
-\contentsline {lemma}{{Lemma}{35}{Type preservation, bodies, initial phase.}}{149}{}%
-\contentsline {Proof}{{Proof}{49}{}}{149}{}%
-\contentsline {corollary}{{Corollary}{8}{Well-definedness, bodies, initial.}}{152}{}%
-\contentsline {lemma}{{Lemma}{36}{Type preservation, bodies, static.}}{152}{}%
-\contentsline {Proof}{{Proof}{50}{}}{153}{}%
-\contentsline {corollary}{{Corollary}{9}{Well-definedness, bodies, static.}}{153}{}%
-\contentsline {lemma}{{Lemma}{37}{Type preservation, runtime values.}}{153}{}%
-\contentsline {Proof}{{Proof}{51}{}}{153}{}%
-\contentsline {corollary}{{Corollary}{10}{Well-definedness, runtime values.}}{154}{}%
-\contentsline {lemma}{{Lemma}{38}{Type preservation, runtime expressions.}}{154}{}%
-\contentsline {Proof}{{Proof}{52}{}}{154}{}%
-\contentsline {corollary}{{Corollary}{11}{Well-definedness, runtime expressions.}}{155}{}%
-\contentsline {lemma}{{Lemma}{39}{Type preservation, memory.}}{155}{}%
-\contentsline {Proof}{{Proof}{53}{}}{156}{}%
-\contentsline {corollary}{{Corollary}{12}{Well-definedness, memory.}}{156}{}%
-\contentsline {theorem}{{Theorem}{17}{Simulation, expressions.}}{156}{}%
-\contentsline {Proof}{{Proof}{54}{}}{157}{}%
-\contentsline {theorem}{{Theorem}{18}{Simulation, bodies, initial phase.}}{158}{}%
-\contentsline {Proof}{{Proof}{55}{}}{158}{}%
+\contentsline {proposition}{{Proposition}{1}{Canonical forms.}}{10}{proposition.1}%
+\contentsline {proposition}{{Proposition}{2}{Variable context weakening, values.}}{10}{proposition.2}%
+\contentsline {proposition}{{Proposition}{3}{Path context weakening, values.}}{10}{proposition.3}%
+\contentsline {proposition}{{Proposition}{4}{Path context weakening, bodies.}}{10}{proposition.4}%
+\contentsline {proposition}{{Proposition}{5}{Substitution lemma, expressions.}}{10}{proposition.5}%
+\contentsline {proposition}{{Proposition}{6}{Substitution lemma, bodies.}}{10}{proposition.6}%
+\contentsline {proposition}{{Proposition}{7}{Substitution lemma, programs.}}{10}{proposition.7}%
+\contentsline {lemma}{{Lemma}{1}{Progress of expressions.}}{10}{lemma.1}%
+\contentsline {Proof}{{Proof}{1}{}}{10}{Proof.1}%
+\contentsline {lemma}{{Lemma}{2}{Preservation of expressions.}}{12}{lemma.2}%
+\contentsline {Proof}{{Proof}{2}{}}{12}{Proof.2}%
+\contentsline {lemma}{{Lemma}{3}{Purity of expressions.}}{15}{lemma.3}%
+\contentsline {Proof}{{Proof}{3}{}}{15}{Proof.3}%
+\contentsline {lemma}{{Lemma}{4}{Progress of bodies, initial phase.}}{16}{lemma.4}%
+\contentsline {Proof}{{Proof}{4}{}}{16}{Proof.4}%
+\contentsline {lemma}{{Lemma}{5}{Preservation of bodies, initial phase.}}{17}{lemma.5}%
+\contentsline {Proof}{{Proof}{5}{}}{17}{Proof.5}%
+\contentsline {lemma}{{Lemma}{6}{Progress of bodies, successor phase.}}{19}{lemma.6}%
+\contentsline {Proof}{{Proof}{6}{}}{19}{Proof.6}%
+\contentsline {lemma}{{Lemma}{7}{Preservation of bodies, successor phase.}}{21}{lemma.7}%
+\contentsline {Proof}{{Proof}{7}{}}{21}{Proof.7}%
+\contentsline {lemma}{{Lemma}{8}{Progress of programs.}}{22}{lemma.8}%
+\contentsline {Proof}{{Proof}{8}{}}{23}{Proof.8}%
+\contentsline {lemma}{{Lemma}{9}{Preservation of programs.}}{24}{lemma.9}%
+\contentsline {Proof}{{Proof}{9}{}}{24}{Proof.9}%
+\contentsline {proposition}{{Proposition}{8}{Canonical forms, runtime.}}{31}{proposition.8}%
+\contentsline {proposition}{{Proposition}{9}{Path context weakening, runtime sub-judgment.}}{31}{proposition.9}%
+\contentsline {proposition}{{Proposition}{10}{Uniqueness of typing.}}{31}{proposition.10}%
+\contentsline {lemma}{{Lemma}{10}{Hole typing, runtime sub-judgment.}}{31}{lemma.10}%
+\contentsline {Proof}{{Proof}{10}{}}{31}{Proof.10}%
+\contentsline {lemma}{{Lemma}{11}{Hole typing, runtime.}}{32}{lemma.11}%
+\contentsline {Proof}{{Proof}{11}{}}{33}{Proof.11}%
+\contentsline {lemma}{{Lemma}{12}{Hole typing, configurations.}}{33}{lemma.12}%
+\contentsline {Proof}{{Proof}{12}{}}{33}{Proof.12}%
+\contentsline {lemma}{{Lemma}{13}{Context replacement, runtime sub-judgment.}}{33}{lemma.13}%
+\contentsline {Proof}{{Proof}{13}{}}{33}{Proof.13}%
+\contentsline {lemma}{{Lemma}{14}{Context replacement, runtime.}}{36}{lemma.14}%
+\contentsline {Proof}{{Proof}{14}{}}{36}{Proof.14}%
+\contentsline {lemma}{{Lemma}{15}{Context replacement, configurations.}}{37}{lemma.15}%
+\contentsline {Proof}{{Proof}{15}{}}{37}{Proof.15}%
+\contentsline {lemma}{{Lemma}{16}{Progress of configurations.}}{38}{lemma.16}%
+\contentsline {proof}{{Proof}{1}{}}{38}{proof.1}%
+\contentsline {lemma}{{Lemma}{17}{Preservation of configurations.}}{46}{lemma.17}%
+\contentsline {Proof}{{Proof}{16}{}}{46}{Proof.16}%
+\contentsline {proposition}{{Proposition}{11}{Path context weakening, linear sub-judgment.}}{61}{proposition.11}%
+\contentsline {proposition}{{Proposition}{12}{Linear uniqueness of typing.}}{61}{proposition.12}%
+\contentsline {proposition}{{Proposition}{13}{Uniqueness of memory typing.}}{61}{proposition.13}%
+\contentsline {proposition}{{Proposition}{14}{Linear context containment.}}{61}{proposition.14}%
+\contentsline {lemma}{{Lemma}{18}{Delinearization.}}{61}{lemma.18}%
+\contentsline {Proof}{{Proof}{17}{}}{61}{Proof.17}%
+\contentsline {lemma}{{Lemma}{19}{Hole typing, linear sub-judgment.}}{62}{lemma.19}%
+\contentsline {Proof}{{Proof}{18}{}}{62}{Proof.18}%
+\contentsline {lemma}{{Lemma}{20}{Hole typing, linear judgment.}}{64}{lemma.20}%
+\contentsline {Proof}{{Proof}{19}{}}{64}{Proof.19}%
+\contentsline {lemma}{{Lemma}{21}{Hole typing, linear configs.}}{64}{lemma.21}%
+\contentsline {Proof}{{Proof}{20}{}}{64}{Proof.20}%
+\contentsline {lemma}{{Lemma}{22}{Replacement, linear sub-judgment.}}{65}{lemma.22}%
+\contentsline {Proof}{{Proof}{21}{}}{65}{Proof.21}%
+\contentsline {lemma}{{Lemma}{23}{Replacement, linear judgment.}}{67}{lemma.23}%
+\contentsline {Proof}{{Proof}{22}{}}{68}{Proof.22}%
+\contentsline {lemma}{{Lemma}{24}{Replacement, linear configs.}}{68}{lemma.24}%
+\contentsline {Proof}{{Proof}{23}{}}{68}{Proof.23}%
+\contentsline {lemma}{{Lemma}{25}{Preservation of configurations, linear extension.}}{69}{lemma.25}%
+\contentsline {Proof}{{Proof}{24}{}}{69}{Proof.24}%
+\contentsline {proposition}{{Proposition}{15}{Hole typing, realization.}}{83}{proposition.15}%
+\contentsline {proposition}{{Proposition}{16}{Replacement, realization.}}{83}{proposition.16}%
+\contentsline {lemma}{{Lemma}{26}{Progress of realization.}}{83}{lemma.26}%
+\contentsline {Proof}{{Proof}{25}{}}{84}{Proof.25}%
+\contentsline {lemma}{{Lemma}{27}{Preservation of realization.}}{84}{lemma.27}%
+\contentsline {Proof}{{Proof}{26}{}}{84}{Proof.26}%
+\contentsline {theorem}{{Theorem}{1}{Termination of realization.}}{86}{theorem.3.1}%
+\contentsline {Proof}{{Proof}{27}{}}{86}{Proof.27}%
+\contentsline {theorem}{{Theorem}{2}{Type preservation, values.}}{103}{theorem.7.2}%
+\contentsline {Proof}{{Proof}{28}{}}{103}{Proof.28}%
+\contentsline {theorem}{{Theorem}{3}{Type preservation, expressions.}}{106}{theorem.7.3}%
+\contentsline {Proof}{{Proof}{29}{}}{106}{Proof.29}%
+\contentsline {theorem}{{Theorem}{4}{Type preservation, bodies, successor phase.}}{108}{theorem.7.4}%
+\contentsline {Proof}{{Proof}{30}{}}{109}{Proof.30}%
+\contentsline {corollary}{{Corollary}{1}{Type preservation, bodies (successor), complete.}}{111}{corollary.1}%
+\contentsline {corollary}{{Corollary}{2}{Type preservation, bodies (successor), static.}}{112}{corollary.2}%
+\contentsline {theorem}{{Theorem}{5}{Type preservation, bodies, initial phase.}}{112}{theorem.7.5}%
+\contentsline {Proof}{{Proof}{31}{}}{112}{Proof.31}%
+\contentsline {corollary}{{Corollary}{3}{Type preservation, bodies (initial), complete.}}{114}{corollary.3}%
+\contentsline {corollary}{{Corollary}{4}{Type preservation, bodies (initial), static.}}{114}{corollary.4}%
+\contentsline {Proof}{{Proof}{32}{}}{115}{Proof.32}%
+\contentsline {theorem}{{Theorem}{6}{Type preservation, bodies, top.}}{115}{theorem.7.6}%
+\contentsline {theorem}{{Theorem}{7}{Type preservation, runtime values.}}{115}{theorem.7.7}%
+\contentsline {Proof}{{Proof}{33}{}}{115}{Proof.33}%
+\contentsline {theorem}{{Theorem}{8}{Type preservation, runtime expressions.}}{116}{theorem.7.8}%
+\contentsline {Proof}{{Proof}{34}{}}{116}{Proof.34}%
+\contentsline {theorem}{{Theorem}{9}{Progress, expressions.}}{130}{theorem.9.9}%
+\contentsline {Proof}{{Proof}{35}{}}{130}{Proof.35}%
+\contentsline {theorem}{{Theorem}{10}{Preservation, expressions.}}{132}{theorem.9.10}%
+\contentsline {Proof}{{Proof}{36}{}}{132}{Proof.36}%
+\contentsline {theorem}{{Theorem}{11}{Progress, bodies, initial.}}{134}{theorem.9.11}%
+\contentsline {Proof}{{Proof}{37}{}}{135}{Proof.37}%
+\contentsline {theorem}{{Theorem}{12}{Preservation, bodies, initial.}}{136}{theorem.9.12}%
+\contentsline {Proof}{{Proof}{38}{}}{136}{Proof.38}%
+\contentsline {theorem}{{Theorem}{13}{Progress, bodies, successor.}}{138}{theorem.9.13}%
+\contentsline {Proof}{{Proof}{39}{}}{138}{Proof.39}%
+\contentsline {theorem}{{Theorem}{14}{Preservation, bodies, successor.}}{139}{theorem.9.14}%
+\contentsline {Proof}{{Proof}{40}{}}{139}{Proof.40}%
+\contentsline {theorem}{{Theorem}{15}{Progress, runtime.}}{141}{theorem.9.15}%
+\contentsline {Proof}{{Proof}{41}{}}{141}{Proof.41}%
+\contentsline {theorem}{{Theorem}{16}{Preservation, runtime.}}{142}{theorem.9.16}%
+\contentsline {lemma}{{Lemma}{28}{Well-definedness, pointer context.}}{143}{lemma.28}%
+\contentsline {Proof}{{Proof}{42}{}}{143}{Proof.42}%
+\contentsline {lemma}{{Lemma}{29}{Type preservation, values.}}{143}{lemma.29}%
+\contentsline {Proof}{{Proof}{43}{}}{143}{Proof.43}%
+\contentsline {corollary}{{Corollary}{5}{Well-definedness, values.}}{146}{corollary.5}%
+\contentsline {lemma}{{Lemma}{30}{Type preservation, expressions.}}{146}{lemma.30}%
+\contentsline {Proof}{{Proof}{44}{}}{146}{Proof.44}%
+\contentsline {corollary}{{Corollary}{6}{Well-definedness, expressions.}}{148}{corollary.6}%
+\contentsline {lemma}{{Lemma}{31}{Sub-recording under delta.}}{148}{lemma.31}%
+\contentsline {Proof}{{Proof}{45}{}}{148}{Proof.45}%
+\contentsline {lemma}{{Lemma}{32}{Flag-typing under delta.}}{148}{lemma.32}%
+\contentsline {Proof}{{Proof}{46}{}}{149}{Proof.46}%
+\contentsline {lemma}{{Lemma}{33}{Label-typing under delta.}}{149}{lemma.33}%
+\contentsline {Proof}{{Proof}{47}{}}{149}{Proof.47}%
+\contentsline {lemma}{{Lemma}{34}{Type preservation, bodies, successor phase.}}{150}{lemma.34}%
+\contentsline {Proof}{{Proof}{48}{}}{150}{Proof.48}%
+\contentsline {corollary}{{Corollary}{7}{Well-definedness, bodies, successor phase.}}{152}{corollary.7}%
+\contentsline {lemma}{{Lemma}{35}{Type preservation, bodies, initial phase.}}{152}{lemma.35}%
+\contentsline {Proof}{{Proof}{49}{}}{152}{Proof.49}%
+\contentsline {corollary}{{Corollary}{8}{Well-definedness, bodies, initial.}}{155}{corollary.8}%
+\contentsline {lemma}{{Lemma}{36}{Type preservation, bodies, static.}}{155}{lemma.36}%
+\contentsline {Proof}{{Proof}{50}{}}{156}{Proof.50}%
+\contentsline {corollary}{{Corollary}{9}{Well-definedness, bodies, static.}}{156}{corollary.9}%
+\contentsline {lemma}{{Lemma}{37}{Type preservation, runtime values.}}{156}{lemma.37}%
+\contentsline {Proof}{{Proof}{51}{}}{156}{Proof.51}%
+\contentsline {corollary}{{Corollary}{10}{Well-definedness, runtime values.}}{157}{corollary.10}%
+\contentsline {lemma}{{Lemma}{38}{Type preservation, runtime expressions.}}{157}{lemma.38}%
+\contentsline {Proof}{{Proof}{52}{}}{157}{Proof.52}%
+\contentsline {corollary}{{Corollary}{11}{Well-definedness, runtime expressions.}}{158}{corollary.11}%
+\contentsline {lemma}{{Lemma}{39}{Type preservation, memory.}}{158}{lemma.39}%
+\contentsline {Proof}{{Proof}{53}{}}{159}{Proof.53}%
+\contentsline {corollary}{{Corollary}{12}{Well-definedness, memory.}}{159}{corollary.12}%
+\contentsline {theorem}{{Theorem}{17}{Simulation, expressions.}}{160}{theorem.9.17}%
+\contentsline {Proof}{{Proof}{54}{}}{160}{Proof.54}%
+\contentsline {theorem}{{Theorem}{18}{Simulation, bodies, initial phase.}}{161}{theorem.9.18}%
+\contentsline {Proof}{{Proof}{55}{}}{161}{Proof.55}%
