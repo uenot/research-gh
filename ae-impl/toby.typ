@@ -11,7 +11,7 @@
         [
           Toby Ueno
           #h(1fr)
-          document.title
+          #context document.title
         ]
       }
     },

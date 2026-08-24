@@ -78,6 +78,43 @@ for $sans("op")$ appear in $cal(E)$.
 
 === Parallel Fragment
 
+A typical synchronizing communication rule, like the following,
+does _not_ work, at least by default:
+
+$
+sans("run") cal(E)_1[arrow.t sans("op")(V)]
+|| sans("run") cal(E)_2[eprom("op", x, M, p, N)] \
+arrow.squiggly
+sans("run") cal(E)_1[sans("val") ()]
+|| sans("run") cal(E)_2[elet(p, M[V\/x], N)]
+$
+
+- In the original semantics, signals are broadcast _globally_,
+  i.e. multiple handlers for $sans("op")$ should _all_ receive $V$.
+  In the above example, only a single handler
+  receives and consumes $sans("op")$.
+- In the original semantics, signals are received by handlers
+  _even if not yet installed_. In the above example,
+  only a handler in evaluation-context position can receive an interrupt.
+  Consider the following term:
+  $
+    sans("run") arrow.t sans("op")(V)
+    || sans("run") elet(x, M_1, eprom("op", y, M_2, p, M_3))
+  $
+  The original semantics can immediately reduce this to something like:
+  $
+    sans("run val") ()
+    || sans("run") arrow.b sans("op")(V,
+      elet(x, M_1, eprom("op", y, M_2, p, M_3))
+    )
+  $
+  such that, by the evaluation context rules, $M_1$ will evaluate
+  and _then_ the handler will receive the signal.
+
+  In contrast, the rule attempt above will block the signalling computation
+  until a corresponding promise handler is ready.
+
+
 Goal by example:
 
 $
