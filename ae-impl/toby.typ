@@ -33,5 +33,7 @@
     text(size: 14pt)[Toby Ueno]
   })
 
+  outline()
+
   doc
 }
