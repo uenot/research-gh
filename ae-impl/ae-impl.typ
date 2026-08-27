@@ -302,6 +302,92 @@ $
   ("where" sans("op") in.not cal(E)) \
 $
 
+== Type System
+Because we do not have outbound signals, we do not need to track their types!
+This lets us create a type system with simpler annotations that focuses on
+the "essence" of well-typed computations.
+
+$
+  "Ground types" underline(A) &::= bold(1) \
+  "Value types" A, B &::= underline(A) | A ->^E B | angle(A) \
+  "Effect types" E, F &::= emptyset | E, sans("op") mapsto F \
+$
+
+If a computation has effect type $E$, it will handle all interrupts
+in its domain $sans("dom")(E)$.
+
+If $sans("op") mapsto F in E$ and a computation with effect type $E$ handles
+$sans("op")$, it will _then_ handle all interrupts in $F$ _and_ those in $E$
+except for $sans("op")$. ($F$ types the handlers that are
+installed by the $sans("op")$ handler.)
+
+=== Operations on Effect Types
+
+We use array-indexing notation $E[sans("op")]$ to denote the entry in $E$
+with key $sans("op")$.
+
+
+
+We define a _merge_ or _union_ on effect types $E$ as follows:
+
+$
+  E union.sq emptyset &eq.delta E \
+  E union.sq (F, sans("op") mapsto F_sans("op")) &eq.delta cases(
+    (E union.sq F)\, sans("op") mapsto F_sans("op") & (sans("op") in.not E),
+    (E union.sq F)\, sans("op") mapsto E_sans("op") union.sq F_sans("op")
+    med & (E[sans("op")] = E_sans("op"))
+  )
+$
+
+
+#align(center, rule-set(
+  onerule(
+    name: "TV-Var",
+    $x: A in Gamma$,
+    $Gamma tack x: A$
+  ),
+  onerule(
+    name: "TV-Unit",
+    $Gamma tack (): bold(1)$
+  ),
+  onerule(
+    name: "TV-Lam",
+    $Gamma, x: A tack M: B med ! med E$,
+    pad(top: 0.35em, $Gamma tack lambda x.M: A ->^E B$)
+  ),
+  onerule(
+    name: "TV-Fut",
+    $Gamma tack V: A$,
+    $Gamma tack angle(V): angle(A)$
+  ),
+))
+
+#align(center, rule-set(
+  onerule(
+    name: "TC-Val",
+    $Gamma tack V: A$,
+    $Gamma tack sans("val") V: A med ! med E$
+  ),
+  onerule(
+    name: "TC-Let",
+    $Gamma tack M: A med ! med E$,
+    $Gamma, x: A tack N: B med ! med E$,
+    $Gamma tack elet(x, M, N): B med ! med E$
+  ),
+  onerule(
+    name: "TC-App",
+    $Gamma tack V: A ->^E B$,
+    $Gamma tack W: A$,
+    $Gamma tack V med W: B med ! med E$
+  ),
+  onerule(
+    name: "TC-Prom",
+    $Gamma tack V: A ->^E B$,
+    $Gamma tack W: A$,
+    $Gamma tack V med W: B med ! med E med triangle.small.l sans("op")$
+  ),
+))
+
 == Comparison with Synchronous Effects
 
 As a point of comparison, consider the following restricted language
@@ -342,6 +428,8 @@ $
   elet(x, sans("val") V, M) &arrow.squiggly M[V\/x] & #smallcaps("E-Val")\
   (lambda x.M) #h(4pt) V &arrow.squiggly M[V\/x] & thick #smallcaps("E-App")\
 $
+
+The awaiting rule only exists in the asynchronous language.
 
 Returning in both languages is analogous:
 
