@@ -1,7 +1,6 @@
 #let scratch(doc) = {
   // formatting rules
   set heading(numbering: "1.")
-  show heading.where(level: 2): set block(below: 1.5em)
 
   set page(
     header: context {
