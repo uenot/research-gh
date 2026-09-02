@@ -697,10 +697,15 @@ $
   M[V\/x]
   quad& #smallcaps("E-App") \
 
+  arrow.b sans("op")(V, sans("val") W)
+  &arrow.squiggly
+  sans("val") W
+  quad& #smallcaps("E-Done") \
+
   arrow.b sans("op")(V, cal(E)[sans("recv") (sans("op") V mapsto M)])
   &arrow.squiggly
   elet(y, M[V\/x], arrow.b sans("op")(V, cal(E)[sans("val") y]))
-  quad& #smallcaps("E-Op") \
+  quad& #smallcaps("E-Recv") \
   &(y "fresh and" sans("op") in.not cal(E))
 $
 
