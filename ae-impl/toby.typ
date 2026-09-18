@@ -32,7 +32,7 @@
     text(size: 14pt)[Toby Ueno]
   })
 
-  outline()
+  outline(depth: 2)
 
   doc
 }
