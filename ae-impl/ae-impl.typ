@@ -801,7 +801,7 @@ We define a semantics on _processes_ via the rules below:
   onerule(
     name: "P-Lift",
     $M arrow.squiggly N$,
-    $alpha[M] arrow.squiggly alpha[N]$
+    $alpha angle(M) arrow.squiggly alpha angle(N)$
   ),
   onerule(
     name: "P-Par",
@@ -1542,7 +1542,7 @@ not given by the type of $N$.
 We must adopt something like the _answer type system_
 of Danvy and Filinski, but extended to a "multi-prompt" setting.
 
-= Exploring Delimited Control
+= Exploring Delimited Control (Unfinished)
 
 It is well-known that delimited control and (outbound) effect handlers are
 closely related.
@@ -2163,21 +2163,32 @@ We can also probably encode labels
 into a label-less language with sums, by re-shifting if the labels
 are not equal (similar in spirit to what Forster et al. do).
 
-== Value Injection
+== Value Injection <delim-value>
 
-We extend resets with the ability to pass values to shifts.
+We take the language of @delim-multi
+and extend resets with the ability to pass values to shifts.
 
 === Syntax
 
 $
   "Values" V, W &::= x | () | lambda x.M \
   "Computations" M, N &::= punct("val") V | elet(x, M, N)
-    | V med W | angle(V >> M)^ell_0 | s0^ell med x med k.M \
+    | V med W | reset0l(ell, V >> M)| s0l(ell) x med k.M \
   "Evaluation contexts" cal(E) &::= [.] | elet(x, cal(E), N)
     | angle(V >> cal(E))^ell_0 \
   "Types" A, B, C &::= 1 | A ->^E B \
-  "Effect types" E, F &::= emptyset | E, ell: A ->> B
+  "Effect types" E, F &::= emptyset | E, ell: A arrow.b.twohead B
 $
+
+Values and basic computations remain the same as @delim-multi.
+We extend resets $reset0l(ell, V >> M)$ to contain a value $V$.
+We extend shifts $s0l(ell) x med k.M$ to bind an additional variable $x$
+in $M$.
+
+Effect types still take the form of an ordered list, but
+we extend their entries to the form $ell: A arrow.b.twohead B$.
+Here, $A$ is the type of the value provided by $ell$,
+while $B$ is the answer type of the computation (as seen in prior sections).
 
 === Semantics
 
@@ -2194,14 +2205,20 @@ $
   & #smallcaps[E-Val]\
   (lambda x.M) med V &arrow.squiggly M[V\/x]
   & #smallcaps[E-App]\
-  angle(V >>punct("val") W)^ell_0 &arrow.squiggly punct("val") W
+  reset0l(ell, V >>punct("val") W) &arrow.squiggly punct("val") W
   & #smallcaps[E-Reset]\
-  angle(V >> cal(E)[s0^ell med x med k.M])^ell_0
+  reset0l(ell, V >> cal(E)[s0l(ell) x med k.M])
   &arrow.squiggly
-  M[V\/x, (lambda y.angle(V >> cal(E)[punct("val") y])^ell_0)\/k]
+  M[V\/x, (lambda y.reset0l(ell, V >> cal(E)[punct("val") y]))\/k]
   quad (ell in.not cal(E))
   & quad #smallcaps[E-Shift]\
 $
+
+The only rule which significantly changes from @delim-multi
+is #smallcaps[E-Shift], where we substitute provided value $V$ for $x$ in
+the shift-body $M$.
+When reinstalling the reset in the continuation, we do so with the same value.
+Discarding a reset (#smallcaps[E-Reset]) ignores the value.
 
 === Type System
 
@@ -2240,42 +2257,207 @@ $
   onerule(
     name: "TC-Reset",
     $Gamma tack V: A$,
-    $Gamma tack M: B bang E, ell: A ->> B$,
-    $Gamma tack angle(V >> M)^ell_0: B bang E$
+    $Gamma tack M: B bang E, ell: A arrow.b.twohead B$,
+    $Gamma tack reset0l(ell, V >> M): B bang E$
   ),
   onerule(
     name: "TC-Shift",
     $Gamma, x: A, k: C ->^E B tack M: B bang E$,
     $ell in.not F$,
-    $Gamma tack s0 med x med k.M: C bang E, ell: A ->> B, F$
+    $Gamma tack s0l(ell) x med k.M: C bang E, ell: A arrow.b.twohead B, F$
   ),
 ))
 
-=== Global-Signature Type System
+Again, only rules #smallcaps[TC-Reset] and #smallcaps[TC-Shift] change from
+@delim-multi.
+In #smallcaps[TC-Reset], we extend (bottom-up) the effect type with
+$A arrow.b.twohead B$, where $A$ is the type of the provided value $V$
+and $B$ is the answer type (as before).
+In #smallcaps[TC-Shift], when typing the body $M$, we extend the context
+with the continuation $k$ as before, but also add $x: A$,
+where $A$ is given by the left-hand side of the effect type.
+
+=== Relation to Previous Sections
+
+First and foremost: this is _exactly_ the inbound effects of @sync-inbound,
+with a different coat of paint.
+
+This system degenerates to that of @delim-multi if we only ever provide the
+unit value via resets.
+
+In principle, a label-less system (i.e. @delim-basic)
+can similarly be extended with "value injection."
+I do not consider this explicitly, since the usefulness of such an extension
+is questionable (a single shift would only be able to receive values from
+the nearest reset).
+If we want to e.g. compose translations, this language might nevertheless
+be worth writing out.
+
+I also suspect that value injection is macro-expressible in a simpler system.
+Broadly, we encode shift-bodies as abstractions over their non-continuation
+variable, and resets immediately apply that function to their value.
+
+== Aside: Local and Global Signatures
+
+Most simply-typed effect systems involve a _global signature_
+for operations, which ensures that an operation name _always_
+has the same output and return types.
+The reader may have noticed that, in the previous subsection,
+we have no such signature: type information is, in a sense, _local_.
+
+I argue here that sound typing is doable without a global signature.
+I add a global signature to @delim-value as a _specialization_,
+and I remove global signatures from ordinary outbound effect handlers
+as a _generalization_.
+
+The ramifications of local typing _beyond_ mere soundness
+are likewise beyond me. I suspect there are other worthy reasons,
+such as programmer convenience, links to the free-monad interpretation,
+algorithmic typechecking, etc. to have a global signature.
+
+=== Outbound Global Signatures
+
+We briefly recap the role of a signature in a simply-typed (outbound)
+effect handler calculus. We define our signature
+$Sigma ::= emptyset | Sigma, sans("op"): A ->> B$ and
+implicitly parameterize all typing judgments by a fixed $Sigma$.
+
+The key rules (for performing and handling operations, respectively)
+are as follows:
+
+#align(center, rule-set(
+  onerule(
+    $sans("op"): A ->> B in Sigma$,
+    $Gamma tack V: A$,
+    $Gamma tack sans("op")(V): B bang E union {sans("op")}$
+  ),
+  onerule(
+    $sans("op"): A ->> B in Sigma$,
+    $F = E \\ {sans("op")}$,
+    $Gamma, x: A, k: B ->^F C tack M: C bang F$,
+    $Gamma tack N: C bang E$,
+    $Gamma tack sans("with") (sans("op") x med k mapsto M) sans("handle") N:
+      C bang F$
+  ),
+))
+
+In both rules, we must access $Sigma$ to learn how to type the term.
+
+=== Inbound Global Signatures
+
+In the type system of @delim-value, we had no such global information.
+Instead, we _locally accumulated_ a signature through the type derivation.
+Recall the #smallcaps[TC-Reset] rule:
 
 #align(center, rule-set(
   onerule(
     name: "TC-Reset",
-    $ell : A_ell in Sigma$,
-    $Gamma tack V: A_ell$,
-    $Gamma tack M: B bang E, ell: B$,
-    $Gamma tack angle(V >> M)^ell_0: B bang E$
-  ),
-  onerule(
-    name: "TC-Shift",
-    $ell : A_ell in Sigma$,
-    $Gamma, x: A_ell, k: C ->^E B tack M: B bang E$,
-    $ell in.not F$,
-    $Gamma tack s0 med x med k.M: C bang E, ell: B, F$
+    $Gamma tack V: A$,
+    $Gamma tack M: B bang E, ell: A arrow.b.twohead B$,
+    $Gamma tack reset0l(ell, V >> M): B bang E$
   ),
 ))
 
-== Local-Signature Outbound Effects
+We first determine the type $A$ of the injected value $V$.
+Then, when typechecking the body $M$, we associate label $ell$
+with $A$ via the effect type. When typing a shift $s0l(ell) x med k.N$
+inside of $M$, we then know that the free variable $x$ should have type $A$.
+
+Alternatively, we could _globally fix_ such $A$. Define our signature
+$Sigma ::= emptyset | Sigma, ell: A$, and implicitly parameterize all typing
+judgments by a fixed $Sigma$.
+We remove this information from local effect types $E ::= emptyset | E, ell: A$,
+i.e. we revert to the local effect-typing system of @delim-multi.
+The reset and shift rules become:
+
+#align(center, rule-set(
+  onerule(
+    name: "TC-Reset*",
+    $ell : A_ell in Sigma$,
+    $Gamma tack V: A_ell$,
+    $Gamma tack M: B bang E, ell: B$,
+    $Gamma tack reset0l(ell, V >> M): B bang E$
+  ),
+  onerule(
+    name: "TC-Shift*",
+    $ell : A_ell in Sigma$,
+    $Gamma, x: A_ell, k: C ->^E B tack M: B bang E$,
+    $ell in.not F$,
+    $Gamma tack s0l(ell) x med k.M: C bang E, ell: B, F$
+  ),
+))
+
+As in @delim-multi, we still track answer types alongside labels. The
+injected-value types, however, are now given by $Sigma$.
+
+This system is _more conservative_ than the purely-local system.
+For instance, the following term is well-typed via the purely-local
+system, but there exists no well-formed $Sigma$ that admits it under
+the global system:
+
+$
+  reset0l(ell, 1 >> reset0l(ell, #raw("\"hello\"") >> s0l(ell) x med k. x))
+$
+
+The issue under a global signature is that we associate the same label $ell$
+with two different injection types ($sans("Int")$ and $sans("Str")$).
+This poses no difficulty under a local system: when assigning a type
+to $x$, we simply take the most recent entry in our local signature
+($sans("Str")$).
+
+*Fixing Answer Types*. If we like, we can similarly fix the answer types
+of resets in a global signature. In other words, every reset with label $ell$
+must have the same type $A$.
+
+To do so, we again move information from our local effect type $E$ to our
+signature $Sigma$. The signature now has form
+$Sigma ::= emptyset | Sigma, ell: A arrow.b.twohead B$,
+where $A$ is the injected value type and $B$ is the answer type.
+Our effect types $E$ are now just lists of labels.
+(Order still matters when we want to account for bypassed non-matching labels.)
+
+#align(center, rule-set(
+  onerule(
+    name: "TC-Reset**",
+    $ell : A arrow.b.twohead B in Sigma$,
+    $Gamma tack V: A$,
+    $Gamma tack M: B bang E, ell$,
+    $Gamma tack reset0l(ell, V >> M): B bang E$
+  ),
+  onerule(
+    name: "TC-Shift**",
+    $ell : A arrow.b.twohead B in Sigma$,
+    $Gamma, x: A, k: C ->^E B tack M: B bang E$,
+    $ell in.not F$,
+    $Gamma tack s0l(ell) x med k.M: C bang E, ell, F$
+  ),
+))
+
+Such a system would rule out the following term,
+since the two resets have irreconcilable answer types
+($sans("Int")$ and $sans("Str")$):
+$
+  reset0l(ell, sans("intToStr") reset0l(ell, 1))
+$
+
+*Which Approach is Best?* Ahman and Pretnar fix injected types with a signature
+but let answer types vary (i.e. they adopt #smallcaps[TC-Reset\*] and
+#smallcaps[TC-Shift\*] above).
+
+To me, fixing answer types seems much too restrictive.
+I am undecided whether letting injected types vary is helpful enough to
+outweigh any downsides (and I am unsure of any practical downsides).
+
+=== Local-Signature Outbound Effects
+
+The "local-signature" approach is readily adaptable to
+an otherwise traditional outbound system. The syntax and type system
+are as follows:
 
 $
   "Values" V, W &::= x | () | lambda x.M \
   "Computations" M, N &::= punct("val") V | elet(x, M, N) | V med W  \
-    &| sans("op")(V, x.M)
+    &| sans("op")(V)
     | punct("with") (sans("op") x med k mapsto M) punct("handle") N \
   "Evaluation contexts" cal(E) &::= [.] | elet(x, cal(E), N)
     | punct("with") (sans("op") x med k mapsto M) punct("handle") cal(E)\
@@ -2318,9 +2500,8 @@ $
   onerule(
     name: "TC-Op",
     $Gamma tack V: A$,
-    $Gamma, y: B tack M: C bang E, ell: A ->> B, F$,
     $ell in.not F$,
-    $Gamma tack sans("op")(V, y.M): C bang E, sans("op"): A ->> B, F$
+    $Gamma tack sans("op")(V): B bang E, sans("op"): A ->> B, F$
   ),
   onerule(
     name: "TC-Hdl",
@@ -2331,11 +2512,40 @@ $
   ),
 ))
 
+Rule #smallcaps[TC-Hdl] introduces entry $sans("op"): A ->> B$ to the effect
+type in the handled computation $N$,
+where $A$ is the parameter type of the operation and $B$ is the result type.
+Rule #smallcaps[TC-Op] uses this (local!) information to ensure its argument
+is well-typed and to determine the result type.
+
 == Typing Async-Inbound Effects with Continuations
+
+Adapting our approach to _asynchronous_ effects poses a particular challenge:
+our strategy of ordering labels in a list no longer applies.
+A computation may be prepared to receive more than one interrupt at a time,
+and the act of receiving may introduce _new_ handlers for further interrupts.
+
+Thankfully, the adaptation turns out fairly simple: effect types are now _trees_
+instead of lists.
 
 $
   "Effect types" E, F &::= emptyset | E, sans("op") mapsto (A, F)
 $
+
+If a computation has effect type $E$, it will handle all interrupts
+in its domain $sans("dom")(E)$.
+
+If $sans("op") mapsto (A, F) in E$ and a computation with effect type $E$
+handles $sans("op")$, it will _then_ handle all interrupts in $F$
+_and_ those in $E$ except for $sans("op")$. ($F$ types the handlers that are
+installed by the $sans("op")$ handler.)
+
+This local effect context also tracks the answer type $A$ of the
+enclosing interrupt, which is needed to type the continuation.
+
+We introduce a global signature
+$Sigma ::= emptyset | Sigma, sans("op") mapsto A$ to type interrupt payloads.
+As usual, all typing judgments are implicitly parameterized by a fixed $Sigma$.
 
 #align(center, rule-set(
   onerule(
