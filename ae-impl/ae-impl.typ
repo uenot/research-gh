@@ -32,7 +32,11 @@
 #let einter(op, v, m) = $
   punct("with") med sans(#op)(#v) med punct("interrupt") med #m$
 
-#let s0 = $cal(S)_0$
+#let s0 = text(fill: rgb("#0080ff"), $cal(S)_0$)
+#let s0l(l) = text(fill: rgb("#0080ff"),
+  $cal(S)_0^(text(fill: #black, #l)) med$)
+#let reset0(x) = $punct(chevron.l) #x punct(chevron.r)_punct(0)$
+#let reset0l(l, x) = $punct(chevron.l) #x punct(chevron.r)^(#l)_punct(0)$
 #let bang = $med ! med$
 
 #show: scratch
@@ -1538,38 +1542,58 @@ not given by the type of $N$.
 We must adopt something like the _answer type system_
 of Danvy and Filinski, but extended to a "multi-prompt" setting.
 
-= Exploring Delimited Control (Unfinished)
+= Exploring Delimited Control
 
-Inbound effects look a lot like shift/reset-style delimited control operators.
-Interrupts/injections correspond to reset,
-while promise handlers corresponde to shift.
-Delimiters are named by operations (i.e. multi-prompt delimited control),
-and they additionally carry a payload which is bound in the
-shift-continuation (but that appears orthogonal to the operational essence).
+It is well-known that delimited control and (outbound) effect handlers are
+closely related.
+In this section, I investigate the relationship between delimited control
+and _inbound_ effects and handlers.
 
-Is the difference between shift/reset and prompt/control
-the same as the deep/shallow distinction?
+I argue that inbound effects _are an extension_ of delimited control.
+Starting with a fairly standard language of delimited control,
+I incrementally generalize the language until arriving at _exactly_
+inbound (synchronous) effects, as in @sync-inbound.
 
-Findings from Wednesday: _we don't need, or necessarily want,
-answer type modification._
+I have not yet considered formal translations, although this would be a natural
+step in arguing for this correspondence.
+
+This section also investigates typing. The incremental-extension approach
+allows me to reuse type systems for delimited control
+when designing one for inbound effects. (This was my original motivation
+for exploring delimited control.)
 
 == Basic Delimited Control <delim-basic>
 
-We adopt the $s0$ (shift-0) and $angle(med)_0$ (reset-0) operators
-of Danvy and Filinski, and the corresponding type system
+We adopt the $s0$ (shift-0) and $reset0(med)$ (reset-0) operators
+of Danvy and Filinski, and adapt the corresponding type system
 of Cong and Asai (which does _not_ feature answer type modification).
+We present this calculus in FGCBV style.
 
 === Syntax
 
 $
-  "Values" V, W &::= x | () | lambda x.M \
+  "Values" V, W &::= x | lambda x.M | () \
   "Computations" M, N &::= punct("val") V | elet(x, M, N)
-    | V med W | angle(M)_0 | s0 k.M \
+    | V med W | s0 k.M | reset0(M) \
   "Evaluation contexts" cal(E) &::= [.] | elet(x, cal(E), N)
-    | angle(cal(E))_0 \
+    | reset0(cal(E)) \
   "Types" A, B &::= 1 | A ->^E B \
   "Effect types" E &::= emptyset | E, A
 $
+
+Values are standard. We have variables, functions, and the unit value.
+Standard computations include value injection, let-binding, and application.
+
+Computation $s0 k.M$ (shift-0) binds to $k$ the _delimited continuation_
+of the program and continues as $M$. The continuation is delimited by the
+nearest enclosing $reset0(M)$ (reset-0) construct.
+(In both cases, the subscript 0 is mere punctuation.)
+
+Evaluation contexts include let-bindings as usual, but also include resets.
+
+Types include the unit type and functions, where functions are annotated
+with an "effect type" $E$. Effect types are (ordered) lists of ordinary types,
+and they track the "answer types" of the surrounding $reset0(med)$ constructs.
 
 === Semantics
 
@@ -1586,15 +1610,50 @@ $
   & #smallcaps[E-Val]\
   (lambda x.M) med V &arrow.squiggly M[V\/x]
   & #smallcaps[E-App]\
-  angle(punct("val") V)_0 &arrow.squiggly punct("val") V
+  reset0(punct("val") V) &arrow.squiggly punct("val") V
   & #smallcaps[E-Reset]\
-  angle(cal(E)[s0 k.M])_0
+  reset0(cal(E)[s0 k.M])
   &arrow.squiggly
-  M[(lambda x.angle(cal(E)[punct("val") x])_0)\/k]
-  & quad #smallcaps[E-Shift]\
+  M[(lambda x.reset0(cal(E)[punct("val") x]))\/k]
+  quad (reset0(med) in.not cal(E)) &quad #smallcaps[E-Shift]\
 $
 
+The first three rules #smallcaps[E-Ctx], #smallcaps[E-Val],
+and #smallcaps[E-App] are standard.
+
+In #smallcaps[E-Reset], if a computation reduces to a value
+underneath a reset, we can discard the reset.
+
+Rule #smallcaps[E-Shift] describes the heart of delimited control.
+On the left, we have a shift inside a reset, separated by some
+evaluation context $cal(E)$. Side condition $reset0(med) in.not cal(E)$
+enforces that the reset in question is the _innermost_ reset.
+(In this system, then, $cal(E)$ is a stack of $punct("let")$-bindings.)
+
+On the right, we step to $M$, but with $k$ bound to the
+function $lambda x.reset0(cal(E)[punct("val") x])$, representing
+the delimited continuation. The continuation captures the previous
+evaluation context $cal(E)$, such that invoking $k$ lets us "resume" the
+previous context.
+
+This rule involves two key design choices on the right-hand side:
+- We _do not_ reinstall a delimiter around $M$, i.e.
+  the right-hand side is not $reset0(M[...\/k])$.
+  This would be the traditional `shift` of Danvy and Filinski.
+- We _do_ reinstall a delimiter around the continuation body
+  $cal(E)[punct("val")(x)]$. Not installing the delimiter,
+  i.e. substituting $lambda x.cal(E)[punct("val") x]$ for $k$,
+  would result in the `cupto` of Gunter et al.
+
+I choose this particular flavor of delimited control precisely because
+it is similar to how effect handlers work. It would be interesting to explore
+variations of effect handlers which model the other variants
+of delimited control (e.g. as summarized by Downen and Ariola).
+
 === Type System
+
+We have two typing judgments: $Gamma tack V: A$ for values
+and $Gamma tack M: A bang E$ for computations.
 
 #align(center, rule-set(
   onerule(
@@ -1640,6 +1699,257 @@ $
   ),
 ))
 
+The first six rules (excluding #smallcaps[TC-Reset] and #smallcaps[TC-Shift])
+are fairly standard for type-and-effect systems.
+The effect annotation can be captured by #smallcaps[TC-Lam]
+and reinvoked by #smallcaps[TC-App].
+In #smallcaps[TC-Val], we allow values to have any effect type instead of
+the most precise type $emptyset$, and in #smallcaps[TC-Let], we require both
+computations to share an effect type.
+
+Read bottom-up, rule #smallcaps[TC-Reset] extends the effect type,
+while rule #smallcaps[TC-Shift] consumes it.
+In #smallcaps[TC-Reset], we mark the _overall_ return type of the
+delimited computation (the "answer type") by extending $E$ with $A$.
+
+To type #smallcaps[TC-Shift], we must know the answer type of the
+nearest delimiter, which is given by the most recently added (rightmost)
+type in the effect list $B$.
+The subcomputation $M$ should have this type $B$.
+Continuation $k$ receives type $A ->^E B$, where $A$ is the type of
+the _overall_ computation $s0 k.M$: intuitively, the shift is a "hole" in the
+captured context, and we ought to "plug" that hole with something of the
+same type.
+
+=== Examples
+
+We present examples in coarse-grain style.
+We introduce strings and integers, along with two primitive functions:
+- $sans("length"): sans("Str") -> sans("Int")$
+  returns the length of the given string, and
+- $sans("replicate"): sans("Str") -> sans("Int") -> sans("Str")$,
+  where $sans("replicate") s med n$ concatenates $s$ repeatedly $n$ times.
+(Assume these primitives are polymorphic in their effects. A full account of
+polymorphism greatly exceeds our current scope.)
+
+*Example 1*. Consider the following term, leaving $M$ abstract for the moment:
+$
+  reset0(sans("replicate") #raw("\"foo\"")
+    reset0(sans("length") s0 k_1. s0 k_2. M))
+$
+
+Let $M = k_2 (k_1 med #raw("\"bar\""))$. This term executes safely:
+
+$
+  &reset0(sans("replicate") #raw("\"foo\"")
+    reset0(sans("length") s0 k_1. s0 k_2. k_2 (k_1 med #raw("\"bar\"")))) \
+  ~>
+  &reset0(sans("replicate") #raw("\"foo\"")
+    (s0 k_2. k_2 (k_1 med #raw("\"bar\"")))[
+    (lambda y. reset0(sans("length") y))\/ k_1]) \
+  ~>
+  &(k_2 (k_1 med #raw("\"bar\"")))[
+    lambda y. reset0(sans("length") y) \/ k_1,
+    lambda z. reset0(sans("replicate") #raw("\"foo\"") z) \/ k_2
+  ] \
+  =
+  & (lambda z. reset0(sans("replicate") #raw("\"foo\"") z))
+    (lambda y. reset0(sans("length") y)) #raw("\"bar\"") \
+  ~>
+  & (lambda z. reset0(sans("replicate") #raw("\"foo\"") z))
+    reset0(sans("length") #raw("\"bar\"")) \
+  ~>^*
+  & (lambda z. reset0(sans("replicate") #raw("\"foo\"") z)) med 3 \
+  ~>
+  &reset0(sans("replicate") #raw("\"foo\"") 3)
+  ~>^* #raw("\"foofoofoo\"")
+$
+
+However, doing so _in general_ is unsafe: this is reflected in our type system
+by the fact that $k_1$ is expected to be pure, but is not.
+The following derivation fails:
+
+#align(center, rule-set(
+  prooftree(rule(
+    rule(
+      "...",
+      rule(
+        rule(
+          rule(
+            rule(
+              "...",
+              rule(
+                $k_1: sans("Str") ->^sans("Str") sans("Int"),
+                k_2: sans("Int") ->^emptyset sans("Str"),
+                tack k_1: sans("Str") ->^emptyset sans("Int")$,
+                "...",
+                pad(top: 0.3em, $k_1: sans("Str") ->^sans("Str") sans("Int"),
+                k_2: sans("Int") ->^emptyset sans("Str"),
+                tack k_1 med #raw("\"bar\""):
+                sans("Str") bang sans("Int")$)
+              ),
+              pad(top: 0.3em, $k_1: sans("Str") ->^sans("Str") sans("Int"),
+              k_2: sans("Int") ->^emptyset sans("Str"),
+              tack k_2 (k_1 med #raw("\"bar\"")):
+              sans("Str") bang emptyset$)
+            ),
+            $emptyset tack s0 k_1. s0 k_2. k_2 (k_1 med #raw("\"bar\"")):
+            sans("Str") bang sans("Str"), sans("Int")$
+          ),
+          $emptyset tack sans("length") s0 k_1. s0 k_2.
+            k_2 (k_1 med #raw("\"bar\"")):
+          sans("Int") bang sans("Str"), sans("Int")$
+        ),
+        $emptyset tack reset0(sans("length") s0 k_1. s0 k_2.
+          k_2 (k_1 med #raw("\"bar\""))):
+        sans("Int") bang sans("Str")$
+      ),
+      $emptyset tack sans("replicate") #raw("\"foo\"")
+      reset0(sans("length") s0 k_1. s0 k_2. k_2 (k_1 med #raw("\"bar\""))):
+      sans("Str") bang sans("Str")$
+    ),
+    $emptyset tack reset0(sans("replicate") #raw("\"foo\"")
+    reset0(sans("length") s0 k_1. s0 k_2. k_2 (k_1 med #raw("\"bar\"")))):
+    sans("Str") bang emptyset$
+  ))
+))
+
+*Example 2.*
+To see how this effect might arise, consider the alternative term
+(where $s0().M$ is shorthand
+for $s0 k.M$ with $k in.not f v(M)$)
+
+$
+  reset0(1 + reset0(
+    elet(x, s0 k. s0 (). k med 2, s0 (). s0 (). 3)
+  ))
+$
+
+This term gets stuck during reduction, as follows:
+
+$
+  &reset0(1 + reset0(
+    elet(x, s0 k. s0(). k med 2, s0(). s0(). 3)
+  ))\
+  ~>
+  &reset0(1 +s0(). k med 2)[
+    (lambda y.reset0(elet(x, y, s0 (). s0 (). 3)))\/k
+  ]\
+  ~> &(lambda y.reset0(elet(x, y, s0 (). s0 (). 3))) med 2 \
+  ~> &reset0(elet(x, 2, s0 (). s0 (). 3))\
+  ~> &reset0(s0 (). s0 (). 3)\
+  ~> &s0 (). 3 cancel(~>, angle: #45deg)
+$
+
+This term is ill-typed, as shown by the failing partial derivation below:
+
+#align(center, rule-set(
+  prooftree(
+    rule(
+      rule(
+        rule(
+          $k: sans("Int") ->^sans("Int") sans("Int") tack
+          k: sans("Int") ->^emptyset sans("Int")$,
+          $k: sans("Int") ->^sans("Int") sans("Int") tack 2: sans("Int")$,
+          pad(top: 0.3em)[
+            $k: sans("Int") ->^sans("Int") sans("Int")
+            tack k med 2:
+            sans("Int") bang emptyset$
+          ]
+        ),
+        pad(top: 0.3em)[
+          $k: sans("Int") ->^sans("Int") sans("Int")
+          tack
+          s0 (). k med 2:
+          sans("Int") bang sans("Int")$
+        ]
+      ),
+      $emptyset
+      tack
+      s0 k. s0 (). k med 2:
+      sans("Int") bang sans("Int"), sans("Int")$
+    )
+  )
+))
+
+The effect type of $k$ says that, when run, $k$ may shift to some delimiter with
+answer type $sans("Int")$.
+We see this occur in the reduction: the function bound to $k$ performs two
+shifts, only one of which is captured by the delimiter under the function.
+Our type system is right to rule this out.
+
+*Example 1, Revisited.*
+To make this term typecheck, we need to add extra control constructs.
+Choose $M = reset0(elet(x, k_1 #raw("\"bar\""), s0 ().k_2 med x))$,
+and let $Gamma = k_1: sans("Str") ->^sans("Str") sans("Int"),
+      k_2: sans("Int") ->^emptyset sans("Str")$ for readability:
+
+#align(center, rule-set(
+  prooftree(rule(
+    rule(
+      rule(
+        rule(pad(top: 0.3em,
+          $Gamma tack k_1: sans("Str") ->^sans("Str") sans("Int")$)
+        ),
+        $Gamma tack k_1 #raw("\"bar\""): sans("Int") bang sans("Str")$
+      ),
+      rule(
+        rule(
+          rule(pad(top: 0.3em,
+            $Gamma, x: sans("Int") tack k_2:
+              sans("Int") ->^emptyset sans("Str")$
+          )),
+          rule(
+            $Gamma, x: sans("Int") tack x: sans("Int")$
+          ),
+          $Gamma, x: sans("Int") tack k_2 med x: sans("Str") bang emptyset$
+        ),
+        $Gamma, x: sans("Int") tack s0 ().k_2 med x):
+        sans("Str") bang sans("Str")$
+      ),
+      $Gamma tack elet(x, k_1 #raw("\"bar\""), s0 ().k_2 med x):
+      sans("Str") bang sans("Str")$
+    ),
+    $Gamma tack reset0(elet(x, k_1 #raw("\"bar\""), s0 ().k_2 med x)):
+    sans("Str") bang emptyset$
+  ))
+))
+
+The extra reset delimits any shifts done by $k_1$. To typecheck
+$k_2$, we add a "dummy shift" that removes the extra reset. (In practice,
+this would be better dealt with by subtyping: we know that,
+since $k_2$ does not shift, it is safe to include in _any_ context.)
+
+*Example 3*. Suppose we want to flip the order in which we compose the
+continuations, as in the following reduction sequence:
+
+$
+  &reset0(sans("replicate") #raw("\"foo\"")
+    reset0(sans("length") s0 k_1. s0 k_2. k_1 (k_2 med 2))) \
+  ~>
+  &reset0(sans("replicate") #raw("\"foo\"")
+  s0 k_2. k_1 (k_2 med 2))[(lambda y. reset0(sans("length") y))\/ k_1]) \
+  ~>
+  &(k_1 (k_2 med 2))[
+    lambda y. reset0(sans("length") y) \/ k_1,
+    lambda z. reset0(sans("replicate") #raw("\"foo\"") z) \/ k_2
+  ] \
+  =
+  &(lambda y. reset0(sans("length") y)) (
+    lambda z. reset0(sans("replicate") #raw("\"foo\"") z)) med 2\
+  ~>
+  &(lambda y. reset0(sans("length") y))
+    reset0(sans("replicate") #raw("\"foo\"") 2)\
+  ~>^*
+  &(lambda y. reset0(sans("length") y)) #raw("\"foofoo\"")
+  ~>^* 6
+$
+
+Typing this term safely requires _answer type modification_.
+Ordinarily, $sans("replicate")$ returns a string, but by hijacking the
+continuations, we have modified the computation to integer type.
+Tracking this behavior with types is difficult.
+
 == Static Multi-Prompt Control <delim-multi>
 
 We extend the system of @delim-basic with _labels_ for resets and shifts.
@@ -1655,12 +1965,21 @@ Instead, we draw labels from a fixed, statically known set
 $
   "Values" V, W &::= x | () | lambda x.M \
   "Computations" M, N &::= punct("val") V | elet(x, M, N)
-    | V med W | angle(M)^ell_0 | s0^ell k.M \
+    | V med W | reset0l(ell, M) | s0l(ell) k.M \
   "Evaluation contexts" cal(E) &::= [.] | elet(x, cal(E), N)
-    | angle(cal(E))^ell_0 \
+    | reset0l(ell, cal(E)) \
   "Types" A, B &::= 1 | A ->^E B \
   "Effect types" E, F &::= emptyset | E, ell: A
 $
+
+The extensions from @delim-basic consist in the addition of labels $ell$,
+drawn from a predetermined set $cal(L)$.
+The programmer labels resets and shifts with these $ell$.
+We extend the reset evaluation context accordingly.
+
+Effect types are likewise extended with labels:
+we associate a label $ell$ with a type $A$.
+Unlike row types, we do not permit exchange in these effect lists.
 
 === Semantics
 
@@ -1679,12 +1998,18 @@ $
   & #smallcaps[E-App]\
   angle(punct("val") V)^ell_0 &arrow.squiggly punct("val") V
   & #smallcaps[E-Reset]\
-  angle(cal(E)[s0^ell k.M])^ell_0
+  reset0l(ell, cal(E)[s0l(ell) k.M])
   &arrow.squiggly
-  M[(lambda x.angle(cal(E)[punct("val") x])^ell_0)\/k]
+  M[(lambda x.reset0l(ell, cal(E)[punct("val") x]))\/k]
   quad (ell in.not cal(E))
   & quad #smallcaps[E-Shift]\
 $
+
+The only rule which differs from @delim-basic is #smallcaps[E-Shift].
+On the left-hand side, we require that the labels on the reset and shift
+are matching. The context $cal(E)$ may now contain resets with _other_
+labels: side condition $ell in.not cal(E)$ ensures that the reset in question
+is the innermost such reset _for label_ $ell$.
 
 === Type System
 
@@ -1723,35 +2048,37 @@ $
   onerule(
     name: "TC-Reset",
     $Gamma tack M: A bang E, ell: A$,
-    $Gamma tack angle(M)^ell_0: A bang E$
+    $Gamma tack reset0l(ell, M): A bang E$
   ),
   onerule(
     name: "TC-Shift",
     $Gamma, k: A ->^E B tack M: B bang E$,
     $ell in.not F$,
-    $Gamma tack s0 k.M: A bang E, ell: B, F$
+    $Gamma tack s0l(ell) k.M: A bang E, ell: B, F$
   ),
 ))
 
-=== Examples
+Most rules are the same as in @delim-basic. Rule #smallcaps[TC-Reset]
+adds the label of the reset alongside the answer type to the effect list.
+Rule #smallcaps[TC-Shift] may now "search" the effect list: we only require
+that $ell: A$ is the most recent entry with label $ell$,
+which is enforced by the condition that $ell in.not F$.
+Any labels in $F$ will be _discarded_ in the continuation $k$
+and the computation $M$: operationally, we shift outside of their scope.
 
+=== Example
+
+We present in coarse-grain style with integers, strings,
+and two labels $a, b$.
+
+Take the following term:
 $
-  &angle(sans("intToStr")
-    angle(1 + s0^a k. (k med 2 plus.double k med 3))^b_0)^a_0 \
-  arrow.squiggly
-  &(k med 2 plus.double k med 3)
-  [lambda y.angle(sans("intToStr") angle(1 + y)^b_0)^a_0 \/ k] \
-  arrow.squiggly
-  &angle(sans("intToStr") angle(1 + 2)^b_0)^a_0 plus.double
-  (lambda y. angle(sans("intToStr") angle(1 + y)^b_0)^a_0) med 3 \
-  arrow.squiggly^*
-  &\"3\" plus.double
-  (lambda y. angle(sans("intToStr") angle(1 + y)^b_0)^a_0) med 3 \
-  arrow.squiggly
-  &\"3\" plus.double angle(sans("intToStr") angle(1 + 3)^b_0)^a_0 \
-  arrow.squiggly^*
-  &\"3\" plus.double \"4\" arrow.squiggly \"34\"
+  reset0l(a, sans("intToStr")
+    reset0l(b, 1 + s0l(a) k. (k med 2 plus.double k med 3)))
 $
+
+It is well-typed, as shown by the following derivation
+(with some repetition omitted):
 
 #align(center, rule-set(
   prooftree(
@@ -1763,42 +2090,78 @@ $
               rule(
                 rule(
                   rule(
-                    $k: sans("Int") ->^emptyset sans("Str") tack
-                    k: sans("Int") -> sans("Str")$
+                    pad(top:0.3em)[
+                      $k: sans("Int") ->^emptyset sans("Str") tack
+                      k: sans("Int") ->^emptyset sans("Str")$
+                    ]
                   ),
                   $...$,
-                  $k: sans("Int") ->^emptyset sans("Str") tack
-                  k med 2:
-                  sans("Str") bang emptyset$
+                  pad(top:0.3em)[
+                    $k: sans("Int") ->^emptyset sans("Str") tack
+                    k med 2:
+                    sans("Str") bang emptyset$
+                  ]
                 ),
                 $...$,
-                $k: sans("Int") ->^emptyset sans("Str") tack
-                k med 2 plus.double k med 3:
-                sans("Str") bang emptyset$
+                pad(top:0.3em)[
+                  $k: sans("Int") ->^emptyset sans("Str") tack
+                  k med 2 plus.double k med 3:
+                  sans("Str") bang emptyset$
+                ]
               ),
               $emptyset tack
-              s0^a k. (k med 2 plus.double k med 3):
+              s0l(a) k. (k med 2 plus.double k med 3):
               sans("Int") bang a: sans("Str"), b: sans("Int")$
             ),
             $...$,
             $emptyset tack
-            1 + s0^a k. (k med 2 plus.double k med 3):
+            1 + s0l(a) k. (k med 2 plus.double k med 3):
             sans("Int") bang a: sans("Str"), b: sans("Int")$
           ),
           $emptyset tack
-          angle(1 + s0^a k. (k med 2 plus.double k med 3))^b_0:
+          reset0l(b, 1 + s0l(a) k. (k med 2 plus.double k med 3)):
           sans("Int") bang a: sans("Str")$
         ),
         $emptyset tack sans("intToStr")
-        angle(1 + s0^a k. (k med 2 plus.double k med 3))^b_0:
+        reset0l(b, 1 + s0l(b) k. (k med 2 plus.double k med 3)):
         sans("Str") bang a: sans("Str")$
       ),
-      $emptyset tack angle(sans("intToStr")
-      angle(1 + s0^a k. (k med 2 plus.double k med 3))^b_0)^a_0:
+      $emptyset tack reset0l(a, sans("intToStr")
+      reset0l(b, 1 + s0l(a) k. (k med 2 plus.double k med 3))):
       sans("Str") bang emptyset$
     )
   )
 ))
+
+The term reduces as follows:
+
+$
+  &reset0l(a, sans("intToStr")
+    reset0l(b, 1 + s0l(a) k. (k med 2 plus.double k med 3))) \
+  ~>
+  &(k med 2 plus.double k med 3)
+  [lambda y.reset0l(a, sans("intToStr") reset0l(b, 1 + y)) \/ k] \
+  ~>
+  &reset0l(a, sans("intToStr") reset0l(b, 1 + 2)) plus.double
+  (lambda y. reset0l(a, sans("intToStr") reset0l(b, 1 + y))) med 3 \
+  ~>^*
+  &\"3\" plus.double
+  (lambda y. reset0l(a, sans("intToStr") reset0l(b, 1 + y))) med 3 \
+  ~>
+  &\"3\" plus.double reset0l(a, sans("intToStr") reset0l(b, 1 + 3)) \
+  ~>^*
+  &\"3\" plus.double \"4\" arrow.squiggly \"34\"
+$
+
+
+=== Relation to @delim-basic.
+
+We recover the language of @delim-basic
+by restricting ourselves to exactly one label.
+
+We can also probably encode labels
+into a label-less language with sums, by re-shifting if the labels
+are not equal (similar in spirit to what Forster et al. do).
 
 == Value Injection
 
