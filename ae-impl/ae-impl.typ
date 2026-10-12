@@ -1496,6 +1496,252 @@ $
   &("where" sans("op") in.not cal(E)) \
 $
 
+=== Examples
+
+We reintroduce the ability for handlers to _reinstall_ themselves
+(with state),
+via the following rule (extending the one above):
+
+$
+  &einter("op", V, cal(E)[
+    epromst("op", x med k med r med s, M, W, p, N)
+  ]) \
+  &arrow.squiggly
+  M[...,
+    W \/ s,
+    (lambda y.epromst("op", x med k med r med s,
+    M, y, q, sans("val") q))
+    \/ r]
+$
+
+*Pre-Emptive Concurrency.*
+Ahman and Pretnar give the example of "pre-emptive multithreading" for
+continuation-less asynchronous effects.
+We have two operations, $sans("stop"): 1$ and $sans("go"): 1$,
+which pause and resume a computation.
+This takes the form of the following
+handler:
+$
+  &punct("let") "waitForStop" () = \
+  &quad eprom("stop", \_ med r, \
+  &quad quad eprom("go", \_, punct("val now") (), q, \
+  &quad quad punct("await") q \; r () \
+  &quad), p, punct("val") p)
+$
+
+To allow a computation $M$ to be pre-empted, we simply write
+$"waitForStop"\; M$.
+
+This example is limited in that, when we $sans("stop")$ the computation,
+the thread cannot do any other work:
+it remains paused until receiving $sans("go")$.
+If each thread is running on its own machine, that machine's resources are
+being wasted, which defeats (some of?) the point of concurrency.
+If these are simply conceptual threads being run on the same machine,
+then we are relying on an external scheduler to determine which thread
+ought to gain control of the machine— and that scheduler is not expressible
+in the language itself.
+
+When I hear pre-emptive concurrency, I imagine
+something like the following sequence:
+- Computation $M$ is running on thread $T$.
+- Thread $T$ receives a signal.
+- In response, thread $T$ suspends $M$ and begins computation $N$.
+
+In this sequence, $T$ splits its time/resources between $M$ and $N$.
+This is (properly) concurrency.
+
+Using continuations, we can express such behavior as follows.
+We have one operation, $sans("swap"): 1$.
+
+$
+  &punct("let") "preempt" m med n = epromst("swap", \_ med k med r med s,
+  r med k semi s med (), n, \_, m med ())
+$
+
+Our two arguments $m$ and $n$ are thunks ($lambda ().M$ and $lambda ().N$)
+of type $1 -> A$.
+We start off running $M$.
+When we receive a $sans("swap")$ interrupt, we:
+- store the continuation $k$ for later via a stateful reinstall, and
+- invoke the currently stored continuation $s$.
+Thus, after receiving our first interrupt, we store $M$ and begin running $N$.
+We alternate between them whenever receiving a $sans("swap")$, as expected.
+
+We can easily adapt/generalize this to:
+- abort the current computation entirely (by discarding $k$),
+- store a queue of thunks instead of a single one, letting us swap between
+  any number of computations instead of only two,
+- implementing any sort of logic in the handler body, e.g. prioritizing
+  some computations over others,
+- receiving a thunk _from the interrupt payload_ (unused above)
+  and running it immediately, or queuing it, etc...
+
+*Reduction Sequence*. Suppose we start with two computations
+$M_0$ and $N_0$, and we have that $M_0 ~> M_1 ~> M_2 ~> ...$,
+and likewise for $N$.
+
+Throughout, we box the redex. We omit mention of $punct("now")$
+for conciseness, since this has no expressive significance (its purpose
+is to guarantee safety).
+
+We initiate the pre-emptive behavior as follows.
+$
+  &"preempt" (lambda ().M_0) med (lambda ().N_0) \
+  eq.delta&  epromst("swap", \_ med k med r med s,
+  r med k semi s med (), (lambda ().N_0), \_,
+    #rect($(lambda ().M_0) med ())$)) \
+  ~>& epromst("swap", \_ med k med r med s,
+  r med k semi s med (), (lambda ().N_0), \_,
+    #rect($M_0$)) \
+  ~>^m& epromst("swap", \_ med k med r med s,
+  r med k semi s med (), (lambda ().N_0), \_,
+    #rect($M_n$)) \
+$
+
+We start off by evaluating $M$ for some number $m$ of steps.
+Let us now say that we receive an interrupt "from the outside world",
+i.e. nondeterministically, which I denote via a $~>^!$ step:
+
+$
+  ~>^!& #rect($einter("swap", , epromst(
+    "swap", \_ med k med r med s,
+  r med k semi s med (), (lambda ().N_0), \_,
+    #rect($M_m$)))$) \
+$
+
+At this point, we have _two_ possible redexes. We may continue
+reducing $M$ as before, by evaluation context
+$cal(E)=einter("swap", , epromst(
+  "swap", \_ med k med r med s, ..., V, \_,
+  [.]))$.
+Alternatively, we may handle the interrupt (with $cal(E)=[.]$).
+For the sake of example, we immediately choose the latter:
+
+$
+  &~> (r med k\; s med ()) cases(delim: "[",
+    (lambda ().N_0) \/ s,
+    (lambda ().einter("swap", , M_m)) \/ k,
+    (lambda s'.epromst("swap", \_ med k med r med s,
+      r med k\; s med (), s', p, sans("val") p)) \/ r
+  ) \
+  &= #rect($(lambda s'.epromst("swap", \_ med k med r med s,
+      r med k\; s med (), s', p, sans("val") p))
+      (lambda ().einter("swap", , M_m))$)med \;\
+  &quad quad (lambda ().N_0) med () \
+  &~> #rect($epromst("swap", \_ med k med r med s,
+      r med k\; s med (), (lambda ().einter("swap", , M_m)),
+       p, sans("val") p) \; (lambda ().N_0) med ()$) \
+  &~> epromst("swap", \_ med k med r med s,
+      r med k\; s med (), (lambda ().einter("swap", , M_m)),
+       p, #rect($(lambda ().N_0) med ()$)) \
+  &~> epromst("swap", \_ med k med r med s,
+      r med k\; s med (), (lambda ().einter("swap", , M_m)),
+       p, #rect($N_0$)) \
+  &~>^n epromst("swap", \_ med k med r med s,
+    r med k\; s med (), (lambda ().einter("swap", , M_m)),
+      p, #rect($N_n$))
+$
+
+By the end of this sequence, we have begun to evaluate the stored computation
+$N$.
+
+Say after $n$ such steps, we receive another $sans("swap")$:
+
+$
+  ~>^!& #rect($einter("swap", , epromst(
+    "swap", \_ med k med r med s,
+  r med k semi s med (), (lambda ().einter("swap", , M_m)), \_,
+    #rect($N_n$)))$) \
+$
+We again are free to either reduce $N$ further or handle the interrupt.
+Again, for the sake of example, we immediately handle as follows:
+
+$
+  &~> (r med k\; s med ()) cases(delim: "[",
+    (lambda ().einter("swap", , M_m)) \/ s,
+    (lambda ().einter("swap", , N_m)) \/ k,
+    (lambda s'.epromst("swap", \_ med k med r med s,
+      r med k\; s med (), s', p, sans("val") p)) \/ r
+  ) \
+  &= #rect($(lambda s'.epromst("swap", \_ med k med r med s,
+      r med k\; s med (), s', p, sans("val") p))
+      (lambda ().einter("swap", , N_n))$)med \;\
+  &quad quad (lambda ().einter("swap", , M_m)) med () \
+  &~> #rect($epromst("swap", \_ med k med r med s,
+      r med k\; s med (), (lambda ().einter("swap", , N_n)),
+       p, sans("val") p) \; \
+  (lambda ().einter("swap", , M_m)) med ()$) \
+  &~> epromst("swap", \_ med k med r med s,
+      r med k\; s med (), (lambda ().einter("swap", , N_n)),
+       p, \
+  &quad quad #rect($(lambda ().einter("swap", , M_m)) med ()$)) \
+  &~> epromst("swap", \_ med k med r med s,
+      r med k\; s med (), (lambda ().einter("swap", , N_n)),
+       p, \
+  &quad quad #rect($einter("swap", , M_m)$))
+$
+
+We are (essentially) back to where we started, with $M_m$ is in redex position.
+
+*Shallow Interrupts*. We are not _exactly_ back to where we started:
+instead of $M_m$, we have $einter("swap", , M_m)$.
+This is due to the fact that our semantics implements _deep_ interrupts,
+where upon handling, the interrupt is propagated inside the continuation $k$.
+
+It may be preferable to implement this example with _shallow_
+interrupts, wherein the continuation is exactly $lambda p.cal(E)[N]$,
+with no interrupt. (In the first handling in the
+above example, we would have $lambda ().M_m\/k$).
+This would recover _exactly_ $M_m$ after two $sans("swaps")$,
+instead of $einter("swap",, M_m)$.
+
+Shallow handlers are not necessary for this example.
+In particular, if $M$ and $N$ have no $sans("swap")$ handlers,
+the propagated interrupt will be discarded, and the deep/shallow reductions
+will coincide. The consequence of deep handlers is that _further_ swaps within
+$M$ and $N$ themselves may occur: whether this behavior is desired or not
+seems to be use-case dependent.
+
+*Typing*. This is our complete typing rule for promises (assuming our semantics
+wraps the continuation argument in $punct("now")$, instead of the
+programmer doing it themselves):
+
+#align(center, rule-set(
+  onerule(
+    name: "TC-Prom",
+    $E[sans("op")] = (C, F)$,
+    $Gamma, x: Sigma[sans("op")], k: C ->^F A, r: D ->^(op |-> F) angle(C),
+      s: D tack M: A bang F$,
+    $Gamma tack V: D$,
+    $Gamma, p: angle(C) tack N: B bang E$,
+    $Gamma tack epromst("op", x med k med r med s, M, V, p, N):
+    B bang E$
+  )
+))
+
+Define $epsilon = mu alpha. sans("swap") mapsto (A, alpha)$.
+The term preempt then typechecks as follows,
+assuming the answer type coincides with the function return type
+(i.e. the interrupts and handler exist at the "top level"
+of the computation).
+
+#align(center, rule-set(
+  prooftree(vertical-spacing: 5pt,
+    rule(
+      rule(
+        $Gamma,
+        k: 1 ->^epsilon A,
+        r: (1 ->^epsilon A) ->^(sans("swap") |-> (A, epsilon)) angle(1),
+        s: 1 ->^epsilon A tack r med k semi s med (): A bang epsilon$
+      ),
+      $Gamma tack n: 1 ->^epsilon A$,
+      $Gamma tack m: 1 ->^epsilon A$,
+      $Gamma tack epromst("swap", \_ med k med r med s,
+    r med k semi s med (), n, \_, m med ()): A bang epsilon$
+    )
+  )
+))
 
 === Danel's Problem
 
@@ -1542,7 +1788,7 @@ not given by the type of $N$.
 We must adopt something like the _answer type system_
 of Danvy and Filinski, but extended to a "multi-prompt" setting.
 
-= Exploring Delimited Control (Unfinished)
+= Exploring Delimited Control
 
 It is well-known that delimited control and (outbound) effect handlers are
 closely related.
