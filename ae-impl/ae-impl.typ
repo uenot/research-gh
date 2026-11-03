@@ -25,12 +25,14 @@
 
 // language macros
 #let elet(x, m, n) = $punct("let") #x <- #m punct("in") #n$
+#let easync(x, m, n) = $punct("async") #x <- #m punct("in") #n$
 #let eprom(op, x, m, p, n) = $
   punct("promise") (sans(#op) #x mapsto #m) punct("as") #p punct("in") #n$
 #let epromst(op, x, m, v, p, n) = $
   punct("promise") (sans(#op) #x mapsto #m) med punct("@") med #v punct("as") #p punct("in") #n$
 #let einter(op, v, m) = $
   punct("with") med sans(#op)(#v) med punct("interrupt") med #m$
+#let eawait(x, v, n) = $punct("await") #x <- #v punct("in") #n$
 
 #let s0 = text(fill: rgb("#0080ff"), $cal(S)_0$)
 #let s0l(l) = text(fill: rgb("#0080ff"),
@@ -38,6 +40,8 @@
 #let reset0(x) = $punct(chevron.l) #x punct(chevron.r)_punct(0)$
 #let reset0l(l, x) = $punct(chevron.l) #x punct(chevron.r)^(#l)_punct(0)$
 #let bang = $med ! med$
+
+#show math.tack: math.scripts
 
 #show: scratch
 
@@ -73,6 +77,8 @@ $
   grey("Evalutation Contexts " cal(E)) &::=
   [.] | elet(x, cal(E), N) | eprom("op", x, M, p, cal(E)) \
   &| einter("op", V, cal(E))\
+  grey("Pure Contexts " cal(F)) &::=
+  [.] | elet(x, M, cal(F)) \
   grey("Processes " P\, Q) &::= punct("run") M | P || Q \
   "Variables" x, y, p, q &in sans("Var") \
   "Operation names" sans("op") &in Sigma
@@ -1159,7 +1165,38 @@ $
   punct("handle") #trans($M$) \
 $
 
-It is an open question whether, or how exactly, some of the traditional features of outbound effects (namely first-class continuations) might be extended similarly to inbound effects.
+*Abstraction*. I conjecture that this translation preserves an
+operational correspondence, but that it breaks full abstraction
+_for effectful programs_, i.e. those with undelimited $punct("handle")$s
+in the inbound language or those with unhandled $punct("perform")$s
+in the outbound language.
+
+For instance, consider
+$#trans($punct("handle") (sans("op") x mapsto M)$)
+  &eq.delta
+  punct("perform") sans("op")(lambda x.#trans($M$))$.
+We know that the $punct("handle")$ will always step to $elet(y, M[V\/x], ...)$
+for some $V$ given by an injection.
+However, we can easily put the $punct("perform")$ in a context where this is not the case:
+$
+  punct("with") (sans("op") x mapsto punct("val") W)
+  punct("handle") punct("perform") sans("op")(lambda x.#trans($M$))
+  ~> punct("val") W
+$
+
+We perform $sans("op")(lambda x.#trans($M$))$ with the expectation that
+the $lambda$ will immediately be invoked with some value,
+but this is not necessarily the case in the target language!
+A "foreign" handler can ignore it (as above), invoke it multiple times,
+recurse infinitely, etc...
+
+In short, the difference between the two languages
+is that, in an outbound-effect setting, the delimiter
+"gains control" after a shift, while
+in an inbound-effect setting, the _shift_ "gains control".
+This difference matters when an abstraction boundary separates
+a delimiter and a shift.
+
 
 = Outbound Asynchronous Effects <async-outbound>
 
@@ -2850,159 +2887,407 @@ As usual, all typing judgments are implicitly parameterized by a fixed $Sigma$.
   ),
 ))
 
-= Return Statements? (Unfinished)
-- sync-inbound:
-  - should they live in the handler or in the operation?
-    what would either do/mean?
-- async-outbound:
-  - how do we formulate a return-rule which respects promise contexts?
-    - should the return-computation go under or over the promise context?
-    - should the return-computation be able to perform
-      operations that can be handled by "inner" promise contexts?
+= Non-Deterministic Concurrency
 
-possible perspective:
-"the return statement is post-processing on the continuation result"
+Isolating the "asynchronous" part of asynchronous effects.
 
-=> it should go in the handler
+== Core calculus
 
-= Type Systems (Unfinished)
+=== Syntax
 
-== Type System <seq-tsys>
-Because we do not have outbound signals, we do not need to track their types!
-This lets us create a type system with simpler annotations that focuses on
-the "essence" of well-typed computations.
+The language is a $lambda$-calculus in a fine-grain call-by-value style.
+It lacks a $punct("let")$ statement: instead,
+we _decompose_ $punct("let")$s into two distinct constructs,
+$punct("async")$ and $punct("await")$.
+The $punct("async")$ construct introduces non-deterministic concurrency,
+and its behavior is constrained (sequenced) by $punct("await")$.
 
-$
-  "Ground types" underline(A) &::= bold(1) \
-  "Value types" A, B &::= underline(A) | A ->^E B | angle(A) \
-  "Effect types" E, F &::= emptyset | E, sans("op") mapsto F \
-  "Effect signature" Sigma &::= emptyset | Sigma, sans("op") mapsto underline(A)
-$
+Values $punct("now") V$ represent the result of a concurrent computation,
+which have the "later type" $circle A$.
+The $punct("await")$ construct eliminates $punct("now")$ and $circle$.
 
-A value of type $angle(A)$ is a _future_ $A$,
-or a _promise_ that the value _will_ become one of type $A$.
-
-If a computation has effect type $E$, it will handle all interrupts
-in its domain $sans("dom")(E)$.
-
-If $sans("op") mapsto F in E$ and a computation with effect type $E$ handles
-$sans("op")$, it will _then_ handle all interrupts in $F$ _and_ those in $E$
-except for $sans("op")$. ($F$ types the handlers that are
-installed by the $sans("op")$ handler.)
-
-All typing judgments are defined with respect to a static signature $Sigma$.
-This signature may only contain ground types: it may _not_ contain futures
-(or functions, which may close over futures).
-
-=== Operations on Effect Types
-
-We use array-indexing notation $E[sans("op")]$ to denote the entry in $E$
-with key $sans("op")$.
-
-We define a _merge_ or _union_ on effect types $E union.sq F$ as follows:
+Evaluation contexts are notable for permitting reduction
+under _both_ subcomputations of $punct("async")$.
+This induces nondeterminism, in that whenever we have
+an $punct("async")$ construct, we can choose which subcomputation
+to reduce (unless one is blocked by an $punct("await")$).
 
 $
-  E union.sq emptyset &eq.delta E \
-  E union.sq (F, sans("op") mapsto F_sans("op")) &eq.delta cases(
-    (E union.sq F)\, sans("op") mapsto F_sans("op") & (sans("op") in.not E),
-    (E union.sq F)\, sans("op") mapsto E_sans("op") union.sq F_sans("op")
-    med & (E[sans("op")] = E_sans("op"))
-  )
+  "Values" V, W &::= x | () | lambda x.M | punct("now") V \
+  "Computations" M, N &::= punct("val") V | easync(x, M, N)
+  | V med W | eawait(x, V, M) \
+  "Evaluation Contexts" cal(E) &::=
+  [.] | easync(x, cal(E), N) | easync(x, M, cal(E)) \
+  "Types" A, B &::= 1 | A -> B | circle A
 $
-
-Intuitively, a computation with type $E union.sq F$ can handle operations
-in both $E$ and in $F$.
-
-We say $E without sans("op")$ to denote the removal of $sans("op")$
-from the domain of $E$.
-
-We define an "action" on effect types,
-$E triangle.l.small sans("op")
-eq.delta
-(E without sans("op")) union.sq E[sans("op")]$.
-Intuitively, if our computation starts at effect type $E$
-and then is interrupted by $sans("op")$,
-the resulting effect type is $E triangle.l.small sans("op")$.
-
-We also have an inductively-given order on effect types:
-
-#align(center, rule-set(
-  onerule(
-    name: "Sub-Nil",
-    $emptyset subset.sq.eq E$
-  ),
-  onerule(
-    name: "Sub-Cons",
-    $E_sans("op") subset.sq.eq F_sans("op")$,
-    $E, sans("op") mapsto E_sans("op") subset.sq.eq
-    F, sans("op") mapsto F_sans("op")$
-  ),
-))
 
 === Typing Rules
+
+We have judgments $Gamma tack_v V : A$ for values
+and $Gamma tack_m M : A$ for computations.
+Rules are as expected.
 
 #align(center, rule-set(
   onerule(
     name: "TV-Var",
     $x: A in Gamma$,
-    $Gamma tack x: A$
+    $Gamma tack_v x: A$
   ),
   onerule(
     name: "TV-Unit",
-    $Gamma tack (): bold(1)$
+    $Gamma tack_v (): 1$
   ),
   onerule(
     name: "TV-Lam",
-    $Gamma, x: A tack M: B med ! med E$,
-    pad(top: 0.35em, $Gamma tack lambda x.M: A ->^E B$)
+    $Gamma, x: A tack_m M: B$,
+    $Gamma tack_v lambda x.M: A -> B$
   ),
   onerule(
-    name: "TV-Fut",
-    $Gamma tack V: A$,
-    $Gamma tack angle(V): angle(A)$
+    name: "TV-Now",
+    $Gamma tack_v V: A$,
+    $Gamma tack_v punct("now") V: circle A$
   ),
-))
-
-#align(center, rule-set(
   onerule(
     name: "TC-Val",
-    $Gamma tack V: A$,
-    $Gamma tack sans("val") V: A med ! med E$
+    $Gamma tack_v V: A$,
+    $Gamma tack_m punct("val") V: A$
   ),
   onerule(
-    name: "TC-Let",
-    $Gamma tack M: A med ! med E$,
-    $Gamma, x: A tack N: B med ! med E$,
-    $Gamma tack elet(x, M, N): B med ! med E$
+    name: "TC-Async",
+    $Gamma tack_m M: A$,
+    $Gamma, x: circle A tack_m N: B$,
+    $Gamma tack_m easync(x, M, N): B$
   ),
   onerule(
     name: "TC-App",
-    $Gamma tack V: A ->^E B$,
-    $Gamma tack W: A$,
-    $Gamma tack V med W: B med ! med E$
+    $Gamma tack_v V: A -> B$,
+    $Gamma tack_v W: A$,
+    $Gamma tack_m V med W: B$
   ),
   onerule(
     name: "TC-Await",
-    $Gamma tack V: angle(A)$,
-    $Gamma tack sans("await") V: A med ! med E$
-  ),
-  onerule(
-    name: "TC-Prom",
-    $Gamma, x: Sigma[sans("op")] tack M: angle(A) med ! med E[sans("op")]$,
-    $Gamma, p: angle(A) tack W: B med ! med E$,
-    $Gamma tack eprom("op", x, M, p, N): B med ! med E$
-  ),
-  onerule(
-    name: "TC-Op",
-    $Gamma tack V: Sigma[sans("op")]$,
-    $Gamma tack M: B med ! med E$,
-    $Gamma tack arrow.b sans("op")(V, M):
-    B med ! med E triangle.small.l sans("op")$
-  ),
-  onerule(
-    name: "TC-Sub",
-    $Gamma tack M: A med ! med E$,
-    $E subset.sq.eq F$,
-    $Gamma tack M: A med ! med F$
+    $Gamma tack_v V: circle A$,
+    $Gamma, x: A tack_m M: B$,
+    $Gamma tack_m eawait(x, V, M): B$
   ),
 ))
+
+=== Operational Semantics
+
+#align(center, rule-set(onerule(
+  name: "EC-Ctx",
+  $M ~> N$,
+  $cal(E)[M] ~> cal(E)[N]$
+)))
+
+$
+  easync(x, punct("val") V, M) &~> M[V\/x] & #smallcaps[E-Val]\
+  eawait(x, punct("now") V, M) &~> M[V\/x] & quad #smallcaps[E-Await]\
+  (lambda x.M) med V &~> M[V\/x] & #smallcaps[E-App]\
+$
+
+=== Discussion
+
+It is easy to see that this language is type-safe by progress and preservation.
+I conjecture that the language is both confluent and terminating,
+although this is slightly tricky to prove because of the nondeterminism.
+
+The asynchronous calculus _generalizes_ the standard synchronous calculus
+as follows:
+$
+  trans(elet(x, M, N)) eq.delta easync(p, M, (eawait(x, p, N)))
+$
+
+Ahman and Pretnar's asynchronous effects is _not_ given by the mere combination
+of these $punct("async")$ constructs with generalized delimited control.
+Intuitively, both of these features mess with evaluation contexts,
+and getting their combination right is tricky and error-prone.
+
+The obvious problem is scope-escape, as with $x$ in the following example:
+
+$
+  &reset0(easync(x, M, s0 k. eawait(y, x, punct("val") y)))
+  ~> &eawait(y, x, punct("val") y)
+$
+
+In general, shifting past $punct("async")$ binders is clearly unsound.
+
+Ahman and Pretnar's bubbling semantics addresses this issue by propagating
+promises _outside_ of delimiters before any shifts can occur.
+The promise-bound variables are therefore in scope of shifts.
+
+With all that said, an adequately nuanced language should satisfy:
+$
+  trans(eprom("op", x, M, p, N))
+  eq.delta
+  easync(p, punct("handle") ("op" x mapsto M), N)
+$
+
+== An Adequate Semantics for AE
+
+My earlier semantics for asynchronous effects suffers from this scope-escape
+problem. I reformulate a fixed version here.
+
+=== Syntax
+
+$
+  "Values" V, W &::= x | () | lambda x.M | (V, W) | punct("now") V \
+  "Computations" M, N &::= punct("val") V | elet(x, M, N)
+  | V med W | punct("fst") V | punct("snd") V \
+& | eprom("op", x, M, p, N)
+  | punct("await")(V) \
+& | einter("op", V, M) \
+  grey("Promise Contexts " cal(P)) &::=
+  [.] | eprom("op", x, M, p, cal(P)) \
+  grey("Pure Contexts " cal(F)) &::=
+  [.] | elet(x, cal(F), M) \
+  grey("Evalutation Contexts " cal(E)) &::=
+  cal(F)[cal(E)] | cal(P)[cal(E)] | einter("op", V, cal(E))\
+  "Variables" x, y, p, q &in sans("Var") \
+  "Operation names" sans("op") &in Sigma
+$
+
+#align(center, rule-set(
+  onerule(
+    name: "E-Ctx",
+    $M arrow.squiggly N$,
+    $cal(E)[M] arrow.squiggly cal(E)[N]$
+  )
+))
+
+$
+  elet(x, cal(P)[punct("val") V], M)
+  &arrow.squiggly
+  cal(P)[M[V\/x]] & #smallcaps("E-Val")\
+  (lambda x.M) med V &arrow.squiggly M[V\/x] & #smallcaps("E-App")\
+  punct("fst") (V, W) &arrow.squiggly punct("val") V & #smallcaps("E-Fst")\
+  punct("snd") (V, W) &arrow.squiggly punct("val") W & #smallcaps("E-Snd")\
+  punct("await now") V &arrow.squiggly punct("val") V & #smallcaps("E-Await")\
+  einter("op", W, cal(P)[punct("val") V])
+  &arrow.squiggly
+  cal(P)[punct("val") V]
+  & #smallcaps("E-Disc") \
+  && ("where" sans("op") in.not cal(P))
+  $$
+  &einter("op", V, cal(F)[eprom("op", x, M, p, N)])
+  & quad #smallcaps("E-Prom") \
+  &arrow.squiggly
+  elet(p, M[V\/x], einter("op", V, cal(F)[N])) \
+  &einter("op", V, cal(F)[eprom("op'", x, M, p, N)])
+  & quad #smallcaps("E-Fwd") \
+  &arrow.squiggly
+  eprom("op'", x, M, p, einter("op", V, cal(F)[N]))
+  &quad ("where" sans("op") eq.not sans("op'")) \
+$
+
+With respect to the original algebraic semantics,
+it is easy to show a _simulation_ result.
+Denote the algebraic semantics by $|->$:
+we have that, if $M ~> N$, then $M |->^+ N$.
+
+More difficult is showing _reflection_: the property that,
+if $M |-> N$, then there is some $N'$ such that $M ~> N'$ and $N |->^* N'$.
+The offending case is that of "let-algebraicity":
+$
+  elet(x, eprom("op", y, M, p, N_1), N_2)
+  |->
+  eprom("op", y, M, p, elet(x, N_1, N_2))
+$
+The context-based semantics is _unable_ to pull $punct("promise")$s out of
+$punct("let")$s arbitrarily: in fact, this was a design _goal_.
+However, this case is impossible to show unless we know $N_1$ terminates.
+If we had this, we could let $N' = eprom("op", y, M, p, N_2[V\/x])$.
+But this would require a typed setting (untyped is clearly non-terminating),
+and even then, proving termination would be hard!
+
+Thus, a route based on observational equivalence
+might be the right choice here...
+
+== Integrating Basic DC: Semantics
+
+I see two potential avenues for integrating delimited control into
+our core calculus:
+we can either restrict the _semantics_ or the _type system_
+to prohibit the scope-escape problem mentioned above.
+
+Given that Ahman and Pretnar's language ensures scope-safety
+via semantics (for this problem),
+we explore this avenue first.
+
+$
+  "Values" V, W &::= x | () | lambda x.M | punct("now") V \
+  "Computations" M, N &::= punct("val") V | easync(x, M, N)
+  | V med W | eawait(x, V, M)
+  | reset0(M) | s0 k.M\
+  "Pure Contexts" cal(F) &::= [.] | easync(x, cal(F), M) \
+  "Evaluation Contexts" cal(E) &::= cal(F)[cal(E)]
+    | easync(x, M, cal(E)) | reset0(cal(E))
+$
+
+#align(center, rule-set(onerule(
+  name: "E-Ctx",
+  $M ~> N$,
+  $cal(E)[M] ~> cal(E)[N]$
+)))
+
+$
+  easync(x, punct("val") V, M) &~> M[V\/x] & #smallcaps[E-Val]\
+  (lambda x.M) med V &~> M[V\/x] & #smallcaps[E-App]\
+  eawait(x, punct("now") V, M) &~> M[V\/x] & #smallcaps[E-Await]\
+  reset0(cal(F)[s0 k.M]) &~> M[(lambda x.reset0(cal(F)[punct("val") x]))\/k]
+  & #smallcaps("E-Shift")
+$
+
+By ensuring our shift-captured evaluation contexts are in
+"head position",
+we guarantee that $cal(F)$ does not bind any variables in $M$,
+so evaluating $M$ _outside of_ $cal(F)$ is safe.
+
+This approach has the (possibly unfortunate) side-effect of
+making $s0$ a "semi-blocking" operation.
+If we have $easync(x, M, N)$, we expect both of $M$ and $N$
+to be able to reduce until $N$ hits an $punct("await")$.
+However, if $N = s0 k.N'$, $N$ is now blocked until $M$ reduces fully.
+
+== Integratic Basic DC: Types
+
+Ahman and Pretnar introduce a _Fitch-style modal type system_
+as an extension to address a similar scope-escape problem for
+other effects (namely signaling and spawning).
+We can adapt this approach for shifts.
+
+=== Syntax
+
+We add back basic effect-typing to our language,
+and we also add _boxing/unboxing_.
+Symbol $\#$ denotes our "lock" in the type context.
+
+$
+  "Values" V, W &::= x | () | lambda x.M | punct("now") V | punct("box") V \
+  "Computations" M, N &::= punct("val") V | easync(x, M, N)
+  | V med W | eawait(x, V, M) \
+  &quad | reset0(M) | s0 k.M | punct("unbox") V\
+  "Evaluation Contexts" cal(E) &::= [.] | easync(x, cal(E), M)
+    | easync(x, M, cal(E)) | reset0(cal(E)) \
+  "Types" A, B &::= 1 | A ->^E B | circle A | square A \
+  "Effects" E, F &::= emptyset | E, A \
+  "Type contexts" Gamma &::= emptyset | Gamma, x : A
+    | Gamma, \#
+$
+
+=== Semantics
+
+Same as before, except we allow shifting underneath an arbitrary
+evaluation context,
+and we add the obvious rule for unboxing.
+
+#align(center, rule-set(onerule(
+  name: "E-Ctx",
+  $M ~> N$,
+  $cal(E)[M] ~> cal(E)[N]$
+)))
+
+$
+  easync(x, punct("val") V, M) &~> M[V\/x] & #smallcaps[E-Val]\
+  (lambda x.M) med V &~> M[V\/x] & #smallcaps[E-App]\
+  eawait(x, punct("now") V, M) &~> M[V\/x] & #smallcaps[E-Await]\
+  reset0(cal(E)[s0 k.M]) &~> M[(lambda x.reset0(cal(E)[punct("val") x]))\/k]
+  & quad #smallcaps("E-Shift") \
+  punct("unbox box") V &~> punct("val") V & #smallcaps[E-Unbox]\
+$
+
+=== Type System
+
+We first define _stable_ types (i.e. those that can be used
+at any point) as follows:
+
+#align(center, rule-set(
+  onerule(
+    name: "St-One",
+    $1 "stable"$
+  ),
+  onerule(
+    name: "St-Box",
+    $square A "stable"$
+  )
+))
+
+This notably excludes "later types" $circle A$,
+and functions $A ->^E B$ (which may close over later-types).
+If we had other ground types, e.g. products $A times B$,
+we could judge them stable so long as $A$ and $B$ are stable.
+
+We have judgments $Gamma tack V : A$ for values
+and $Gamma tack M : A bang E$ for computations, as usual.
+Auxiliary judgment $\# in.not Gamma$ is defined
+as expected.
+
+#align(center, rule-set(
+  onerule(
+    name: "TV-Var",
+    $A "stable" or \# in.not Gamma'$,
+    $Gamma, x: A, Gamma' tack x : A$
+  ),
+  onerule(
+    name: "TV-Unit",
+    $Gamma tack () : 1$
+  ),
+  onerule(
+    name: "TV-Lam",
+    $Gamma, x: A tack M : B bang E$,
+    pad(top: 0.3em)[
+      $Gamma tack lambda x.M : A ->^E B$
+    ]
+  ),
+  onerule(
+    name: "TV-Now",
+    $Gamma tack V : A$,
+    $Gamma tack punct("now") V: circle A$
+  ),
+  onerule(
+    name: "TV-Box",
+    $Gamma, \# tack V : A$,
+    $Gamma tack punct("box") V: square A$
+  ),
+  onerule(
+    name: "TC-Val",
+    $Gamma tack V: A$,
+    $Gamma tack punct("val") V: A bang E$,
+  ),
+  onerule(
+    name: "TC-Async",
+    $Gamma tack M: A bang E$,
+    $Gamma, x : circle A tack N : B bang E$,
+    $Gamma tack easync(x, M, N): B bang E$
+  ),
+  onerule(
+    name: "TC-App",
+    $Gamma tack V : A ->^E B$,
+    $Gamma tack W : A$,
+    $Gamma tack V med W : B bang E$
+  ),
+  onerule(
+    name: "TC-Await",
+    $Gamma tack V : circle A$,
+    $Gamma, x : A tack M : B bang E$,
+    $Gamma tack eawait(x, V, M): B bang E$
+  ),
+  onerule(
+    name: "TC-Unbox",
+    $Gamma tack V : square A$,
+    $Gamma tack punct("unbox") V: A bang E$
+  ),
+  onerule(
+    name: "TC-Reset",
+    $Gamma tack M : A bang E , A$,
+    $Gamma tack reset0(M) : A bang E$
+  ),
+  onerule(
+    name: "TC-Shift",
+    $Gamma, \#, k: A ->^E B tack M : B bang E$,
+    $Gamma tack s0 k.M : A bang E, B$
+  ),
+))
+
+The key is that rule #smallcaps[TC-Shift] introduces a lock,
+and so its body may only use stable values (and $k$).
