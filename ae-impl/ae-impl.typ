@@ -25,6 +25,8 @@
 
 // language macros
 #let elet(x, m, n) = $punct("let") #x <- #m punct("in") #n$
+#let ecase(v, x, m, y, n) = $
+  punct("case") #v med {punct("inl") #x => #m | punct("inr") #y => #n}$
 #let easync(x, m, n) = $punct("async") #x <- #m punct("in") #n$
 #let eprom(op, x, m, p, n) = $
   punct("promise") (sans(#op) #x mapsto #m) punct("as") #p punct("in") #n$
@@ -2875,15 +2877,15 @@ As usual, all typing judgments are implicitly parameterized by a fixed $Sigma$.
   onerule(
     name: "TC-Prom",
     $E[sans("op")] = (C, F)$,
-    $Gamma, x: Sigma[sans("op")], k: angle(C) ->^F A tack M: A bang F$,
+    $Gamma, x: Sigma[sans("op")], k: angle(C) -->^(E, F) A tack M: A bang E,F$,
     $Gamma, p: angle(C) tack N: B bang E$,
     $Gamma tack eprom("op", x med k, M, p, N): B bang E$
   ),
   onerule(
     name: "TC-Inter",
     $Gamma tack V: Sigma[sans("op")]$,
-    $Gamma tack M: A bang E, sans("op") mapsto (A, E)$,
-    $Gamma tack einter("op", V, M): A bang E$
+    $Gamma tack M: A bang E, sans("op") mapsto (A, F)$,
+    $Gamma tack einter("op", V, M): A bang E, F$
   ),
 ))
 
@@ -2891,7 +2893,7 @@ As usual, all typing judgments are implicitly parameterized by a fixed $Sigma$.
 
 Isolating the "asynchronous" part of asynchronous effects.
 
-== Core calculus
+== First-Class Asynchrony
 
 === Syntax
 
@@ -2981,7 +2983,7 @@ Rules are as expected.
 )))
 
 $
-  easync(x, punct("val") V, M) &~> M[V\/x] & #smallcaps[E-Val]\
+  easync(x, punct("val") V, M) &~> M[punct("now") V\/x] & #smallcaps[E-Val]\
   eawait(x, punct("now") V, M) &~> M[V\/x] & quad #smallcaps[E-Await]\
   (lambda x.M) med V &~> M[V\/x] & #smallcaps[E-App]\
 $
@@ -2992,12 +2994,26 @@ It is easy to see that this language is type-safe by progress and preservation.
 I conjecture that the language is both confluent and terminating,
 although this is slightly tricky to prove because of the nondeterminism.
 
-The asynchronous calculus _generalizes_ the standard synchronous calculus
+*Relations to other calculi.*
+The asynchronous calculus _generalizes_ the standard synchronous FGCBV calculus
 as follows:
 $
   trans(elet(x, M, N)) eq.delta easync(p, M, (eawait(x, p, N)))
 $
 
+We can translate the calculus into Fowler et al.'s $lambda_("ch")$ as follows:
+
+$
+  trans(easync(x, M, N)) &eq.delta
+  elet(x, punct("newCh"),(
+    punct("spawn") (elet(r, trans(M), punct("give") r med x)) \;
+    trans(N))) \
+  trans(eawait(x, V, M)) &eq.delta
+  elet(x, punct("take") trans(V),
+  (punct("give") x med trans(V); trans(M)))
+$
+
+*Relation to asynchronous effects.*
 Ahman and Pretnar's asynchronous effects is _not_ given by the mere combination
 of these $punct("async")$ constructs with generalized delimited control.
 Intuitively, both of these features mess with evaluation contexts,
@@ -3018,9 +3034,9 @@ The promise-bound variables are therefore in scope of shifts.
 
 With all that said, an adequately nuanced language should satisfy:
 $
-  trans(eprom("op", x, M, p, N))
+  trans(eprom("op", x med k, M, p, N))
   eq.delta
-  easync(p, punct("handle") ("op" x mapsto M), N)
+  easync(p, punct("handle") ("op" x med k mapsto M), N)
 $
 
 == An Adequate Semantics for AE
@@ -3042,7 +3058,8 @@ $
   grey("Pure Contexts " cal(F)) &::=
   [.] | elet(x, cal(F), M) \
   grey("Evalutation Contexts " cal(E)) &::=
-  cal(F)[cal(E)] | cal(P)[cal(E)] | einter("op", V, cal(E))\
+  [.] | elet(x, cal(E), M) | eprom("op", x, M, p, cal(E)) \
+  & | einter("op", V, cal(E))\
   "Variables" x, y, p, q &in sans("Var") \
   "Operation names" sans("op") &in Sigma
 $
@@ -3063,11 +3080,10 @@ $
   punct("fst") (V, W) &arrow.squiggly punct("val") V & #smallcaps("E-Fst")\
   punct("snd") (V, W) &arrow.squiggly punct("val") W & #smallcaps("E-Snd")\
   punct("await now") V &arrow.squiggly punct("val") V & #smallcaps("E-Await")\
-  einter("op", W, cal(P)[punct("val") V])
+  einter("op", W, punct("val") V)
   &arrow.squiggly
-  cal(P)[punct("val") V]
-  & #smallcaps("E-Disc") \
-  && ("where" sans("op") in.not cal(P))
+  punct("val") V
+  & #smallcaps("E-Disc")
   $$
   &einter("op", V, cal(F)[eprom("op", x, M, p, N)])
   & quad #smallcaps("E-Prom") \
@@ -3079,6 +3095,8 @@ $
   eprom("op'", x, M, p, einter("op", V, cal(F)[N]))
   &quad ("where" sans("op") eq.not sans("op'")) \
 $
+
+// Examples: pre-emptive concurrency, reactivity, classic actors
 
 With respect to the original algebraic semantics,
 it is easy to show a _simulation_ result.
@@ -3102,6 +3120,67 @@ and even then, proving termination would be hard!
 
 Thus, a route based on observational equivalence
 might be the right choice here...
+
+=== Progress
+
+Our "result forms" are complicated due to
+(a) the possibility of blocking awaits
+and (b) the non-uniqueness of evaluation contexts.
+Nevertheless, we can adapt the definitions of Ahman and Pretnar's
+_original_ formulation. (The extended version introduces extra
+"algebraic" step rules to simplify result forms.)
+
+We write $p hourglass M$ to say that computation
+$M$ is waiting on variable $p$,
+which is defined as follows:
+
+#align(center)[#rule-set(
+  onerule($p hourglass punct("await") p$),
+  onerule(
+    $p hourglass M$,
+    $p hourglass elet(x, M, N)$
+  ),
+  onerule(
+    $p hourglass M$,
+    $p hourglass einter("op", V, M)$
+  )
+)]
+
+We can then define judgment "$Psi "blocks" M$"
+as follows, where $Psi$ is a set of variables:
+
+#align(center)[#rule-set(
+  onerule(
+    $p in Psi$,
+    $p hourglass M$,
+    $Psi "blocks" M$
+  ),
+  onerule(
+    $Psi "blocks" M$,
+    $Psi "blocks" elet(x, M, N)$
+  ),
+  onerule(
+    $Psi, p "blocks" N$,
+    $Psi "blocks" eprom("op", x med k, M, p, N)$
+  )
+)]
+
+The changes from Ahman and Pretnar's original definition are that
+we add $punct("let")$s to the "blocks" judgment (which they call
+$sans("RunRes")$) and remove $punct("val")$s.
+
+We have that if $Psi "blocks" M$, then there is no $N$
+with $M ~> N$.
+
+We distinguish blocked computations from _expectant_
+computations, which merely have the form $cal(P)[punct("val") V]$.
+
+Progress then characterizes computations into three kinds:
+able-to-reduce, expectant, or blocked.
+
+(Possible to-do: relate result forms to effect type?
+I want to be able to say, e.g., if $M$ is expectant
+and $E = emptyset$, then $M equiv punct("val") V$.)
 
 == Integrating Basic DC: Semantics
 
@@ -3291,3 +3370,90 @@ as expected.
 
 The key is that rule #smallcaps[TC-Shift] introduces a lock,
 and so its body may only use stable values (and $k$).
+
+=== Discussion
+
+*Overrestriction?*
+The modal type system rules out some (possibly desired) behavior
+from Ahman and Pretnar's calculus. Take the following term
+(in the original calculus):
+
+$
+  &eprom("op", x, M, p,
+    eprom("waitForOp", y, elet(z, punct("await") p, M'), q, N))
+$
+
+The purpose of $sans("waitForOp")$ is to block on the promise $p$,
+and once fulfilled, do some postprocessing in $M'$.
+
+The important bit here is that
+we can receive $sans("op")$ and $sans("waitForOp")$ _in either order_.
+Say we receive $sans("op")$ first (using shallow interrupts for brevity):
+
+$
+  &einter("op", V, eprom("op", x, M, p,
+    \ &quad eprom("waitForOp", y,
+    elet(z, punct("await") p, M'), q, N)))\
+  ~>& elet(p, M[V\/x],
+    eprom("waitForOp", y, elet(z, punct("await") p, M'), q, N))\
+  ~>^*& elet(p, punct("val now") W,
+    eprom("waitForOp", y, elet(z, punct("await") p, M'), q, N))\
+  ~>& eprom("waitForOp", y, elet(z, punct("await now") W, M'), q, N)\
+$
+
+Whenever the above computation now receives $sans("waitForOp")$,
+it can proceed immediately with $M'$.
+
+Say instead that we receive $sans("waitForOp")$ first:
+
+$
+  &einter("waitForOp", V, eprom("op", x, M, p, \
+    &quad eprom("waitForOp", y, elet(z, punct("await") p, M'), q, N)))\
+  ~>&eprom("op", x, M, p, einter("waitForOp", V, \
+    &quad eprom("waitForOp", y,
+      elet(z, punct("await") p, M'), q, N)))\
+  ~>&eprom("op", x, M, p,
+    elet(q, (elet(z, punct("await") p, M')), N))\
+$
+
+The above computation is blocked until receiving $sans("op")$.
+
+Returning to the modal system: I don't see a way of replicating this behavior.
+The original term is clearly untypeable, since
+the subcomputation for $sans("waitForOp")$ uses a promise variable $p$.
+We can write a term that implements one order or another, but not both
+simultaneously.
+
+*Semantic Difference.*
+Type systems aside, the two calculi have demonstrably different semantics.
+Take the following term:
+$
+  &eprom("op", x, M, p, eprom("op'", y, M', q, N))
+$
+
+Say we receive $sans("op'")(V)$. In the original calculus,
+we step to the following (again using shallow interrupts for brevity):
+
+$
+  &eprom("op", x, M, p, elet(q, M'[V\/y], N))
+$
+
+Notably, computation $M'[V\/y]$ can _still be interrupted_ by $sans("op")$:
+
+$
+  &einter("op", W, eprom("op", x, M, p, elet(q, M'[V\/y], N)))\
+  ~>& elet(p, M[W\/x], elet(q, M'[V\/y], N))
+$
+
+However, in the new calculus, receiving $sans("op'")(V)$ gives us
+(with the trivial continuation):
+$
+  elet(q, M'[V\/y], eprom("op", x, M, p, N))
+$
+
+Now, computation $M'[V\/y]$ is no longer interruptable by $sans("op")$:
+a new interrupt must "wait" until $M'[V\/y]$ finishes until it can
+interact with the promise handler beneath it.
+
+Whether this difference is a _problem_, a _benefit_, or simply a _difference_
+is unclear to me.
