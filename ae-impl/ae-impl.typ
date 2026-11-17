@@ -1,7 +1,10 @@
 #import "toby.typ": scratch
 #import "@preview/mannot:0.4.0": markhl
 #import "@preview/curryst:0.6.0": rule, prooftree, rule-set
-#import "@preview/cetz:0.5.2": canvas, draw, tree
+#import "@preview/cetz:0.5.3": canvas, draw, tree
+#import "@preview/ctheorems:2.0.0": *
+#show: thm-rules
+#import thm-themes.ams: *
 
 #set document(title: [
   Implementing Asynchronous Effects
@@ -11,6 +14,18 @@
 #let grey(x) = markhl(x, color: gray)
 #show smallcaps: set text(font: "Latin Modern Roman")
 #let punct(x) = text(fill: rgb("#0080ff"), $sans(#x)$)
+#let _case-block(label, title, body, bar: gray) = block(
+  width: 100%,
+  inset: (left: 1em),
+  stroke: (left: 0.5pt + bar),
+  {
+    set par(hanging-indent: 1em)
+    [#label #title. #body]
+  },
+)
+
+#let case(title, body) = _case-block([*Case*], smallcaps(title), body)
+#let subcase(title, body) = _case-block([_Subcase_], title, body, bar: luma(180))
 
 // math macros
 #let angle(x) = $chevron.l #x chevron.r$
@@ -47,13 +62,1138 @@
 
 #show: scratch
 
+= Sequential Fragment <seq>
+
+Ahman and Pretnar's original calculus $lambda_æ$
+contains a _sequential_ fragment (for single computations)
+and a _parallel_ fragment (for multiple computations in parallel).
+Following their lead, I first focus on
+the sequential fragment, which I believe contains
+the interesting elements of the calculus. We shall revisit
+the parallel fragment in @par.
+
+== $lambda_æ$, "Put Simply" <lambda-ae-simply>
+
+We re-present Ahman and Pretnar's $lambda_æ$
+with a "streamlined" syntax, semantics, and type system.
+We temporarily isolate the sequential fragment
+and elide their higher-order extensions.
+For brevity, we also elide features from $lambda_æ$
+which are orthogonal to the core of asynchronous effects
+(namely products, sums, and absurdity).
+
+=== Syntax
+
+*Term-Level*.
+We present the calculus in fine-grain call-by-value style.
+
+$
+  "Values" V, W &::= x | () | lambda x.M | punct("now") V \
+  "Computations" M, N &::= punct("val") V | elet(x, M, N)
+  | V med W | punct("await") V \
+& | eprom("op", x, M, p, N)
+  | einter("op", V, M) \
+  "Evalutation Contexts " cal(E) &::=
+  [.] | elet(x, cal(E), N) | eprom("op", x, M, p, cal(E)) \
+  &| einter("op", V, cal(E))\
+  "Promise Contexts " cal(P) &::=
+  [.] | eprom("op", x, M, p, cal(P)) \
+  "Pure Contexts " cal(F) &::=
+  [.] | elet(x, cal(F), N) \
+$$
+  "Variables" x, y, p, q in sans("Var")
+  #h(2em)
+  "Operation names" sans("op") in Sigma
+$
+
+*Values.* Standard values include variables $x$,
+the unit value $()$, and functions $lambda x.M$.
+The only non-standard value is the
+_fulfilled promise_, $punct("now") V$, which denotes that
+some previously-made promise has been fulfilled with value $V$.
+
+*Computations*. The standard FGCBV constructs let us
+lift values $V$ to computations via $punct("val") V$
+and sequence computations $M$ and $N$ via $elet(x, M, N)$.
+As usual, we apply functions via $V med W$.
+
+The defining feature of asynchronous effects is
+the ability to _promise to handle incoming operations_,
+via form $eprom("op", x, M, p, N)$.
+On receiving an operation with matching name $sans("op")$, we bind the
+payload value to $x$ in $M$ and immediately begin evaluating $M$.
+The result of $M$ will be bound to $p$ in $N$.
+The semantics of promise handlers is _non-blocking_, i.e.
+$N$ can evaluate even if we have not yet handled $sans("op")$.
+$N$ may contain free occurences of $p$, so to use $p$ safely,
+we must explicitly _await_ its value via $punct("await") V$,
+which blocks until $V$ is a fulfilled promise.
+
+Finally, runtime-only computation $einter("op", V, M)$ represents
+the reception of a signal $sans("op")$ with payload $V$
+in computation $M$. This signal may _interrupt_ the normal
+evaluation of $M$ by reacting with a promise handler, hence
+the name of the construct.
+
+We defer discussion of contexts ($cal(E)$, $cal(P)$, and $cal(F)$)
+to @seq-opsem, the operational semantics subsection.
+
+*Type-Level.*
+
+$
+  "Term Types" A, B ::= 1 | A ->^E B | circle A
+  #h(2em)
+  "Type Context" Gamma ::= emptyset | Gamma, x: A \
+  "Effect Types" E, F ::= emptyset | E, sans("op") : F
+  #h(2em)
+  "Effect Signature" Sigma ::= emptyset | Sigma, sans("op"): A \
+$
+
+*Term Types.* As a base type, we include the unit type $1$.
+Function types $A ->^E B$ are annotated with the _effect_ $E$ of the function.
+We also have the type $circle A$, read "later $A$", which denotes a term
+of type $A$ that will become available _later_, due to a promise being
+fulfilled.
+
+*Effect Types.* If a computation has effect $E$, it is prepared to receive
+any of the operations in $sans("dom")(E)$.
+In contrast to ordinary effect systems,
+we must also account for when the body of a promise handler
+installs additional promise handers.
+Once receiving an operation $sans("op"): F in E$, the computation
+may now receive any operations in $F$ _and_
+other operations in $E$.
+
+We stipulate that well-formed effect types have no duplicates in their domains
+(and are composed only of other well-formed effect types).
+Effect types are _unordered_.
+
+Our effect types map operations to _further_ effect types.
+They are thus structured as _trees_ (in contrast to ordinary effect
+systems, which analogously form _lists_).
+
+*Effect Signature.* We have a global signature $Sigma$ which
+statically defines the _payload type_ of every operation.
+In a purely sequential system, these payloads can have any type,
+i.e. we do not yet need to restrict ourselves to ground types
+as do Ahman and Pretnar.
+
+=== Operational Semantics <seq-opsem>
+
+We present a context-based
+semantics, which elides or shortcuts many of the "administrative reductions"
+of the original.
+We restrict our explanation to the semantics here presented,
+and leave detailed design considerations to @seq-consid.
+
+#align(center, rule-set(
+  onerule(
+    name: "E-Ctx",
+    $M arrow.squiggly N$,
+    $cal(E)[M] arrow.squiggly cal(E)[N]$
+  )
+))
+
+$
+  elet(x, cal(P)[punct("val") V], M)
+  &arrow.squiggly
+  cal(P)[M[V\/x]] & #smallcaps("E-Val")\
+  (lambda x.M) med V &arrow.squiggly M[V\/x] & #smallcaps("E-App")\
+  punct("await now") V &arrow.squiggly punct("val") V & #smallcaps("E-Await")\
+  einter("op", W, punct("val") V)
+  &arrow.squiggly
+  punct("val") V
+  & #smallcaps("E-Disc")
+  $$
+  &einter("op", V, cal(F)[eprom("op", x, M, p, N)])
+  & quad #smallcaps("E-Prom") \
+  &arrow.squiggly
+  elet(p, M[V\/x], einter("op", V, cal(F)[N])) \
+  &einter("op", V, cal(F)[eprom("op'", x, M, p, N)])
+  & quad #smallcaps("E-Fwd") \
+  &arrow.squiggly
+  eprom("op'", x, M, p, einter("op", V, cal(F)[N]))
+  &quad ("where" sans("op") eq.not sans("op'")) \
+$
+
+*Evaluation Contexts.*
+The rule #smallcaps("E-Ctx") is of standard form, but the syntax
+of evaluation contexts $cal(E)$ is not:
+they allow reduction
+under $punct("promise")$s and $punct("interrupt")$s
+alongside $punct("let")$s.
+
+The ability to evaluate under promises,
+in conjunction with promise-lifting via #smallcaps("E-Val"),
+gives us our non-blocking semantics:
+a computation $M$ can freely evaluate
+_underneath_ a promise handler.
+Furthermore, if that promise handler binds variable $p$,
+we may evaluate $M$ _with $p$ free_ until we $punct("await") p$!
+Of course, we ought not to be able to _use_ unbound variable
+$p$ until it resolves to a value, which we enforce with types.
+
+*Promise Contexts.* The rule #smallcaps("E-Val") is non-standard
+for an FGCBV system due to the presence of a _promise context_
+$cal(P)$ around the value $V$. A promise context is simply
+a stack of promise handlers.
+In rule #smallcaps("E-Val"), we "lift" this context from the value
+onto the continuation $M$. Intuitively, the ordinary rule is insufficient
+because promise handlers should not block a pure computation.
+This point is discussed further in @seq-consid.
+
+*Other Rules.*
+Rule #smallcaps("E-App") is standard.
+Rule #smallcaps("E-Await") unwraps a fulfilled promise,
+with the side effect of _blocking_ until the promise is fulfilled.
+Rule #smallcaps[E-Disc] says that we can discard an $punct("interrupt")$ once it
+has reached the trivial computation $punct("val") V$.
+
+The most interesting rules, #smallcaps[E-Prom] and #smallcaps[E-Fwd],
+concern promise handlers.
+On the left-hand side of each, we have an $punct("interrupt")$
+around a $punct("promise")$, with some intermediate pure context $cal(F)$,
+which is merely a stack of $punct("let")$-bindings.
+(The restriction to _pure_ contexts, as opposed to the broader category
+of evaluation contexts, ensures that $punct("interrupt")$s
+and $punct("promise")$s do not "pass" each other: we want
+the "innermost" $punct("interrupt")$ to react with the "outermost"
+$punct("promise")$.)
+
+If the operation names in the interrupt and handler match, we apply
+#smallcaps[E-Prom] to rewrite the $punct("promise")$ clause
+as a $punct("let")$-binding.
+For a promise handler $eprom("op", x, M, p, N)$,
+this may "interrupt" the evaluation of $N$ with the evaluation of
+$M$. We then follow the standard $punct("let")$-semantics:
+once $M$ has evaluated, we bind its result to $p$
+and continue evaluating $N$.
+We also propagate the interrupt into the continuation $N$, a pattern we name
+_deep interrupts_ in reference to deep handlers.
+(Shallow interrupts are discussed in @seq-consid.)
+
+If the operation names do _not_ match, we perform an "explicit forward"
+via #smallcaps[E-Fwd]: we pull the $punct("promise")$
+_outside_ of the interrupt. Doing so opens two possibilities for interaction:
+the $punct("promise")$ may now interact with the next-innermost
+$punct("interrupt")$, while the $punct("interrupt")$
+may now interact with the next-outermost $punct("promise")$.
+
+=== Type System
+
+We begin by reasoning about effect types.
+We define a _join_ on effects as follows,
+recalling that effects are freely reorderable:
+
+$
+  E union.sq emptyset &eq.delta E \
+  E union.sq (F, sans("op"): F') &eq.delta (E union.sq F), sans("op"): F'
+  & quad (sans("op") in.not sans("dom")(E)) \
+  (E, sans("op"): E') union.sq (F, sans("op"): F')
+  &eq.delta (E union.sq F), sans("op"): (E' union.sq F')
+$
+
+Following Ahman and Pretnar, this operation gives rise to
+a _join-semilattice_ structure (bounded by the
+identity element $emptyset$). In particular,
+operator $union.sq$ is _associative_, _commutative_, and _idempotent_.
+#footnote[
+  We can induce a partial order on a join-semilattice by defining
+  $E subset.eq.sq F$ whenever $E union.sq F = F$.
+  For our $union.sq$, this order is precisely the one I go on
+  to define, but I write it out explicitly for clarity.
+]
+
+We also have a _partial order_ $E subset.eq.sq F$ on effect types,
+defined as follows:
+#align(center, rule-set(
+  onerule(
+    $emptyset subset.eq.sq E$
+  ),
+  onerule(
+    $E subset.eq.sq F$,
+    $E' subset.eq.sq F'$,
+    $E, sans("op"): E' subset.eq.sq F, sans("op"): F'$
+  )
+))
+
+
+We now proceed to our typing rules.
+We have judgments $Gamma tack V: A$ for values and $Gamma tack M: A bang E$
+for computations. All judgments are parameterized by a fixed signature $Sigma$.
+
+#align(center, rule-set(
+  onerule(
+    name: "TV-Var",
+    $x: A in Gamma$,
+    $Gamma tack x: A$
+  ),
+  onerule(
+    name: "TV-Unit",
+    $Gamma tack (): 1$
+  ),
+  onerule(
+    name: "TV-Lam",
+    $Gamma, x: A tack M: B bang E$,
+    pad(top: 0.33em)[$Gamma tack lambda x.M: A ->^E B$]
+  ),
+  onerule(
+    name: "TV-Now",
+    $Gamma tack V: A$,
+    $Gamma tack punct("now") V: circle A$
+  ),
+  onerule(
+    name: "TC-Val",
+    $Gamma tack V: A$,
+    $Gamma tack punct("val") V: A bang E$
+  ),
+  onerule(
+    name: "TC-Let",
+    $Gamma tack M: A bang E$,
+    $Gamma, x: A tack N: B bang E$,
+    $Gamma tack elet(x, M, N): B bang E$
+  ),
+  onerule(
+    name: "TC-App",
+    $Gamma tack V: A ->^E B$,
+    $Gamma tack W: A$,
+    $Gamma tack V med W: B bang E$
+  ),
+  onerule(
+    name: "TC-Await",
+    $Gamma tack V: circle A$,
+    $Gamma tack punct("await") V: A bang E$
+  ),
+  onerule(
+    name: "TC-Inter",
+    $Gamma tack V: Sigma[sans("op")]$,
+    $Gamma tack M: A bang E, sans("op"): F$,
+    $Gamma tack einter("op", V, M): A bang E union.sq F$
+  ),
+  onerule(
+    name: "TC-Prom",
+    $Gamma, x: Sigma[sans("op")] tack M: circle A bang E[sans("op")]$,
+    $Gamma, p: circle A tack N: B bang E$,
+    $Gamma tack eprom("op", x, M, p, N): B bang E$
+  ),
+  onerule(
+    name: "TC-Sub",
+    $Gamma tack M : A bang E$,
+    $E subset.eq.sq F$,
+    $Gamma tack M : A bang F$
+  )
+))
+
+All value rules are standard except for #smallcaps[TV-Now],
+which merely introduces the "later modality" $circle$.
+
+TODO: discuss computation types, once we're sure the proofs work!
+
+=== Metatheory
+
+*Result Forms.* We begin by considering what the _result forms_
+of our calculus are, which differ slightly from
+Ahman and Pretnar's.
+
+We distinguish two sorts of result forms: _responsive values_
+and _blocked computations_. Intuitively,
+blocked computations are explicitly $punct("await")$ing
+the resolution of some promise to continue reducing,
+whereas responsive values have fully reduced to a value
+(but may still handle interrupts).
+
+The form of responsive values is simply $cal(P)[punct("val") V]$.
+Defining blocked computations is more involved.
+We first write $p hourglass M$ to say that computation
+$M$ is waiting on variable $p$, defined as follows:
+
+#align(center)[#rule-set(
+  onerule(name: "W-Await", $p hourglass punct("await") p$),
+  onerule(
+    name: "W-Let",
+    $p hourglass M$,
+    $p hourglass elet(x, M, N)$
+  ),
+  onerule(
+    name: "W-Inter",
+    $p hourglass M$,
+    $p hourglass einter("op", V, M)$
+  )
+)]
+
+We can then define judgment "$Psi "blocks" M$"
+as follows, where $Psi$ is a set of variables:
+
+#align(center)[#rule-set(
+  onerule(
+    name: "B-Wait",
+    $p in Psi$,
+    $p hourglass M$,
+    $Psi "blocks" M$
+  ),
+  onerule(
+    name: "B-Let",
+    $Psi "blocks" M$,
+    $Psi "blocks" elet(x, M, N)$
+  ),
+  onerule(
+    name: "B-Prom",
+    $Psi, p "blocks" N$,
+    $Psi "blocks" eprom("op", x, M, p, N)$
+  )
+)]
+
+Neither of these result forms can reduce:
+
+#lemma[Finality][
+  If $M equiv cal(P)[punct("val") V]$ or
+  $Psi "blocks" M$, then there is no $N$
+  such that $M ~> N$.
+]
+
+We also want a couple of lemmas which explicitly relate blocked
+computations to pure evaluation contexts:
+
+#lemma[Waiting composition][
+  If $p hourglass M$, then $p hourglass cal(F)[M]$.
+] <aesimple-waitcomp>
+
+#lemma[Blocking decomposition][
+  If $Psi "blocks" M$, then we have that $M equiv cal(F)[N]$
+  where either $N equiv eprom("op", x, M', p, N')$
+  or $p hourglass N$ for some $p in Psi$.
+] <aesimple-blockdecomp>
+
+
+*Open Reduction.* Since we can reduce underneath promise-binders,
+we must consider open terms in more detail than usual
+in order to state progress.
+
+Let $Gamma°$ denote a type context where all types
+are of form $circle A$,
+that is, $Gamma° ::= emptyset | Gamma°, x: circle A$.
+
+We have the following generalized canonical forms lemma,
+which degenerates to a more standard one
+when $Gamma° = emptyset$. The form of $Gamma°$
+restricts the cases where a variable can occur.
+
+#lemma[Canonical forms][
+  If $Gamma° tack V : A$, then:
+  - if $A equiv 1$, then $V equiv ()$.
+  - if $A equiv B ->^E C$, then $V equiv lambda x.M$.
+  - if $A equiv circle B$, then either $V equiv punct("now") W$
+    or $V equiv x$ for some $x in sans("dom") Gamma°$.
+] <aesimple-canon>
+
+*Progress.*
+With our result forms and canonical forms lemma,
+we are now prepared to state and prove progress.
+Our statement must generalize over type contexts $circle Gamma$
+because of the $punct("promise")$ evaluation-context case.
+
+#theorem[Progress][
+  If $Gamma° tack M : A bang E$, then either $M ~> N$,
+  $M equiv cal(P)[punct("val") V]$,
+  or $sans("dom")(Gamma°) "blocks" M$.
+]
+
+#proof[
+  By induction on the typing derivation, as usual.
+
+  #case[TC-Val][
+    We have
+    #align(center, rule-set(onerule(
+      name: "TC-Val",
+      $Gamma° tack V: A$,
+      $Gamma° tack punct("val") V: A bang E$
+    )))
+    Our computation $punct("val") V$ is of the form
+    $cal(P)[punct("val") V]$ (where $cal(P)=[.]$), so we are done.
+  ]
+
+  #case[TC-Let][
+    We have
+    #align(center, rule-set(prooftree(
+      rule(
+        name: smallcaps[TC-Let],
+        rule($(1)$, $Gamma° tack M: A bang E$),
+        $Gamma°, x: A tack N: B bang E$,
+        $Gamma° tack elet(x, M, N): B bang E$
+      )
+    )))
+
+    - By inductive hypothesis on (1), we have three subcases:
+    #subcase[$M ~> M'$][
+      We can rederive a step via evaluation context
+      $elet(x, [.], N)$ as follows:
+      #align(center, rule-set(onerule(
+        name: "E-Ctx",
+        $M ~> M'$,
+        $elet(x, M, N) ~> elet(x, M', N)$
+      )))
+    ]
+
+    #subcase[$M equiv cal(P)[punct("val") V]$][
+      Rule #smallcaps[E-Val] gives us
+      $elet(x, cal(P)[punct("val") V], N)
+      ~> cal(P)[N[V\/x]]$.
+    ]
+
+    #subcase[$sans("dom") Gamma° "blocks" M$][
+      We show that the $punct("let")$-statement is also blocked:
+
+      #align(center, rule-set(onerule(
+        name: "B-Let",
+        $sans("dom") Gamma° "blocks" M$,
+        $sans("dom") Gamma° "blocks" elet(x, M, N)$
+      )))
+    ]
+
+    In any subcase, we satisfy one of the conclusions, so the case holds.
+  ]
+
+  #case[TC-App][
+    We have
+    #align(center, rule-set(prooftree(
+      rule(
+        name: smallcaps[TC-Let],
+        rule($(1)$, pad(0.3em)[$Gamma° tack V: A ->^E B$]),
+        $Gamma° tack W: A$,
+        $Gamma° tack V med W: B bang E$
+      )
+    )))
+    - By @aesimple-canon (canonical forms) on (1),
+      $V equiv lambda x.M$.
+    - Rule #smallcaps[E-App] gives us
+      $(lambda x.M) med W ~> M[W\/x]$,
+      satisfying the first conclusion.
+  ]
+
+  #case[TC-Await][
+    We have
+    #align(center, rule-set(prooftree(
+      rule(
+        name: smallcaps[TC-Await],
+        rule($(1)$, $Gamma° tack V: circle A$),
+        $Gamma° tack punct("await") V: A bang E$
+      )
+    )))
+    - By @aesimple-canon (canonical forms) on (1),
+      we have two subcases:
+    #subcase[$V equiv punct("now") W$][
+      Rule #smallcaps[TC-Await] gives us the step
+      $punct("await now") W ~> punct("val") W$.
+    ]
+    #subcase[$V equiv p "for" p in sans("dom")(Gamma°)$][
+      We show our computation is blocked as follows:
+      #align(center, rule-set(prooftree(
+        rule(
+          name: smallcaps[B-Wait],
+          rule($p in sans("dom") Gamma°$),
+          rule(
+            name: smallcaps[W-Await],
+            $p hourglass punct("await") p$
+          ),
+          $sans("dom") Gamma° "blocks" punct("await") p$
+        )
+      )))
+    ]
+
+    In any subcase, we satisfy one of the conclusions, so the case holds.
+  ]
+
+  #case[TC-Inter][
+    We have
+    #align(center, rule-set(prooftree(
+      rule(
+        name: smallcaps[TC-Inter],
+        $Gamma° tack V: Sigma[sans("op")]$,
+        rule($(1)$, $Gamma° tack M: A bang E, sans("op"): F$),
+        $Gamma° tack einter("op", V, M): A bang E union.sq F$
+      )
+    )))
+    By inductive hypothesis on (1), we have three subcases:
+
+    #subcase[$M ~> N$][
+      We rederive a step via evaluation context
+      $einter("op", V, [.])$ as follows:
+      #align(center, rule-set(onerule(
+        name: "E-Ctx",
+        $M ~> N$,
+        $einter("op", V, M) ~> einter("op", V, N)$
+      )))
+    ]
+
+    #subcase[$M equiv cal(P)[punct("val") V]$][
+      We further subcase on the structure of $cal(P)$:
+      #subcase[$[.]$][
+        Rule #smallcaps[E-Disc] gives us
+        $einter("op", V, punct("val") W) ~> punct("val") W$.
+      ]
+      #subcase[$eprom("op'", x, N, p, cal(P))$][
+        If $sans("op") = sans("op'")$, then
+        rule #smallcaps[E-Prom] gives us a step:
+        $
+          &einter("op", V, eprom("op", x, N, p, cal(P)[punct("val") V])) \
+          ~>& elet(p, N[V\/x], einter("op", V, cal(P)[punct("val") V]))
+        $
+        If $sans("op") eq.not sans("op'")$, then
+        rule #smallcaps[E-Fwd] also gives us a step:
+
+        $
+          &einter("op", V, eprom("op'", x, N, p, cal(P)[punct("val") V])) \
+          ~>& eprom("op'", x, N, p, einter("op", V, cal(P)[punct("val") V]))
+        $
+      ]
+    ]
+
+    #subcase[$sans("dom") Gamma° "blocks" M$][
+      By @aesimple-blockdecomp (blocking decomposition),
+      we have that $M equiv cal(F)[N]$ with two further
+      subcases on $N$:
+      #subcase[$N equiv eprom("op'", x, M', p, N')$][
+        If $sans("op") = sans("op'")$, then
+        rule #smallcaps[E-Prom] gives us:
+        $
+          &einter("op", V, cal(F)[eprom("op", x, M', p, N')]) \
+          ~>& elet(p, M'[V\/x], einter("op", V, cal(F)[N']))
+        $
+        If $sans("op") eq.not sans("op'")$, then
+        rule #smallcaps[E-Fwd] gives us:
+        $
+          &einter("op", V, cal(F)[eprom("op'", x, M', p, N')]) \
+          ~>& eprom("op'", x, M', p, einter("op", V, cal(F)[N']))
+        $
+      ]
+
+      #subcase[$p hourglass N$ for $p in sans("dom") Gamma°$][
+        By @aesimple-waitcomp (waiting composition),
+        we have $p hourglass cal(F)[N]$.
+        We conclude the computation is blocked:
+        #align(center, rule-set(prooftree(
+          rule(
+            name: smallcaps[B-Inter],
+            rule(
+              name: smallcaps[B-Wait],
+              $p in sans("dom") Gamma°$,
+              $p hourglass cal(F)[N]$,
+              $sans("dom") Gamma° "blocks" cal(F)[N]$
+            ),
+            $sans("dom") Gamma° "blocks" einter("op", V, cal(F)[N])$
+          )
+        )))
+      ]
+    ]
+    Thus, in any subcase, the computation either steps
+    or is blocked.
+  ]
+
+  #case[TC-Prom][
+    We have
+    #align(center, rule-set(prooftree(
+      rule(
+        name: smallcaps[TC-Prom],
+        $Gamma°, x: Sigma[sans("op")] tack M: circle A bang E[sans("op")]$,
+        rule($(1)$, $Gamma°, p: circle A tack N: B bang E$),
+        $Gamma° tack eprom("op", x, M, p, N): B bang E$
+        ),
+      )
+    ))
+    By inductive hypothesis on (1), we have three subcases:
+
+    #subcase[$N ~> N'$][
+      We rederive a step via context
+      $cal(E) = eprom("op", x, M, p, [.])$ as follows:
+      #align(center, rule-set(onerule(
+        name: "E-Ctx",
+        $N ~> N'$,
+        $eprom("op", x, M, p, N) ~> eprom("op", x, M, p, N')$
+      )))
+    ]
+
+    #subcase[$N equiv cal(P)'[punct("val") V]$][
+      Choose our $cal(P)=eprom("op", x, M, p, cal(P)')$.
+      Our term is therefore a responsive value,
+      of form $cal(P)[punct("val") V]$.
+    ]
+
+    #subcase[$sans("dom") Gamma°, p  "blocks" N$][
+      We derive that the overall term is still blocked as follows:
+
+      #align(center, rule-set(onerule(
+        name: "B-Prom",
+        $sans("dom") Gamma°, p  "blocks" N$,
+        $sans("dom") Gamma° "blocks" eprom("op", x, M, p, N)$
+      )))
+
+    ]
+  ]
+  #case[TC-Sub][
+    The result follows directly by inductive hypothesis.
+  ]
+]
+
+*Context Typing*. To prove preservation, it is first helpful
+to define typing judgments for our various contexts.
+Since promise contexts $cal(P)$ and pure contexts $cal(F)$
+are _subsets_ of evaluation contexts $cal(E)$,
+we present typing rules for $cal(E)$
+with the expectation that they can also be used to type
+the more specific contexts.
+
+We judge a context $cal(E)$ to be well-typed
+via $Gamma tack cal(E): A bang E => B bang F tack.l Gamma°$.
+The rules are as follows:
+
+#align(center, rule-set(
+  onerule(
+    name: "TE-Hole",
+    $Gamma tack [.] : A bang E => A bang E tack.l emptyset$
+  ),
+  onerule(
+    name: "TE-Let",
+    $Gamma tack cal(E) : A bang E => B bang F tack.l Gamma°$,
+    $Gamma, x: B tack N: C bang F$,
+    $Gamma tack elet(x, cal(E), N): A bang E => C bang F tack.l Gamma°$
+  ),
+  onerule(
+    name: "TE-Inter",
+    $Gamma tack V: Sigma[sans("op")]$,
+    $Gamma tack cal(E): A bang E => B bang (F, sans("op"): F') tack.l Gamma° $,
+    $Gamma tack einter("op", V, cal(E)):
+    A bang E => B bang (F union.sq F') tack.l Gamma°$
+  ),
+  onerule(
+    name: "TE-Prom",
+    $Gamma, x: Sigma[sans("op")] tack M: circle C bang F[sans("op")]$,
+    $Gamma, p: circle C tack cal(E): A bang E => B bang F tack.l Gamma°$,
+    $Gamma tack eprom("op", x, M, p, cal(E)) :
+    A bang E => B bang F tack.l Gamma°, p: circle C$
+  )
+))
+
+The rules are designed to satisfy the following "plugging lemma",
+which also ought to serve as the reading of the context typing judgment.
+
+#lemma[Evaluation context plugging][
+  If $Gamma tack cal(E) : A bang E => B bang F tack.l Gamma°$
+  and $Gamma, Gamma° tack M: A bang E$,
+  then $Gamma tack cal(E)[M]: B bang F$.
+] <aesimple-eplug>
+
+We also have the usual decomposition lemma:
+
+#lemma[Evaluation context decomposition][
+  If $Gamma tack cal(E)[M]: B bang F$,
+  then there exist some $A$, $E$, and $Gamma°$ such that
+  $Gamma tack cal(E): A bang E => B bang F tack.l Gamma°$
+  and $Gamma, Gamma° tack M: A bang E$.
+] <aesimple-edecomp>
+
+From these rules, we can derive more specific typing judgments
+for more specific contexts.
+For promise contexts, we have the following:
+
+#lemma[Promise context typing][
+  If $Gamma tack cal(P) : A bang E => B bang F tack.l Gamma°$,
+  then $A equiv B$ and $E equiv F$.
+]
+
+We thus write $Gamma tack cal(P) : E tack.l Gamma°$
+to abbreviate $Gamma tack cal(P) : A bang E => A bang E tack.l Gamma°$.
+We have the expected decomposition
+and plugging lemmas as corollaries of
+@aesimple-edecomp and @aesimple-eplug, respectively:
+
+#lemma[Promise context decomposition][
+  If $Gamma tack cal(P)[M]: A bang E$,
+  then there exists some $Gamma°$ such that
+  $Gamma tack cal(P): E tack.l Gamma°$
+  and $Gamma, Gamma° tack M: A bang E$.
+] <aesimple-pdecomp>
+
+#lemma[Promise context plugging][
+  If $Gamma tack cal(P) : E tack.l Gamma°$
+  and $Gamma, Gamma° tack M: A bang E$,
+  then $Gamma tack cal(P)[M]: A bang E$.
+] <aesimple-pplug>
+
+We have similar lemmas for pure contexts:
+#lemma[Pure context typing][
+  If $Gamma tack cal(P) : A bang E => B bang F tack.l Gamma°$,
+  then $E equiv F$ and $Gamma° equiv emptyset$.
+]
+
+We write $Gamma tack cal(F): A => B bang E$
+to abbreviate $Gamma tack cal(P) : A bang E => B bang E tack.l emptyset$.
+
+#lemma[Pure context decomposition][
+  If $Gamma tack cal(F)[M]: B bang E$,
+  then there exists some $A$ such that
+  $Gamma tack cal(F): A => B bang E$
+  and $Gamma tack M: A bang E$.
+] <aesimple-fdecomp>
+
+#lemma[Pure context plugging][
+  If $Gamma tack cal(F): A => B bang E$
+  and $Gamma tack M: A bang E$,
+  then $Gamma tack cal(F)[M]: B bang E$.
+] <aesimple-fplug>
+
+*Preservation*.
+We are now ready to state and prove preservation:
+
+#theorem[Preservation][
+  If $Gamma tack M : A bang E$ and $M ~> N$, then $Gamma tack N : A bang E$.
+]
+
+#proof[
+  By induction on the derivation of $M ~> N$, as usual.
+
+
+  #case[$cal(E)[M] ~> cal(E)[N]$][
+    - We are given (1) that $M ~> N$.
+    - By @aesimple-edecomp (decomposition) on the typing premise,
+      we have some $A$, $E$, and $Gamma°$ such that
+      (2) $Gamma tack cal(E): B bang F => A bang E tack.l Gamma°$
+      and (3) $Gamma, Gamma° tack M: B bang F$.
+    - By inductive hypothesis on (1) and (3),
+      we get (4) that $Gamma, Gamma° tack N: B bang F$.
+    - By @aesimple-eplug (plugging) on (2) and (4),
+      we get that $Gamma tack cal(E)[N]: A bang E$
+      and we are done.
+
+  ]
+
+  #case[$elet(x, cal(P)[punct("val") V], M) ~> cal(P)[M[V\/x]]$][
+    We start with the following,
+    using @aesimple-pdecomp (decomposition) on $cal(P)[punct("val") V]$:
+    #align(center, rule-set(
+      prooftree(
+        rule(
+          name: smallcaps[TC-Let],
+          rule(
+            name: [@aesimple-pdecomp[]],
+            rule($(1)$, $Gamma tack cal(P): E tack.l Gamma°$),
+            rule(
+              rule($(2)$, $Gamma, Gamma° tack V: A$),
+              $Gamma, Gamma° tack punct("val") V: A bang E$
+            ),
+            $Gamma tack cal(P)[punct("val") V] : A bang E$
+          ),
+          rule($(3)$, $Gamma, x: A tack M : B bang E$),
+          $Gamma tack elet(x, cal(P)[punct("val") V], M) : B bang E$
+        )
+      )
+    ))
+    - By substitution & weakening on (2) and (3),
+      we get (4) that
+      $Gamma, Gamma° tack M[V\/x]: B bang E$.
+    - By @aesimple-pplug (plugging) on (1) and (4),
+      we get that $Gamma tack cal(P)[M[V\/x]]: B bang E$
+      and we are done.
+  ]
+
+  #case[$(lambda x.M) med V ~> M[V\/x]$][
+    We start with:
+    #align(center, rule-set(
+      prooftree(
+        rule(
+          name: smallcaps[TC-App],
+          rule(
+            name: smallcaps[TV-Lam],
+            rule($(1)$, $Gamma, x : B tack M: A bang E$),
+            pad(top: 0.3em)[$Gamma tack lambda x.M: B ->^E A$]
+          ),
+          rule($(2)$, $Gamma tack V : B$),
+          $Gamma tack (lambda x.M) med V: A bang E$
+        )
+      )
+    ))
+    The conclusion follows from substitution on (1) and (2).
+  ]
+
+  #case[$punct("await now") V ~> punct("val") V$][
+    We start with the derivation on the left
+    and conclude on the right:
+
+    #align(center, rule-set(
+      prooftree(
+        rule(
+          name: smallcaps[TC-Await],
+          rule(
+            name: smallcaps[TV-Now],
+            rule($(1)$, $Gamma tack V : A$),
+            $Gamma tack punct("now") V: circle A$
+          ),
+          $Gamma tack punct("await now") V: A bang E$
+        )
+      ),
+      onerule(
+        name: "TC-Val",
+        rule(name: $(1)$, $Gamma tack V: A$),
+        $Gamma tack punct("val") V : A bang E$
+      )
+    ))
+  ]
+
+  #case[$einter("op", V, cal(F)[eprom("op", x, M, p, N)])$\ $
+  ~>elet(p, M[V\/x], einter("op", V, cal(F)[N]))$][
+    We start with the following,
+    using @aesimple-fdecomp (decomposition) as a derived rule:
+
+    #align(center, rule-set(
+      prooftree(
+        rule(
+          name: smallcaps[TC-Prom],
+          rule($(1)$, $Gamma, x: Sigma[sans("op")] tack M: circle C bang F$),
+          rule($(2)$, $Gamma, p: circle C tack N: B bang E, sans("op"): F$),
+          $(3) quad Gamma tack eprom("op", x, M, p, N):
+          B bang E, sans("op"): F$
+        )
+      ),
+      prooftree(
+        rule(
+          name: smallcaps[TC-Inter],
+          rule($(4)$, $Gamma tack V: Sigma[sans("op")]$),
+          rule(
+            name: [@aesimple-fdecomp[]],
+            rule($(5)$, $Gamma tack cal(F): B => A bang E, sans("op"): F$),
+            $(3)$,
+            $Gamma tack cal(F)[eprom("op", x, M, p, N)]:
+              A bang E, sans("op"): F$
+          ),
+          $Gamma tack einter("op", V, cal(F)[eprom("op", x, M, p, N)]):
+          A bang E union.sq F$
+        )
+      )
+    ))
+    - By substitution on (1) and (4),
+      we have (6) $Gamma tack M[V\/x]: circle C bang F$.
+    - By @aesimple-fplug (plugging) on (5) and (2),
+      alongside weakening on (5),
+      we obtain (7) that
+      $Gamma, p: circle C tack cal(F)[N]: A bang E, sans("op"): F$.
+    - Weakening (4) gives us (8)
+      $Gamma, p: circle C tack V: Sigma[sans("op")]$.
+    - By definition, we have (9) $F subset.eq.sq E union.sq F$.
+    - We derive the conclusion as follows:
+    #align(center, rule-set(
+      prooftree(
+        rule(
+          name: smallcaps[TC-Inter],
+          rule(
+            name: $(8)$,
+            $Gamma, p: circle C tack V: Sigma[sans("op")]$
+          ),
+          rule(
+            name: $(7)$,
+            $Gamma, p: circle C tack cal(F)[N] : A bang E, sans("op"): F$
+          ),
+          $(10) quad Gamma, p: circle C tack einter("op", V, cal(F)[N]):
+          A bang E union.sq F$
+        ),
+      ),
+      prooftree(
+        rule(
+          name: smallcaps[TC-Let],
+          rule(
+            name: smallcaps[TC-Sub],
+            rule(
+              name: $(6)$,
+              $Gamma tack M[V\/x]: circle C bang F$
+            ),
+            rule(name: $(9)$, $F subset.eq.sq E union.sq F$),
+            $Gamma tack M[V\/x]: circle C bang E union.sq F$
+          ),
+          $(10)$,
+          $Gamma tack elet(p, M[V\/x], einter("op", V, cal(F)[N])):
+          A bang E union.sq F$
+        )
+      )
+    ))
+  ]
+
+  #case[$einter("op", V, cal(F)[eprom("op'", x, M, p, N)])$\ $
+  ~>eprom("op'", x, M, p, einter("op", V, cal(F)[N]))$][
+    We start with the following,
+    using @aesimple-fdecomp (decomposition) as a derived rule:
+
+    #align(center, rule-set(
+      prooftree(
+        rule(
+          name: smallcaps[TC-Prom],
+          rule($(1)$, $Gamma, x: Sigma[sans("op'")] tack M: circle C bang E[sans("op'")]$),
+          rule($(2)$, $Gamma, p: circle C tack N: B bang E, sans("op"): F$),
+          $(3) quad Gamma tack eprom("op'", x, M, p, N):
+          B bang E, sans("op"): F$
+        )
+      ),
+      prooftree(
+        rule(
+          name: smallcaps[TC-Inter],
+          rule($(4)$, $Gamma tack V: Sigma[sans("op")]$),
+          rule(
+            name: [@aesimple-fdecomp[]],
+            rule($(5)$, $Gamma tack cal(F): B => A bang E, sans("op"): F$),
+            $(3)$,
+            $Gamma tack cal(F)[eprom("op'", x, M, p, N)]:
+              A bang E, sans("op"): F$
+          ),
+          $Gamma tack einter("op", V, cal(F)[eprom("op'", x, M, p, N)]):
+          A bang E union.sq F$
+        )
+      )
+    ))
+    - By @aesimple-fplug (plugging) on (5) and (2),
+      alongside weakening on (5),
+      we obtain (6) that
+      $Gamma, p: circle C tack cal(F)[N]: A bang E, sans("op"): F$.
+    - By definition, (7)
+      $E[sans("op'")] subset.eq.sq (E union.sq F)[sans("op'")]$.
+    - Weakening (4) gives us (8)
+      $Gamma, p: circle C tack V: Sigma[sans("op")]$.
+    - We derive the conclusion as follows:
+    #align(center, rule-set(
+      prooftree(
+        rule(
+          name: smallcaps[TC-Inter],
+          rule(
+            name: $(8)$,
+            $Gamma, p: circle C tack V: Sigma[sans("op")]$
+          ),
+          rule(
+            name: $(6)$,
+            $Gamma, p: circle C tack cal(F)[N]: E, sans("op"): F$
+          ),
+          $(9) quad Gamma, p: circle C tack einter("op", V, cal(F)[N]):
+            A bang E union.sq F$
+        ),
+      ),
+      prooftree(
+        rule(
+          name: smallcaps[TC-Prom],
+          rule(
+            name: smallcaps[TC-Sub],
+            rule(
+              name: $(1)$,
+              $Gamma, x: Sigma[sans("op'")] tack M: circle C bang
+              E[sans("op'")]$
+            ),
+            rule(
+              name: $(7)$,
+              $E[sans("op'")] subset.eq.sq (E union.sq F)[sans("op'")]$
+            ),
+            $Gamma, x: Sigma[sans("op'")] tack M: circle C bang
+              (E union.sq F)[sans("op'")]$
+          ),
+          $(9)$,
+          $Gamma tack eprom("op'", x, M, p, einter("op", V, cal(F)[N])):
+          A bang E union.sq F$
+        )
+      )
+    ))
+  ]
+]
+
+=== Design Considerations <seq-consid>
+
+== Extended Handlers <aehext>
+
+We consider the extension of $lambda_æ$ with
+_stateful_ and _reinstallable_ interrupt handlers.
+To avoid repetition, we only discuss
+the changes made to the language of @lambda-ae-simply.
+
+=== Promise Handlers
+
+We extend the form of promise handlers to the following:
+$
+  epromst("op", x med r med s, M, V, p, N)
+$
+Handling now binds two additional variables in $M$.
+We can _reinstall_ the promise handler via $r$,
+and $s$ represents the _state_ of the handler.
+The initial state is given by $V$.
+
+The semantics for handling a promise is extended to bind these
+two additional variables:
+
+$
+  &einter("op", V, cal(F)[epromst("op", x med r med s, M, W, p, N)]) \
+  ~>
+  &elet(p, M[V\/x, V_r\/r, W\/s], einter("op", V, cal(F)[N])) \
+  &(V_r eq.delta lambda y.epromst("op", x med r med s, M, y, p, punct("val") p))
+$
+
+The reinstaller $r$ is realized as a function which takes an updated state value as argument, recreates the original promise handler
+with the new state, and returns the corresponding promise variable.
+The _current_ state value $W$ is simply bound to $s$ in $M$.
+
+We can type these extended handlers via the following rule:
+
+#align(center, rule-set(onerule(
+  name: "E-PromRS",
+  $Gamma tack V: A$,
+  $E' subset.eq.sq E[sans("op")]$,
+  $Gamma, x: Sigma[sans("op")],
+  r: A -->^(sans("op"): E') circle C, s: A tack
+  M: circle C bang E'$,
+  $Gamma, p: circle C tack N: B bang E$,
+  $Gamma tack epromst("op", x med r med s, M, V, p, N):
+  B bang E$
+)))
+
+=== Recursive Types
+
+Consider the handler which always reinstalls itself:
+$
+  eprom("op", x med r, r (), p, N)
+$
+This should have the effect type
+$[sans("op") mapsto [sans("op") mapsto [sans("op") mapsto ...]]]$,
+ad infinitum.
+
+Ahman and Pretnar model these infinite
+effect types via a greatest fixed point.
+To work in a DSL of effect types, we must explicitly
+consider recursion. We want to write the above type as
+$mu epsilon . [sans("op") mapsto epsilon]$.
+
+$
+  E &::= angle(rho) | epsilon | mu epsilon . E \
+  rho &::= emptyset | rho, sans("op"): E
+$
+
+We must forbid _non-contractive_ types of form e.g. $mu epsilon . epsilon$.
+
+Our join algorithm now has the following case,
+and is no longer obviously terminating:
+
+$
+  angle(rho) union.sq mu epsilon. F eq.delta angle(rho) union.sq F[mu epsilon. F\/ epsilon]
+$
+
+(to be continued...)
+
+= Continuations <cont>
+
+= Parallel Fragment <par>
+
+= Asynchrony & Inbound Effects <inbound>
+
+= Inbound Effects are Delimited Control <dc>
+
+= Non-Deterministic Concurrency <ndc>
+
 = Peeling Back the Layers
 
 Starting with Ahman and Pretnar's asynchronous effects,
 we progressively strip away inessential features to reach
 the core operational insight _beyond_ asynchrony: the _inversion of effect flow_.
 
-== $lambda_æ$, "Put Simply" <lambda-ae-simply>
+== $lambda_æ$, "Put Simply"
 
 A re-presentation of Ahman and Pretnar's original calculus
 of asynchronous effects, $lambda_æ$, with a streamlined
